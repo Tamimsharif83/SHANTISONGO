@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign Up - শান্তিসংঘ (SHANTISONGHO)</title>
+    <link rel="stylesheet" href="/styles/signup-style.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-logo" onclick="logoRefreshAnimation()">
+          <div class="logo-placeholder">
+            <img
+              src="/logo/without_bg_logo.png"
+              alt="Shantisangho Logo"
+              class="logo-icon"
+            />
+          </div>
+          <div class="logo-text">
+            <h1>শান্তিসংঘ</h1>
+            <p>SHANTISONGHO</p>
+          </div>
+        </div>
+
+        <div class="nav-links">
+          <button class="nav-btn" onclick="navigateTo('index.html')">
+            Home
+          </button>
+          <button class="nav-btn" onclick="navigateTo('login.html')">
+            Login
+          </button>
+          <button class="nav-btn active" onclick="navigateTo('signup.html')">
+            Sign Up
+          </button>
+
+          <div class="dark-mode-toggle">
+            <span class="sun-icon">🌞</span>
+            <button class="toggle-btn" onclick="toggleDarkMode()">
+              <span class="toggle-slider"></span>
+            </button>
+            <span class="moon-icon">🌙</span>
+          </div>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+
+      <!-- Mobile Menu -->
+      <div class="mobile-menu" id="mobileMenu">
+        <div class="mobile-menu-content">
+          <button class="mobile-nav-btn" onclick="navigateTo('index.html')">
+            Home
+          </button>
+          <button class="mobile-nav-btn" onclick="navigateTo('login.html')">
+            Login
+          </button>
+          <button
+            class="mobile-nav-btn active"
+            onclick="navigateTo('signup.html')"
+          >
+            Sign Up
+          </button>
+          <div class="mobile-dark-toggle">
+            <span>🌞</span>
+            <button class="mobile-toggle-btn" onclick="toggleDarkMode()">
+              <span class="mobile-toggle-slider"></span>
+            </button>
+            <span>🌙</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Dynamic Background -->
+    <div class="background-container">
+      <div class="gradient-bg"></div>
+      <div class="animated-patterns">
+        <!-- Islamic geometric patterns will be added via JavaScript -->
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="signup-main">
+      <div class="signup-container">
+        <div class="signup-card">
+          <div class="signup-header">
+            <div class="signup-logo">
+              <img
+                src="/logo/without_bg_logo.png"
+                alt="Shantisangho Logo"
+                class="signup-logo-animation"
+              />
+            </div>
+            <div class="signup-title">
+              <h1>Join SHANTISONGHO</h1>
+              <p>Create your member account</p>
+            </div>
+          </div>
+
+          <form class="signup-form" id="signupForm">
+            <!-- Full Name -->
+            <div class="form-group">
+              <label class="form-label">Full Name *</label>
+              <input
+                type="text"
+                id="fullName"
+                name="fullName"
+                class="form-input"
+                placeholder="Enter your full name"
+                required
+              />
+              <div class="error-message" id="fullNameError"></div>
+            </div>
+
+            <!-- Email and Phone -->
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Email Address *</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  class="form-input"
+                  placeholder="example@email.com"
+                  required
+                />
+                <div class="error-message" id="emailError"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Phone Number *</label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  class="form-input"
+                  placeholder="01XXXXXXXXX"
+                  required
+                />
+                <div class="error-message" id="phoneError"></div>
+              </div>
+            </div>
+
+            <!-- Member ID -->
+            <div class="form-group">
+              <label class="form-label">Member ID *</label>
+              <input
+                type="text"
+                id="memberId"
+                name="memberId"
+                class="form-input"
+                placeholder="Enter your assigned member ID"
+                required
+              />
+              <div class="error-message" id="memberIdError"></div>
+              <div class="form-help">
+                Contact organization to get your member ID before registration
+              </div>
+            </div>
+
+            <!-- NID -->
+            <div class="form-group">
+              <label class="form-label">National ID Number *</label>
+              <input
+                type="text"
+                id="nid"
+                name="nid"
+                class="form-input"
+                placeholder="Enter your NID number"
+                required
+              />
+              <div class="error-message" id="nidError"></div>
+            </div>
+
+            <!-- Address -->
+            <div class="form-group">
+              <label class="form-label">Address *</label>
+              <textarea
+                id="address"
+                name="address"
+                class="form-textarea"
+                placeholder="Enter your complete address"
+                rows="3"
+                required
+              ></textarea>
+              <div class="error-message" id="addressError"></div>
+            </div>
+
+            <!-- Password -->
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Password *</label>
+                <div class="password-input-container">
+                  <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="form-input"
+                    placeholder="Enter password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    onclick="togglePasswordVisibility('password')"
+                  >
+                    <svg
+                      class="eye-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div class="error-message" id="passwordError"></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Confirm Password *</label>
+                <div class="password-input-container">
+                  <input
+                    type="password"
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    class="form-input"
+                    placeholder="Confirm password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    onclick="togglePasswordVisibility('confirmPassword')"
+                  >
+                    <svg
+                      class="eye-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div class="error-message" id="confirmPasswordError"></div>
+              </div>
+            </div>
+
+            <!-- Terms and Conditions -->
+            <div class="form-group">
+              <div class="checkbox-group">
+                <input
+                  type="checkbox"
+                  id="agreeTerms"
+                  name="agreeTerms"
+                  required
+                />
+                <label for="agreeTerms">
+                  I agree to the
+                  <button type="button" class="link-btn" onclick="showTerms()">
+                    terms and conditions
+                  </button>
+                  of SHANTISONGHO and confirm that all information provided is
+                  accurate.
+                </label>
+              </div>
+              <div class="error-message" id="agreeTermsError"></div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-group">
+              <button
+                type="submit"
+                class="btn btn-primary signup-btn"
+                id="signupBtn"
+              >
+                <span class="btn-text">Create Account</span>
+                <div class="btn-loading" style="display: none">
+                  <svg class="spinner" viewBox="0 0 24 24">
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Creating Account...
+                </div>
+              </button>
+            </div>
+
+            <!-- Login Link -->
+            <div class="login-link">
+              <p>
+                Already have an account?
+                <button
+                  type="button"
+                  class="link-btn"
+                  onclick="navigateTo('login.html')"
+                >
+                  Login here
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
+
+        <!-- Information Section -->
+        <div class="info-section">
+          <div class="info-card">
+            <h3>Why Join SHANTISONGHO?</h3>
+            <ul class="info-list">
+              <li>
+                <span class="info-icon">✅</span>
+                <span>100% Sharia-compliant financial services</span>
+              </li>
+              <li>
+                <span class="info-icon">💰</span>
+                <span>Profit-sharing investment opportunities</span>
+              </li>
+              <li>
+                <span class="info-icon">🤝</span>
+                <span>Interest-free loans and financial support</span>
+              </li>
+              <li>
+                <span class="info-icon">🏘️</span>
+                <span>Community development initiatives</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="/js/signup.js"></script>
+  </body>
+</html>
