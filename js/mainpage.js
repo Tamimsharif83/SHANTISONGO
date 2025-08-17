@@ -2,13 +2,13 @@
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
 let mobileMenuOpen = false;
 
-// Initialize
+// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
     initializeTheme();
     initializeAnimations();
     initializeScrollEffects();
-    initializeMobileMenu();
-    console.log('SHANTISONGHO website initialized');
+    initializeCounters();
+    console.log('SHANTISONGHO mainpage initialized');
 });
 
 // Theme Management
@@ -31,25 +31,20 @@ function toggleDarkMode() {
 }
 
 function updateToggleButton() {
-    const sliders = document.querySelectorAll('.toggle-slider');
+    const sliders = document.querySelectorAll('.toggle-slider, .mobile-toggle-slider');
     sliders.forEach(slider => {
         slider.style.transform = isDarkMode ? 'translateX(1.5rem)' : 'translateX(0)';
     });
 }
 
-// Navigation
+// Navigation Functions
 function navigateTo(page) {
-    // Close mobile menu if open
     if (mobileMenuOpen) {
         toggleMobileMenu();
     }
     
-    // Add loading effect
     document.body.style.opacity = '0.9';
     document.body.style.transition = 'opacity 0.3s ease';
-    
-    // Create ripple effect
-    createRippleEffect(event.target);
     
     setTimeout(() => {
         window.location.href = page;
@@ -58,18 +53,16 @@ function navigateTo(page) {
 
 function logoRefresh() {
     const logo = document.querySelector('.nav-logo');
-    const logoIcon = document.querySelector('.logo-icon');
+    const logoIcon = document.querySelector('.logo-icon svg');
     
-    // Add refresh animation
     logo.style.transform = 'scale(1.1) rotate(360deg)';
-    logoIcon.style.filter = 'drop-shadow(0 8px 16px rgba(34, 197, 94, 0.5))';
+    logoIcon.style.filter = 'drop-shadow(0 8px 16px rgba(30, 126, 52, 0.5))';
     
     setTimeout(() => {
         logo.style.transform = '';
         logoIcon.style.filter = '';
     }, 600);
     
-    // Smooth scroll to top with easing
     window.scrollTo({
         top: 0,
         behavior: 'smooth'
@@ -80,22 +73,6 @@ function logoRefresh() {
 }
 
 // Mobile Menu
-function initializeMobileMenu() {
-    const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
-    const mobileMenu = document.getElementById('mobileMenu');
-    
-    if (mobileMenuBtn && mobileMenu) {
-        mobileMenuBtn.addEventListener('click', toggleMobileMenu);
-        
-        // Close menu when clicking outside
-        document.addEventListener('click', function(e) {
-            if (mobileMenuOpen && !mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
-                toggleMobileMenu();
-            }
-        });
-    }
-}
-
 function toggleMobileMenu() {
     const mobileMenu = document.getElementById('mobileMenu');
     const menuBtn = document.querySelector('.mobile-menu-btn');
@@ -106,7 +83,6 @@ function toggleMobileMenu() {
     if (mobileMenuOpen) {
         mobileMenu.style.display = 'block';
         setTimeout(() => {
-            mobileMenu.classList.add('active');
             mobileMenu.style.opacity = '1';
             mobileMenu.style.transform = 'translateY(0)';
         }, 10);
@@ -118,7 +94,6 @@ function toggleMobileMenu() {
         
         menuBtn.style.transform = 'rotate(90deg)';
     } else {
-        mobileMenu.classList.remove('active');
         mobileMenu.style.opacity = '0';
         mobileMenu.style.transform = 'translateY(-10px)';
         
@@ -135,9 +110,9 @@ function toggleMobileMenu() {
     }
 }
 
-// Information Modal with enhanced styling
+// Information Modal
 function showInfo(type) {
-    let title, message, icon;
+    let title, message;
     
     switch(type) {
         case 'investment':
@@ -148,16 +123,11 @@ function showInfo(type) {
             title = '📋 Terms & Conditions';
             message = 'Our terms are based on Islamic financial principles. All transactions are interest-free, transparent, and follow Sharia compliance guidelines established by renowned Islamic scholars.\n\n✅ Interest-Free Operations\n✅ Full Transparency\n✅ Islamic Compliance\n✅ Member Protection';
             break;
-        case 'privacy':
-            title = '🔒 Privacy Policy';
-            message = 'We protect your personal information according to Islamic privacy principles and modern data protection standards. Your data is never shared without consent.\n\n✅ Data Protection\n✅ Privacy Compliance\n✅ Secure Storage\n✅ No Unauthorized Sharing';
-            break;
         default:
             title = 'ℹ️ Information';
             message = 'For more detailed information, please contact us directly or visit our member portal.';
     }
     
-    // Create custom modal
     createCustomModal(title, message);
 }
 
@@ -341,15 +311,11 @@ function initializeAnimations() {
     }, observerOptions);
 
     // Observe service cards and features
-    document.querySelectorAll('.service-card, .feature, .stat-item').forEach(el => {
-        el.classList.add('animate-on-scroll');
+    document.querySelectorAll('.service-card, .about-list li, .stat-item').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(30px)';
+        el.style.transition = 'all 0.6s ease';
         observer.observe(el);
-    });
-    
-    // Add stagger animation to hero buttons
-    const heroButtons = document.querySelectorAll('.hero-buttons .btn');
-    heroButtons.forEach((btn, index) => {
-        btn.style.animationDelay = `${0.8 + (index * 0.2)}s`;
     });
 }
 
@@ -364,188 +330,67 @@ function initializeScrollEffects() {
         // Enhanced navbar scroll effect
         if (currentScrollY > 100) {
             navbar.style.background = isDarkMode ? 
-                'rgba(15, 23, 42, 0.98)' : 
+                'rgba(13, 17, 23, 0.98)' : 
                 'rgba(255, 255, 255, 0.98)';
-            navbar.style.boxShadow = '0 4px 30px rgba(34, 197, 94, 0.2)';
+            navbar.style.boxShadow = '0 4px 30px rgba(30, 126, 52, 0.2)';
             navbar.style.backdropFilter = 'blur(20px)';
         } else {
             navbar.style.background = isDarkMode ? 
-                'rgba(15, 23, 42, 0.95)' : 
+                'rgba(13, 17, 23, 0.95)' : 
                 'rgba(255, 255, 255, 0.95)';
-            navbar.style.boxShadow = '0 4px 30px rgba(34, 197, 94, 0.1)';
-        }
-        
-        // Parallax effect for hero section
-        const heroSection = document.querySelector('.hero-section');
-        if (heroSection) {
-            const parallaxSpeed = currentScrollY * 0.5;
-            heroSection.style.transform = `translateY(${parallaxSpeed}px)`;
+            navbar.style.boxShadow = '0 4px 30px rgba(30, 126, 52, 0.1)';
         }
         
         lastScrollY = currentScrollY;
     }, { passive: true });
 }
 
-// Create ripple effect
-function createRippleEffect(element) {
-    const rect = element.getBoundingClientRect();
-    const ripple = document.createElement('span');
-    const size = Math.max(rect.width, rect.height);
+// Counter Animation Function
+function initializeCounters() {
+    const counters = document.querySelectorAll('.stat-item h3[data-count]');
     
-    ripple.style.width = ripple.style.height = size + 'px';
-    ripple.style.left = (event.clientX - rect.left - size / 2) + 'px';
-    ripple.style.top = (event.clientY - rect.top - size / 2) + 'px';
-    ripple.style.position = 'absolute';
-    ripple.style.borderRadius = '50%';
-    ripple.style.background = 'rgba(34, 197, 94, 0.3)';
-    ripple.style.transform = 'scale(0)';
-    ripple.style.animation = 'ripple 0.6s linear';
-    ripple.style.pointerEvents = 'none';
+    const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                animateCounter(entry.target);
+                counterObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.5 });
     
-    element.style.position = 'relative';
-    element.appendChild(ripple);
-    
-    setTimeout(() => {
-        ripple.remove();
-    }, 600);
+    counters.forEach(counter => {
+        counterObserver.observe(counter);
+    });
 }
 
-// Counter Animation Function
-function animateCounters() {
-  const counters = document.querySelectorAll('.stat-item h3');
-  
-  counters.forEach(counter => {
-    const target = counter.textContent;
-    let finalValue, suffix = '';
+function animateCounter(counter) {
+    const target = parseFloat(counter.dataset.count);
+    const isDecimal = target % 1 !== 0;
+    const isCurrency = counter.textContent.includes('৳');
+    const hasL = counter.textContent.includes('L');
     
-    // Extract numeric value and suffix
-    if (target.includes('৳') && target.includes('L')) {
-      // Handle currency with L (Lakh)
-      finalValue = parseFloat(target.replace('৳', '').replace('L+', '').replace('+', ''));
-      suffix = 'L+';
-    } else if (target.includes('৳')) {
-      // Handle currency only
-      finalValue = parseFloat(target.replace('৳', '').replace('+', ''));
-      suffix = '+';
-    } else if (target.includes('+')) {
-      // Handle numbers with +
-      finalValue = parseFloat(target.replace('+', ''));
-      suffix = '+';
-    } else if (target.includes('%')) {
-      // Handle percentage
-      finalValue = parseFloat(target.replace('%', ''));
-      suffix = '%';
-    } else if (target.includes('/')) {
-      // Handle 24/7 format
-      finalValue = target;
-      suffix = '';
-    } else {
-      // Handle plain numbers
-      finalValue = parseFloat(target);
-    }
-    
-    // Special handling for 24/7
-    if (target === '24/7') {
-      animateSpecialText(counter, '24/7');
-      return;
-    }
-    
-    // Reset counter to 0
-    counter.textContent = target.includes('৳') ? '৳0' + (suffix.includes('L') ? 'L' : '') : '0' + suffix;
-    
-    // Animation parameters
-    const duration = 2000; // 2 seconds
-    const steps = 60; // 60 steps for smooth animation
-    const stepDuration = duration / steps;
-    const increment = finalValue / steps;
-    
-    let currentValue = 0;
-    let step = 0;
+    let current = 0;
+    const increment = target / 100;
+    const duration = 2000;
+    const stepTime = duration / 100;
     
     const timer = setInterval(() => {
-      step++;
-      currentValue += increment;
-      
-      if (step >= steps) {
-        currentValue = finalValue;
-        clearInterval(timer);
-      }
-      
-      // Format the display value
-      let displayValue;
-      if (target.includes('৳')) {
-        if (suffix.includes('L')) {
-          displayValue = `৳${currentValue.toFixed(1)}${suffix}`;
-        } else {
-          displayValue = `৳${Math.floor(currentValue)}${suffix}`;
+        current += increment;
+        
+        if (current >= target) {
+            current = target;
+            clearInterval(timer);
         }
-      } else {
-        displayValue = `${currentValue % 1 === 0 ? Math.floor(currentValue) : currentValue.toFixed(1)}${suffix}`;
-      }
-      
-      counter.textContent = displayValue;
-    }, stepDuration);
-  });
+        
+        let displayValue = isDecimal ? current.toFixed(1) : Math.floor(current);
+        
+        if (isCurrency) {
+            counter.textContent = `৳${displayValue}${hasL ? 'L+' : '+'}`;
+        } else {
+            counter.textContent = `${displayValue}+`;
+        }
+    }, stepTime);
 }
-
-// Special animation for 24/7 text
-function animateSpecialText(element, finalText) {
-  element.textContent = '0/0';
-  
-  setTimeout(() => {
-    element.textContent = '12/3';
-  }, 500);
-  
-  setTimeout(() => {
-    element.textContent = '18/5';
-  }, 1000);
-  
-  setTimeout(() => {
-    element.textContent = '22/6';
-  }, 1500);
-  
-  setTimeout(() => {
-    element.textContent = finalText;
-  }, 2000);
-}
-
-// Intersection Observer for triggering animation when section comes into view
-function setupScrollTrigger() {
-  const statsSection = document.querySelector('.stats-section');
-  
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        animateCounters();
-        observer.unobserve(entry.target); // Only animate once
-      }
-    });
-  }, {
-    threshold: 0.5 // Trigger when 50% of the section is visible
-  });
-  
-  if (statsSection) {
-    observer.observe(statsSection);
-  }
-}
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  // Option 1: Trigger animation immediately
-  // animateCounters();
-  
-  // Option 2: Trigger animation when section comes into view (recommended)
-  setupScrollTrigger();
-  
-  // Option 3: Trigger animation after a delay
-  // setTimeout(animateCounters, 500);
-});
-
-// Optional: Function to restart animation (useful for testing)
-function restartAnimation() {
-  animateCounters();
-}
-
 
 // Create particles effect
 function createParticles() {
@@ -558,12 +403,12 @@ function createParticles() {
     particlesContainer.style.pointerEvents = 'none';
     particlesContainer.style.zIndex = '9999';
     
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 15; i++) {
         const particle = document.createElement('div');
         particle.style.position = 'absolute';
         particle.style.width = '4px';
         particle.style.height = '4px';
-        particle.style.background = '#22c55e';
+        particle.style.background = '#4caf50';
         particle.style.borderRadius = '50%';
         particle.style.left = Math.random() * 100 + '%';
         particle.style.top = Math.random() * 100 + '%';
@@ -579,16 +424,9 @@ function createParticles() {
     }, 2000);
 }
 
-// Add CSS animations for particles and ripples
+// Add CSS animations for particles
 const additionalStyles = document.createElement('style');
 additionalStyles.textContent = `
-    @keyframes ripple {
-        to {
-            transform: scale(4);
-            opacity: 0;
-        }
-    }
-    
     @keyframes particleFloat {
         0% {
             opacity: 1;
@@ -614,20 +452,12 @@ window.addEventListener('resize', () => {
     }
 });
 
-// Performance optimization - pause animations when tab is not visible
-document.addEventListener('visibilitychange', () => {
-    const animatedElements = document.querySelectorAll('[style*="animation"]');
-    
-    if (document.hidden) {
-        animatedElements.forEach(el => {
-            el.style.animationPlayState = 'paused';
-        });
-    } else {
-        animatedElements.forEach(el => {
-            el.style.animationPlayState = 'running';
-        });
-    }
-});
+// Initialize theme on page load
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeTheme);
+} else {
+    initializeTheme();
+}
 
 // Add button hover effects
 document.addEventListener('DOMContentLoaded', function() {
@@ -643,24 +473,3 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-
-// Add smooth scrolling for internal links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-            target.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start'
-            });
-        }
-    });
-});
-
-// Initialize everything when DOM is loaded
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeTheme);
-} else {
-    initializeTheme();
-}
