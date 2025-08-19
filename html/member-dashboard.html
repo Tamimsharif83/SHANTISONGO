@@ -12,32 +12,17 @@
       <div class="nav-container">
         <div class="nav-left">
           <div class="logo">
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <circle
-                cx="20"
-                cy="20"
-                r="19"
-                stroke="#1e7e34"
-                stroke-width="2"
-              />
-              <path d="m20 8 8 10-8 4 8 4Z" fill="#1e7e34" />
-              <path
-                d="M16 18c0-1 .5-2 1.5-2h5c1-2 2.5-2 3.5 0v6c0 1-.5 2-1.5 2h-5c-1 0-1.5-1-1.5-2Z"
-                fill="#4caf50"
-              />
-              <circle cx="20" cy="30" r="2" fill="#2196f3" />
-            </svg>
-            <div>
+            <img
+              src="/logo/without_bg_logo.png"
+              alt="nav-logo"
+              class="nav-logo"
+            />
+            <div class="logo-text">
               <span class="logo-bangla">শান্তিসংঘ</span>
               <span class="logo-english">SHANTISONGHO</span>
             </div>
           </div>
+
           <div class="dashboard-title">Member's Dashboard</div>
         </div>
         <div class="nav-right">
@@ -154,10 +139,9 @@
                 fill="none"
                 stroke="currentColor"
               >
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                <path d="M16 3.13a4 4 0 010 7.75" />
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                />
               </svg>
               Board Members
             </div>
@@ -173,9 +157,10 @@
                 fill="none"
                 stroke="currentColor"
               >
-                <path
-                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                />
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
               </svg>
               Committee
             </div>
@@ -195,7 +180,7 @@
                 <circle cx="12" cy="16" r="1" />
                 <path d="M7 11V7a5 5 0 0110 0v4" />
               </svg>
-              Change Password
+              Password
             </div>
             <div
               class="menu-item"
@@ -232,7 +217,7 @@
                   d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"
                 />
               </svg>
-              Support Chat
+              Support
             </div>
           </div>
         </div>
@@ -264,17 +249,25 @@
                 </div>
               </div>
               <div class="member-photo">
-                <div class="photo-placeholder">
-                  <svg
-                    width="60"
-                    height="60"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                <div class="photo-container" id="dashboardPhoto">
+                  <img
+                    id="dashboardProfileImage"
+                    src=""
+                    alt="Profile"
+                    style="display: none"
+                  />
+                  <div class="photo-placeholder" id="dashboardPhotoPlaceholder">
+                    <svg
+                      width="60"
+                      height="60"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
                 </div>
                 <span>Photo</span>
               </div>
@@ -284,7 +277,6 @@
           <!-- Financial Highlights -->
           <div class="financial-highlights">
             <h2>Financial Highlights</h2>
-
             <div class="highlights-section">
               <h3>Deposit Related</h3>
               <div class="highlights-grid">
@@ -302,7 +294,6 @@
                 </div>
               </div>
             </div>
-
             <div class="highlights-section">
               <h3>Investment Related</h3>
               <div class="highlights-grid">
@@ -325,6 +316,24 @@
               </div>
             </div>
           </div>
+
+          <!-- All Members Section (moved here from separate section) -->
+          <div class="members-section">
+            <div class="section-header">
+              <h2>All Members</h2>
+              <div class="members-search">
+                <input
+                  type="text"
+                  id="membersSearch"
+                  placeholder="Search members..."
+                  onkeyup="filterMembers()"
+                />
+              </div>
+            </div>
+            <div class="members-grid" id="membersGrid">
+              <div class="loading-members">Loading members...</div>
+            </div>
+          </div>
         </section>
 
         <!-- Profile Section -->
@@ -336,6 +345,54 @@
             </button>
           </div>
           <div class="profile-content">
+            <!-- Profile Picture Section -->
+            <div class="profile-picture-section">
+              <div class="profile-picture-container">
+                <div class="profile-picture" id="profilePicture">
+                  <img
+                    id="profileImage"
+                    src=""
+                    alt="Profile"
+                    style="display: none"
+                  />
+                  <div class="picture-placeholder" id="picturePlaceholder">
+                    <svg
+                      width="80"
+                      height="80"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                </div>
+                <div class="picture-upload">
+                  <input
+                    type="file"
+                    id="profilePictureInput"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <button
+                    class="btn btn-secondary"
+                    onclick="document.getElementById('profilePictureInput').click()"
+                  >
+                    Upload Photo
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    onclick="removeProfilePicture()"
+                    id="removePhotoBtn"
+                    style="display: none"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <form id="profileForm" class="profile-form">
               <div class="form-group">
                 <label>Full Name</label>
@@ -422,8 +479,6 @@
               New Application
             </button>
           </div>
-
-          <!-- Investment Applications List -->
           <div class="investment-list">
             <div class="investment-item">
               <div class="investment-header">
@@ -457,43 +512,6 @@
                 </button>
               </div>
             </div>
-
-            <div class="investment-item">
-              <div class="investment-header">
-                <span class="investment-id">INV-2025-002</span>
-                <span class="investment-status pending"
-                  >Under Consideration</span
-                >
-              </div>
-              <div class="investment-details">
-                <div class="detail-item">
-                  <label>Amount Requested:</label>
-                  <span>৳25,000</span>
-                </div>
-                <div class="detail-item">
-                  <label>Purpose:</label>
-                  <span>Home Improvement</span>
-                </div>
-                <div class="detail-item">
-                  <label>Application Date:</label>
-                  <span>28 Jan 2025</span>
-                </div>
-              </div>
-              <div class="investment-actions">
-                <button
-                  class="btn btn-sm"
-                  onclick="editInvestment('INV-2025-002')"
-                >
-                  Edit
-                </button>
-                <button
-                  class="btn btn-sm"
-                  onclick="viewInvestment('INV-2025-002')"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -514,7 +532,6 @@
             </button>
           </div>
 
-          <!-- Deposits Reports -->
           <div id="deposits-reports" class="report-tab active">
             <div class="report-filters">
               <div class="filter-group">
@@ -558,7 +575,6 @@
             <div id="depositReportResults" class="report-results"></div>
           </div>
 
-          <!-- Investments Reports -->
           <div id="investments-reports" class="report-tab">
             <div class="report-filters">
               <div class="filter-group">
@@ -594,7 +610,6 @@
             <div id="investmentReportResults" class="report-results"></div>
           </div>
 
-          <!-- Personal Book -->
           <div id="personal-reports" class="report-tab">
             <div class="report-filters">
               <div class="filter-group">
@@ -628,93 +643,108 @@
         <section id="board" class="content-section">
           <div class="section-header">
             <h2>Board of Members</h2>
+            <div class="board-info">
+              <span class="board-count">15 Members Selected</span>
+            </div>
           </div>
-          <div class="board-grid">
-            <div class="board-member">
-              <div class="member-avatar">
-                <svg
-                  width="40"
-                  height="40"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <h4>Md. Abdul Rahman</h4>
-              <p>Chairman</p>
-              <span class="member-id">SS000001</span>
-            </div>
-            <div class="board-member">
-              <div class="member-avatar">
-                <svg
-                  width="40"
-                  height="40"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <h4>Md. Karim Uddin</h4>
-              <p>Vice Chairman</p>
-              <span class="member-id">SS000002</span>
-            </div>
-            <div class="board-member">
-              <div class="member-avatar">
-                <svg
-                  width="40"
-                  height="40"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                >
-                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <h4>Mrs. Fatima Begum</h4>
-              <p>Secretary</p>
-              <span class="member-id">SS000003</span>
-            </div>
+          <div class="board-description">
+            <p>
+              According to organizational policy, the Board of Members consists
+              of 15 selected members who guide all major decisions. From this
+              board, an Executive Committee of 3 members is formed through
+              majority vote.
+            </p>
+          </div>
+          <div class="board-grid" id="boardGrid">
+            <div class="loading-board">Loading board members...</div>
           </div>
         </section>
 
         <!-- Committee Section -->
         <section id="committee" class="content-section">
           <div class="section-header">
-            <h2>Present Committee</h2>
+            <h2>Executive Committee</h2>
+            <div class="committee-term-info">
+              <span class="term-period">Term: 2025-2027</span>
+            </div>
           </div>
           <div class="committee-info">
-            <div class="committee-term">
-              <h3>Committee Term: 2025-2027</h3>
-              <p>Elected on: January 1, 2025</p>
+            <div class="committee-description">
+              <p>
+                The Executive Committee consists of 3 members elected from the
+                Board of Members through majority vote. They serve a 2-year term
+                and operate under the guidance of the Board of Members.
+              </p>
             </div>
             <div class="committee-grid">
               <div class="committee-member">
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
                 <h4>President</h4>
                 <p>Md. Abdul Rahman</p>
-                <span>SS000001</span>
+                <span class="member-id">SS000001</span>
               </div>
               <div class="committee-member">
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
                 <h4>General Secretary</h4>
                 <p>Mrs. Fatima Begum</p>
-                <span>SS000003</span>
+                <span class="member-id">SS000003</span>
               </div>
               <div class="committee-member">
-                <h4>Treasurer</h4>
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <h4>Finance Secretary</h4>
                 <p>Md. Ibrahim Ali</p>
-                <span>SS000004</span>
+                <span class="member-id">SS000004</span>
               </div>
-              <div class="committee-member">
-                <h4>Joint Secretary</h4>
-                <p>Md. Hassan Ahmed</p>
-                <span>SS000005</span>
-              </div>
+            </div>
+            <div class="committee-notes">
+              <h4>Policy Notes:</h4>
+              <ul>
+                <li>
+                  New Executive Committee elected every 2 years through Annual
+                  General Meeting
+                </li>
+                <li>
+                  If a member dies, resigns, or is removed, replacement serves
+                  remaining term
+                </li>
+                <li>
+                  All major decisions must be approved by Board of Members
+                </li>
+                <li>Executive Committee operates under Board guidance</li>
+              </ul>
             </div>
           </div>
         </section>
@@ -781,18 +811,6 @@
                 for more details.
               </p>
             </div>
-            <div class="notice-item">
-              <div class="notice-header">
-                <span class="notice-badge">Reminder</span>
-                <span class="notice-date">25 Jan 2025</span>
-              </div>
-              <h4>Monthly Deposit Due Reminder</h4>
-              <p>
-                This is a reminder that monthly deposit payments are due by the
-                5th of each month. Please ensure timely payments to avoid any
-                inconvenience.
-              </p>
-            </div>
           </div>
         </section>
 
@@ -817,7 +835,7 @@
                 <input
                   type="text"
                   id="chatInput"
-                  placeholder="Type your message or complaint here..."
+                  placeholder="Type your message..."
                 />
                 <button class="send-btn" onclick="sendMessage()">
                   <svg
@@ -833,20 +851,6 @@
                 </button>
               </div>
               <div class="chat-actions">
-                <button class="btn btn-sm" onclick="attachFile()">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                  >
-                    <path
-                      d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66L9.64 16.2a2 2 0 01-2.83-2.83l8.49-8.48"
-                    />
-                  </svg>
-                  Attach
-                </button>
                 <button
                   class="btn btn-sm btn-primary"
                   onclick="startNewComplaint()"
