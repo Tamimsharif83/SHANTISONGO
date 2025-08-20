@@ -12,7 +12,7 @@
   --cyan-primary: #06b6d4;
 
   /* Background Colors */
-  --background: #ffffff;
+  --background: #f1f6ee;
   --background-secondary: #f8fafc;
   --foreground: #1f2937;
   --card: #ffffff;
@@ -31,7 +31,7 @@
 
 /* Dark Mode */
 .dark {
-  --background: #0d1117;
+  --background: #13171e;
   --background-secondary: #1a1f2e;
   --foreground: #ffffff;
   --card: #1a1f2e;
@@ -104,6 +104,14 @@ body {
 
 .logo-icon svg {
   filter: drop-shadow(0 4px 8px rgba(30, 126, 52, 0.3));
+}
+.nav-logo-img {
+  width: 50px;
+  /* smaller, cleaner */
+  height: auto;
+  /* keeps correct aspect ratio */
+  object-fit: contain;
+  /* prevents distortion */
 }
 
 .logo-text h1 {
@@ -388,6 +396,10 @@ body {
   margin: 0 auto;
   position: relative;
   z-index: 10;
+}
+.main-contant-logo{
+  width: 150px;
+  height: 150px;
 }
 
 .hero-logo {

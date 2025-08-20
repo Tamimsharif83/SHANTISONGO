@@ -12,7 +12,7 @@
     --cyan-primary: #06b6d4;
 
     /* Background Colors */
-    --background: #ffffff;
+    --background: #f9fdf4;
     --background-secondary: #f8fafc;
     --foreground: #1f2937;
     --card: #ffffff;
@@ -104,9 +104,14 @@ body {
 .nav-logo:hover {
     transform: scale(1.05);
 }
-
-.logo-icon svg {
-    filter: drop-shadow(0 4px 8px rgba(30, 126, 52, 0.3));
+.nav-logo-img {
+    width: 50px;
+    /* smaller, cleaner */
+    height: auto;
+    /* keeps correct aspect ratio */
+    object-fit: contain;
+    /* prevents distortion */
+    
 }
 
 .logo-text h1 {
@@ -408,6 +413,10 @@ body {
     margin-bottom: 1.5rem;
     animation: logoFloat 4s ease-in-out infinite;
     filter: drop-shadow(0 8px 32px rgba(30, 126, 52, 0.3));
+}
+.main-logo-img {
+    width: 120px;
+    height: 120px;
 }
 
 @keyframes logoFloat {
