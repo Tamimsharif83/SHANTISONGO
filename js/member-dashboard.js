@@ -10,12 +10,12 @@ class MemberDashboard {
         this.currentReportData = null;
         this.currentReportTitle = '';
         this.memberData = {
-            name: 'Mohammad Rahman',
+            name: 'M.M.Tamim Sharif',
             id: 'SS123456',
             shares: 5,
             memberSince: 'January 2025',
-            phone: '01712345678',
-            email: 'mohammad@example.com',
+            phone: '01788594010',
+            email: 'tamimsharif2181@gmail.com',
             address: '123 Main Street, Dhaka, Bangladesh',
             nid: '1234567890123'
         };
@@ -168,29 +168,35 @@ class MemberDashboard {
     }
 
     async fetchMembersFromMongoDB() {
-        // Simulate API call - replace with actual MongoDB API endpoint
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                resolve([
-                    { id: 'SS123456', name: 'Mohammad Rahman', status: 'Active', joinDate: '2025-01-15', isBoard: false },
-                    { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: true },
-                    { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: true },
-                    { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
-                    { id: 'SS123460', name: 'Rashida Khatun', status: 'Active', joinDate: '2025-01-20', isBoard: true },
-                    { id: 'SS123461', name: 'Ibrahim Ali', status: 'Active', joinDate: '2025-01-22', isBoard: true },
-                    { id: 'SS123462', name: 'Nasir Ahmed', status: 'Active', joinDate: '2025-01-25', isBoard: false },
-                    { id: 'SS123463', name: 'Salma Akter', status: 'Active', joinDate: '2025-01-28', isBoard: true },
-                    { id: 'SS123464', name: 'Hafez Rahman', status: 'Active', joinDate: '2025-01-30', isBoard: false },
-                    { id: 'SS123465', name: 'Ayesha Khan', status: 'Active', joinDate: '2025-02-01', isBoard: true },
-                    { id: 'SS123466', name: 'Omar Faruk', status: 'Active', joinDate: '2025-02-03', isBoard: true },
-                    { id: 'SS123467', name: 'Nadia Islam', status: 'Active', joinDate: '2025-02-05', isBoard: false },
-                    { id: 'SS123468', name: 'Shahid Hasan', status: 'Active', joinDate: '2025-02-07', isBoard: true },
-                    { id: 'SS123469', name: 'Rubina Akter', status: 'Active', joinDate: '2025-02-10', isBoard: true },
-                    { id: 'SS123470', name: 'Mizanur Rahman', status: 'Active', joinDate: '2025-02-12', isBoard: true }
-                ]);
-            }, 1000);
-        });
-    }
+    // Simulate API call - replace with actual MongoDB API endpoint
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            resolve([
+                { id: 'SS123456', name: 'Mohammad Rahman', status: 'Active', joinDate: '2025-01-15', isBoard: false },
+                { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: false },
+                { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: false },
+                { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
+                // New 15 Board Members
+                { id: 'SS200001', name: 'Sheikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200002', name: 'S. M. Tariqul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200003', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200004', name: 'Abu Bakkar Siddiq', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200005', name: 'Abid Jahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200006', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200007', name: 'Hanif Sheikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200008', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200009', name: 'Kazi Muhammad Ilyas', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200010', name: 'Sohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200011', name: 'Rasel Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200012', name: 'Sheikh Mahafuzur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200013', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200014', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: 'SS200015', name: 'Rezwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
+            ]);
+        }, 1000);
+    });
+}
+
 
     displayMembers(members) {
         const membersGrid = document.getElementById('membersGrid');
@@ -205,7 +211,7 @@ class MemberDashboard {
                 <h4>${member.name}</h4>
                 <div class="member-id">${member.id}</div>
                 <div class="member-status">${member.status}</div>
-                ${member.isBoard ? '<div class="member-status" style="background: var(--accent-orange); color: white;">Board Member</div>' : ''}
+                ${member.isBoard ? '<div class="member-status" style="background: var(--accent-orange); color: #a232deff;">Board Member</div>' : ''}
                 <div style="font-size: 0.8rem; color: var(--text-gray); margin-top: 0.5rem;">
                     Joined: ${new Date(member.joinDate).toLocaleDateString()}
                 </div>
