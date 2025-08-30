@@ -608,7 +608,7 @@ body {
     border: none;
     cursor: pointer;
     color: var(--muted-foreground);
-    transition: all 0.3s ease;
+    transition: color 0.3s ease, background 0.3s ease;
     padding: 0.5rem;
     border-radius: 0.5rem;
 }
@@ -616,6 +616,11 @@ body {
 .password-toggle:hover {
     color: var(--primary-color);
     background: rgba(30, 126, 52, 0.1);
+}
+
+.password-toggle:active {
+    /* Prevent button from moving down on click */
+    transform: translateY(-50%);
 }
 
 .eye-icon {
