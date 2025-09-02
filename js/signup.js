@@ -62,14 +62,29 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTheme();
     initializeForm();
     initializeAnimations();
-    // Fix mobile dark mode toggle
+    
+    // Handle both mobile and desktop dark mode toggles
     const mobileToggleBtn = document.querySelector('.mobile-toggle-btn');
+    const mobileDarkToggle = document.querySelector('.mobile-dark-toggle');
+    
     if (mobileToggleBtn) {
         mobileToggleBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             toggleDarkMode();
+            // Force update after toggle
+            requestAnimationFrame(() => updateToggleButton());
         });
     }
+    
+    if (mobileDarkToggle) {
+        mobileDarkToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleDarkMode();
+            // Force update after toggle
+            requestAnimationFrame(() => updateToggleButton());
+        });
+    }
+    
     console.log('SHANTISONGHO Signup page initialized');
 });
 
@@ -93,6 +108,18 @@ function updateToggleButton() {
     const sliders = document.querySelectorAll('.toggle-slider, .mobile-toggle-slider');
     sliders.forEach(slider => {
         slider.style.transform = isDarkMode ? 'translateX(1.5rem)' : 'translateX(0)';
+    });
+
+    // Update all sun icons (both desktop and mobile)
+    document.querySelectorAll('.sun-icon, .mobile-dark-toggle span:first-child').forEach(icon => {
+        icon.style.opacity = isDarkMode ? '0.5' : '1';
+        icon.style.color = isDarkMode ? '#64748b' : '#fbbf24';
+    });
+
+    // Update all moon icons (both desktop and mobile)
+    document.querySelectorAll('.moon-icon, .mobile-dark-toggle span:last-child').forEach(icon => {
+        icon.style.opacity = isDarkMode ? '1' : '0.5';
+        icon.style.color = isDarkMode ? '#4caf50' : '#64748b';
     });
 }
 
@@ -134,6 +161,8 @@ function toggleMobileMenu() {
         setTimeout(() => {
             mobileMenu.style.opacity = '1';
             mobileMenu.style.transform = 'translateY(0)';
+            // Force update the toggle button state
+            updateToggleButton();
         }, 10);
         
         spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';

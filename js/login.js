@@ -25,14 +25,29 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeLogin();
     initializeAnimations();
     loadRememberedCredentials();
-    // Only fix mobile dark mode toggle
+    
+    // Handle both mobile and desktop dark mode toggles
     const mobileToggleBtn = document.querySelector('.mobile-toggle-btn');
+    const mobileDarkToggle = document.querySelector('.mobile-dark-toggle');
+    
     if (mobileToggleBtn) {
         mobileToggleBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             toggleDarkMode();
+            // Force update after toggle
+            requestAnimationFrame(() => updateToggleButton());
         });
     }
+    
+    if (mobileDarkToggle) {
+        mobileDarkToggle.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleDarkMode();
+            // Force update after toggle
+            requestAnimationFrame(() => updateToggleButton());
+        });
+    }
+    
     console.log('SHANTISONGHO Login page initialized');
 });
 
@@ -57,23 +72,18 @@ function updateToggleButton() {
     sliders.forEach(slider => {
         slider.style.transform = isDarkMode ? 'translateX(1.5rem)' : 'translateX(0)';
     });
-    // Update sun and moon icon colors for feedback
-    const sunIcons = document.querySelectorAll('.sun-icon');
-    const moonIcons = document.querySelectorAll('.moon-icon');
-    sunIcons.forEach(icon => {
-        icon.style.color = isDarkMode ? '#aaa' : '#fbbf24';
+
+    // Update all sun icons (both desktop and mobile)
+    document.querySelectorAll('.sun-icon, .mobile-dark-toggle span:first-child').forEach(icon => {
+        icon.style.opacity = isDarkMode ? '0.5' : '1';
+        icon.style.color = isDarkMode ? '#64748b' : '#fbbf24';
     });
-    moonIcons.forEach(icon => {
-        icon.style.color = isDarkMode ? '#4caf50' : '#aaa';
+
+    // Update all moon icons (both desktop and mobile)
+    document.querySelectorAll('.moon-icon, .mobile-dark-toggle span:last-child').forEach(icon => {
+        icon.style.opacity = isDarkMode ? '1' : '0.5';
+        icon.style.color = isDarkMode ? '#4caf50' : '#64748b';
     });
-    // For mobile menu
-    const mobileMenu = document.getElementById('mobileMenu');
-    if (mobileMenu) {
-        const mobileSun = mobileMenu.querySelector('.mobile-dark-toggle span:first-child');
-        const mobileMoon = mobileMenu.querySelector('.mobile-dark-toggle span:last-child');
-        if (mobileSun) mobileSun.style.color = isDarkMode ? '#aaa' : '#fbbf24';
-        if (mobileMoon) mobileMoon.style.color = isDarkMode ? '#4caf50' : '#aaa';
-    }
 }
 
 // Navigation Functions
@@ -114,6 +124,8 @@ function toggleMobileMenu() {
         setTimeout(() => {
             mobileMenu.style.opacity = '1';
             mobileMenu.style.transform = 'translateY(0)';
+            // Force update the toggle button state
+            updateToggleButton();
         }, 10);
         
         spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
