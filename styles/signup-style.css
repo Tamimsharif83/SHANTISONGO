@@ -38,7 +38,8 @@
 
 /* Dark Mode */
 .dark {
-    --background: #0f170f;;
+    --background: #0f170f;
+    ;
     --background-secondary: #1a1f2e;
     --foreground: #ffffff;
     --card: #1a1f2e;
@@ -104,6 +105,7 @@ body {
 .nav-logo:hover {
     transform: scale(1.05);
 }
+
 .nav-logo-img {
     width: 50px;
     /* smaller, cleaner */
@@ -111,7 +113,7 @@ body {
     /* keeps correct aspect ratio */
     object-fit: contain;
     /* prevents distortion */
-    
+
 }
 
 .logo-text h1 {
@@ -414,6 +416,7 @@ body {
     animation: logoFloat 4s ease-in-out infinite;
     filter: drop-shadow(0 8px 32px rgba(30, 126, 52, 0.3));
 }
+
 .main-logo-img {
     width: 120px;
     height: 120px;

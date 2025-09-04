@@ -105,6 +105,7 @@ body {
 .logo-icon svg {
   filter: drop-shadow(0 4px 8px rgba(30, 126, 52, 0.3));
 }
+
 .nav-logo-img {
   width: 50px;
   /* smaller, cleaner */
@@ -397,7 +398,8 @@ body {
   position: relative;
   z-index: 10;
 }
-.main-contant-logo{
+
+.main-contant-logo {
   width: 150px;
   height: 150px;
 }
