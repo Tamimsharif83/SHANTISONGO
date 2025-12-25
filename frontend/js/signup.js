@@ -137,15 +137,18 @@ function logoRefresh() {
     const logo = document.querySelector('.nav-logo');
     const logoIcon = document.querySelector('.logo-icon svg');
     
-    logo.style.transform = 'scale(1.1) rotate(360deg)';
-    logoIcon.style.filter = 'drop-shadow(0 8px 16px rgba(30, 126, 52, 0.5))';
+    if (logo) {
+        logo.style.transform = 'scale(1.1) rotate(360deg)';
+    }
+    if (logoIcon) {
+        logoIcon.style.filter = 'drop-shadow(0 8px 16px rgba(30, 126, 52, 0.5))';
+    }
     
     setTimeout(() => {
-        logo.style.transform = '';
-        logoIcon.style.filter = '';
+        if (logo) logo.style.transform = '';
+        if (logoIcon) logoIcon.style.filter = '';
+        window.location.href = 'index.html';
     }, 600);
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Mobile Menu

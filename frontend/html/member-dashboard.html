@@ -4,16 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Member Dashboard - শান্তিসংঘ (SHANTISONGHO)</title>
-    <link rel="stylesheet" href="/styles/member-dashboard.css" />
+    <link rel="stylesheet" href="/frontend/styles/member-dashboard.css" />
   </head>
   <body>
     <!-- Navigation Header -->
     <nav class="top-nav">
       <div class="nav-container">
         <div class="nav-left">
-          <div class="logo">
+          <div class="logo" onclick="logoRefresh()" style="cursor: pointer;">
             <img
-              src="/logo/without_bg_logo.png"
+              src="/frontend/logo/without_bg_logo.png"
               alt="nav-logo"
               class="nav-logo"
             />
@@ -878,6 +878,6 @@
     <!-- Modals will be inserted here by JavaScript -->
     <div id="modalContainer"></div>
 
-    <script src="/js/member-dashboard.js"></script>
+    <script src="/frontend/js/member-dashboard.js"></script>
   </body>
 </html>

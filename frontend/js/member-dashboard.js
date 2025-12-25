@@ -919,3 +919,7 @@ document.addEventListener('keydown', (e) => {
     }
     if (e.key === 'Escape') closeModal();
 });
+
+function logoRefresh() {
+    window.location.href = 'index.html';
+}
