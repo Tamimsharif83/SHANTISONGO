@@ -173,7 +173,7 @@ class AdminDashboard {
 
     showSettings() {
         this.toggleProfileMenu();
-        this.showNotification('Opening settings...', 'info');
+        document.getElementById('settingsModal').style.display = 'block';
     }
 
     // Charts
@@ -582,12 +582,53 @@ function closeModal() {
 
 // Logout
 function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        dashboard.showLoading('Logging out...');
-        setTimeout(() => { 
-            window.location.href = 'login.html'; 
-        }, 1000);
+    showLogoutConfirmation();
+}
+
+function showLogoutConfirmation() {
+    const modal = document.createElement('div');
+    modal.className = 'logout-confirmation-modal';
+    modal.innerHTML = `
+        <div class="logout-modal-overlay" onclick="closeLogoutConfirmation()"></div>
+        <div class="logout-modal-content">
+            <div class="logout-modal-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+            </div>
+            <h3>Confirm Logout</h3>
+            <p>Are you sure you want to logout from admin dashboard?</p>
+            <div class="logout-modal-actions">
+                <button class="btn btn-secondary" onclick="closeLogoutConfirmation()">
+                    <span>Cancel</span>
+                </button>
+                <button class="btn btn-danger" onclick="confirmLogout()">
+                    <span>Yes, Logout</span>
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    setTimeout(() => modal.classList.add('show'), 10);
+}
+
+function closeLogoutConfirmation() {
+    const modal = document.querySelector('.logout-confirmation-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => modal.remove(), 300);
     }
+}
+
+function confirmLogout() {
+    closeLogoutConfirmation();
+    dashboard.showNotification('Logging out...', 'info');
+    sessionStorage.clear();
+    localStorage.removeItem('adminSession');
+    setTimeout(() => { 
+        window.location.href = '/frontend/html/login.html'; 
+    }, 800);
 }
 
 // Keyboard shortcuts
@@ -680,3 +721,357 @@ console.log('- Escape: Close modals/panels');
 function logoRefresh() {
     window.location.href = 'index.html';
 }
+
+// Settings Modal Functions
+function closeSettingsModal() {
+    document.getElementById('settingsModal').style.display = 'none';
+    document.getElementById('passwordChangeForm').reset();
+    clearPasswordErrors();
+}
+
+function togglePasswordField(fieldId) {
+    const field = document.getElementById(fieldId);
+    const btn = field.nextElementSibling;
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        btn.textContent = '🙈';
+    } else {
+        field.type = 'password';
+        btn.textContent = '👁️';
+    }
+}
+
+function validateNewPassword() {
+    const newPassword = document.getElementById('newPassword').value;
+    const reqLength = document.getElementById('req-length');
+    const errorMsg = document.getElementById('newPasswordError');
+    
+    if (newPassword.length >= 6) {
+        reqLength.classList.add('valid');
+        reqLength.classList.remove('invalid');
+        errorMsg.textContent = '';
+        return true;
+    } else {
+        reqLength.classList.add('invalid');
+        reqLength.classList.remove('valid');
+        if (newPassword.length > 0) {
+            errorMsg.textContent = 'Password must be at least 6 characters';
+        }
+        return false;
+    }
+}
+
+function validateConfirmPassword() {
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    const reqMatch = document.getElementById('req-match');
+    const errorMsg = document.getElementById('confirmPasswordError');
+    
+    if (confirmPassword.length === 0) {
+        reqMatch.classList.remove('valid', 'invalid');
+        errorMsg.textContent = '';
+        return false;
+    }
+    
+    if (newPassword === confirmPassword) {
+        reqMatch.classList.add('valid');
+        reqMatch.classList.remove('invalid');
+        errorMsg.textContent = '';
+        return true;
+    } else {
+        reqMatch.classList.add('invalid');
+        reqMatch.classList.remove('valid');
+        errorMsg.textContent = 'Passwords do not match';
+        return false;
+    }
+}
+
+function clearPasswordErrors() {
+    document.getElementById('oldPasswordError').textContent = '';
+    document.getElementById('newPasswordError').textContent = '';
+    document.getElementById('confirmPasswordError').textContent = '';
+    document.querySelectorAll('.password-requirements li').forEach(li => {
+        li.classList.remove('valid', 'invalid');
+    });
+}
+
+async function handlePasswordChange(event) {
+    event.preventDefault();
+    
+    const oldPassword = document.getElementById('oldPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    const saveBtn = document.getElementById('savePasswordBtn');
+    const btnText = saveBtn.querySelector('.btn-text');
+    const btnLoading = saveBtn.querySelector('.btn-loading');
+    
+    // Clear previous errors
+    clearPasswordErrors();
+    
+    // Validate
+    let isValid = true;
+    
+    if (!oldPassword) {
+        document.getElementById('oldPasswordError').textContent = 'Current password is required';
+        isValid = false;
+    }
+    
+    if (!validateNewPassword()) {
+        isValid = false;
+    }
+    
+    if (!validateConfirmPassword()) {
+        isValid = false;
+    }
+    
+    if (!isValid) {
+        dashboard.showNotification('Please fix the errors above', 'error');
+        return;
+    }
+    
+    // Get userId from sessionStorage
+    const userId = sessionStorage.getItem('userId');
+    if (!userId) {
+        dashboard.showNotification('Session expired. Please login again.', 'error');
+        setTimeout(() => {
+            window.location.href = '/frontend/html/login.html';
+        }, 2000);
+        return;
+    }
+    
+    // Show loading state
+    saveBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnLoading.style.display = 'flex';
+    
+    try {
+        const response = await fetch('http://localhost:5000/auth/update-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                userId: userId,
+                oldPassword: oldPassword,
+                newPassword: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            dashboard.showNotification('Password changed successfully! Redirecting to login...', 'success');
+            closeSettingsModal();
+            
+            // Auto-redirect to login after password change
+            setTimeout(() => {
+                sessionStorage.clear();
+                localStorage.removeItem('adminSession');
+                window.location.href = '/frontend/html/login.html';
+            }, 1500);
+        } else {
+            if (data.msg === 'Old password is incorrect') {
+                document.getElementById('oldPasswordError').textContent = data.msg;
+            }
+            dashboard.showNotification(data.msg || 'Failed to update password', 'error');
+        }
+    } catch (error) {
+        console.error('Password update error:', error);
+        dashboard.showNotification('Unable to connect to server', 'error');
+    } finally {
+        saveBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnLoading.style.display = 'none';
+    }
+}
+
+// Chart Initialization
+let transactionChart = null;
+let investmentChart = null;
+
+function initializeCharts() {
+    // Wait for Chart.js to load
+    if (typeof Chart === 'undefined') {
+        setTimeout(initializeCharts, 100);
+        return;
+    }
+    
+    initTransactionChart();
+    initInvestmentChart();
+}
+
+function initTransactionChart() {
+    const ctx = document.getElementById('transactionChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (transactionChart) {
+        transactionChart.destroy();
+    }
+    
+    // Dummy data for the last 6 months
+    const labels = ['July', 'August', 'September', 'October', 'November', 'December'];
+    const deposits = [2.1, 2.4, 2.2, 2.8, 2.6, 3.1];
+    const withdrawals = [1.2, 1.5, 1.3, 1.6, 1.4, 1.8];
+    const investments = [0.8, 1.0, 0.9, 1.2, 1.1, 1.3];
+    
+    transactionChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Deposits',
+                    data: deposits,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Withdrawals',
+                    data: withdrawals,
+                    borderColor: '#FF6B6B',
+                    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                },
+                {
+                    label: 'Investments',
+                    data: investments,
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    borderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            label += '৳' + context.parsed.y.toFixed(1) + 'M';
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '৳' + value + 'M';
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function initInvestmentChart() {
+    const ctx = document.getElementById('investmentChart');
+    if (!ctx) return;
+    
+    // Destroy existing chart if it exists
+    if (investmentChart) {
+        investmentChart.destroy();
+    }
+    
+    // Dummy data for investment distribution
+    const data = [
+        { label: 'Monthly Share', value: 3.2, color: '#4CAF50' },
+        { label: 'Fixed Deposit', value: 2.8, color: '#2196F3' },
+        { label: 'Savings Account', value: 1.5, color: '#FF9800' },
+        { label: 'Business Investment', value: 0.8, color: '#9C27B0' }
+    ];
+    
+    investmentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: data.map(d => d.label),
+            datasets: [{
+                data: data.map(d => d.value),
+                backgroundColor: data.map(d => d.color),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 1.5,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'bottom',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 15,
+                        font: {
+                            size: 12
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return label + ': ৳' + value.toFixed(1) + 'M (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Initialize charts when dashboard is shown
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initializeCharts, 500);
+});
+
+// Re-initialize charts on window resize for responsiveness
+window.addEventListener('resize', function() {
+    if (transactionChart || investmentChart) {
+        setTimeout(initializeCharts, 100);
+    }
+});

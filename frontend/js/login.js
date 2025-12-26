@@ -6,19 +6,6 @@ let isLoggingIn = false;
 let loginAttempts = 0;
 const maxLoginAttempts = 3;
 
-// Test accounts for simulation
-const TEST_ACCOUNTS = {
-    admin: {
-        'AD123456': 'admin123',
-        'AD654321': 'admin456'
-    },
-    member: {
-        'SS123456': 'member123',
-        'user@shantisongho.org': 'user123',
-        'SS654321': 'member456'
-    }
-};
-
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
     initializeTheme();
@@ -184,8 +171,8 @@ function setUserType(type) {
     
     // Update form based on user type
     if (type === 'admin') {
-        identifierLabel.textContent = 'Admin ID';
-        identifierInput.placeholder = 'Enter admin ID';
+        identifierLabel.textContent = 'Admin Username or ID';
+        identifierInput.placeholder = 'Enter "admin" or admin ID';
         btnText.textContent = 'Login as Admin';
         loginBtn.classList.add('admin-mode');
         adminNotice.style.display = 'block';
@@ -215,8 +202,12 @@ function validateField(field) {
                 errorMessage = `${currentUserType === 'admin' ? 'Admin ID' : 'Member ID or Email'} is required`;
                 isValid = false;
             } else if (currentUserType === 'admin') {
-                if (!/^AD\d{6}$/.test(value)) {
-                    errorMessage = 'Admin ID should be in format: AD123456';
+                // Accept both 'admin' username and AD###### format
+                const isAdminUsername = value.toLowerCase() === 'admin';
+                const isAdminIdFormat = /^AD\d{6}$/.test(value);
+                
+                if (!isAdminUsername && !isAdminIdFormat) {
+                    errorMessage = 'Enter "admin" or Admin ID in format: AD123456';
                     isValid = false;
                 }
             } else {
@@ -406,17 +397,22 @@ async function handleLogin(event) {
                 clearSavedCredentials();
             }
             
-            showNotification('Login successful! Redirecting...', 'success');
-            
-            setTimeout(() => {
-                if (currentUserType === 'admin') {
-                    alert('Admin dashboard not implemented yet. Redirecting to home...');
-                    navigateTo('mainpage.html');
-                } else {
-                    alert('Member dashboard not implemented yet. Redirecting to home...');
-                    navigateTo('mainpage.html');
-                }
-            }, 1500);
+            // Check if this is first login
+            if (result.user.firstLogin) {
+                showNotification('First login detected. Please change your password.', 'info');
+                setTimeout(() => {
+                    navigateTo('/frontend/html/change-password.html');
+                }, 1500);
+            } else {
+                showNotification('Login successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    if (result.user.type === 'admin') {
+                        navigateTo('/frontend/html/admindashboard.html');
+                    } else {
+                        navigateTo('/frontend/html/member-dashboard.html');
+                    }
+                }, 1500);
+            }
             
         } else {
             throw new Error(result.message);
@@ -432,55 +428,56 @@ async function handleLogin(event) {
     }
 }
 
-// Authentication Simulation
+// Authentication with Real API
 async function authenticateUser(credentials) {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const { identifier, password, userType } = credentials;
-            const accounts = TEST_ACCOUNTS[userType];
+    try {
+        const response = await fetch('http://localhost:5000/auth/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                username: credentials.identifier,
+                password: credentials.password
+            })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            // Store user info in sessionStorage
+            sessionStorage.setItem('userId', data.userId);
+            sessionStorage.setItem('userRole', data.role);
+            sessionStorage.setItem('firstLogin', data.firstLogin);
             
-            if (accounts && accounts[identifier] === password) {
-                resolve({
-                    success: true,
-                    user: {
-                        id: identifier,
-                        type: userType,
-                        name: userType === 'admin' ? 'Admin User' : 'Member User'
-                    }
-                });
-            } else {
-                let attempts = parseInt(localStorage.getItem('loginAttempts') || '0');
-                attempts++;
-                localStorage.setItem('loginAttempts', attempts.toString());
-                localStorage.setItem('lastLoginAttempt', Date.now().toString());
-                
-                let errorMessage = 'Invalid credentials. Please try again.';
-                
-                if (attempts >= maxLoginAttempts) {
-                    errorMessage = 'Too many failed attempts. Account locked for 15 minutes.';
-                } else {
-                    errorMessage += ` (${maxLoginAttempts - attempts} attempts remaining)`;
+            return {
+                success: true,
+                user: {
+                    id: data.userId,
+                    type: data.role,
+                    firstLogin: data.firstLogin
                 }
-                
-                resolve({
-                    success: false,
-                    message: errorMessage,
-                    attempts: attempts
-                });
-            }
-        }, 1500);
-    });
+            };
+        } else {
+            return {
+                success: false,
+                message: data.msg || 'Login failed'
+            };
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        return {
+            success: false,
+            message: 'Unable to connect to server. Please try again.'
+        };
+    }
 }
 
 function handleLoginError(message) {
-    const attempts = parseInt(localStorage.getItem('loginAttempts') || '0');
+    showNotification(message, 'error');
     
-    if (attempts >= maxLoginAttempts) {
-        checkLoginAttempts();
-    } else {
-        showNotification(message, 'error');
-        
-        const loginCard = document.querySelector('.login-card');
+    const loginCard = document.querySelector('.login-card');
+    if (loginCard) {
         loginCard.classList.add('shake');
         setTimeout(() => loginCard.classList.remove('shake'), 300);
     }

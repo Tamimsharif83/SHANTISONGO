@@ -1504,3 +1504,532 @@ html {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-blue);
 }
+/* Settings Modal Styles */
+.settings-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.settings-content {
+  position: relative;
+  background: var(--white);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  margin: 2rem auto;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 20px 60px var(--shadow-hover);
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+  z-index: 10001;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border-gray);
+}
+
+.modal-header h2 {
+  color: var(--text-dark);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-gray);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.modal-close-btn:hover {
+  background: var(--light-gray);
+  color: var(--text-dark);
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.settings-section {
+  margin-bottom: 2rem;
+}
+
+.settings-section h3 {
+  color: var(--text-dark);
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.section-description {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem 0;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  color: var(--text-dark);
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding: 0.75rem 3rem 0.75rem 0.75rem;
+  border: 1px solid var(--border-gray);
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  background: var(--white);
+  color: var(--text-dark);
+  transition: var(--transition);
+}
+
+.password-input-wrapper input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  padding: 0.25rem 0.5rem;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.toggle-password-btn:hover {
+  opacity: 1;
+}
+
+.error-message {
+  display: block;
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  min-height: 1.2rem;
+}
+
+.password-requirements {
+  background: var(--light-gray);
+  border: 1px solid var(--border-gray);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.password-requirements p {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+}
+
+.password-requirements ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  list-style: none;
+}
+
+.password-requirements li {
+  color: var(--text-gray);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+.password-requirements li.valid {
+  color: var(--primary-green);
+}
+
+.password-requirements li.invalid {
+  color: #ef4444;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary {
+  background: var(--primary-blue);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: var(--primary-blue-hover);
+}
+
+.btn-primary:disabled {
+  background: var(--text-gray);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--light-gray);
+  color: var(--text-dark);
+}
+
+.btn-secondary:hover {
+  background: var(--border-gray);
+}
+
+.btn-loading {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .settings-content {
+    width: 95%;
+    margin: 1rem auto;
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+/* Logout Confirmation Modal */
+.logout-confirmation-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.logout-confirmation-modal.show {
+  opacity: 1;
+}
+
+.logout-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.logout-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: modalSlideIn 0.3s ease;
+}
+
+.logout-modal-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-modal-icon svg {
+  stroke: white;
+}
+
+.logout-modal-content h3 {
+  color: var(--text-dark);
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.logout-modal-content p {
+  color: var(--text-gray);
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.logout-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.logout-modal-actions .btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #ee5a6f 0%, #e53e5a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 480px) {
+  .logout-modal-content {
+    width: 85%;
+    padding: 1.5rem;
+  }
+  
+  .logout-modal-actions {
+    flex-direction: column;
+  }
+  
+  .logout-modal-actions .btn {
+    width: 100%;
+  }
+}
+
+
+/* Logout Confirmation Modal */
+.logout-confirmation-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.logout-confirmation-modal.show {
+  opacity: 1;
+}
+
+.logout-modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.logout-modal-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: modalSlideIn 0.3s ease;
+}
+
+.logout-modal-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 1rem;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logout-modal-icon svg {
+  stroke: white;
+}
+
+.logout-modal-content h3 {
+  color: var(--text-dark);
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+}
+
+.logout-modal-content p {
+  color: var(--text-gray);
+  margin: 0 0 1.5rem 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.logout-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.logout-modal-actions .btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #ee5a6f 0%, #e53e5a 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -45%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (max-width: 480px) {
+  .logout-modal-content {
+    width: 85%;
+    padding: 1.5rem;
+  }
+  
+  .logout-modal-actions {
+    flex-direction: column;
+  }
+  
+  .logout-modal-actions .btn {
+    width: 100%;
+  }
+}
