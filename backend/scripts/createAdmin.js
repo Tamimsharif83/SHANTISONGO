@@ -1,15 +1,16 @@
+require("dotenv").config();
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 
-// 🔗 MongoDB connect
-mongoose.connect(
-  "mongodb+srv://bankuser:Bank%4012345@bankingdb.uap7cee.mongodb.net/?appName=BankingDB"
-);
+// 🔗 MongoDB connect (SECURE)
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("DB connected"))
+  .catch(err => console.error(err));
 
 async function createAdmin() {
   const username = "admin";
-  const plainPassword = "Admin@123";
+  const plainPassword = "Admin@123"; // initial password
 
   const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
