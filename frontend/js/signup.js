@@ -1,9 +1,13 @@
-// Signup Page JavaScript
+// Application Form Page JavaScript
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
 let mobileMenuOpen = false;
 let isSubmitting = false;
 
-// Form validation rules
+// Mock database for storing applications (30-40 size array for testing)
+let applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
+const MAX_APPLICATIONS = 40;
+
+// Form validation rules for Application Form
 const VALIDATION_RULES = {
     fullName: {
         required: true,
@@ -31,14 +35,6 @@ const VALIDATION_RULES = {
             pattern: 'Please enter a valid Bangladesh phone number'
         }
     },
-    memberId: {
-        required: true,
-        pattern: /^SS\d{6}$/,
-        messages: {
-            required: 'Member ID is required',
-            pattern: 'Member ID should be in format: SS123456'
-        }
-    },
     nid: {
         required: true,
         pattern: /^\d{10}$|^\d{13}$|^\d{17}$/,
@@ -54,6 +50,12 @@ const VALIDATION_RULES = {
             required: 'Address is required',
             minLength: 'Please provide a complete address'
         }
+    },
+    nidImage: {
+        required: true,
+        messages: {
+            required: 'National ID image is required'
+        }
     }
 };
 
@@ -62,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeTheme();
     initializeForm();
     initializeAnimations();
+    initializeFileUpload();
     
     // Handle both mobile and desktop dark mode toggles
     const mobileToggleBtn = document.querySelector('.mobile-toggle-btn');
@@ -71,7 +74,6 @@ document.addEventListener('DOMContentLoaded', function() {
         mobileToggleBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             toggleDarkMode();
-            // Force update after toggle
             requestAnimationFrame(() => updateToggleButton());
         });
     }
@@ -80,12 +82,12 @@ document.addEventListener('DOMContentLoaded', function() {
         mobileDarkToggle.addEventListener('click', function(e) {
             e.stopPropagation();
             toggleDarkMode();
-            // Force update after toggle
             requestAnimationFrame(() => updateToggleButton());
         });
     }
     
-    console.log('SHANTISONGHO Signup page initialized');
+    console.log('SHANTISONGHO Application page initialized');
+    console.log('Applications in database:', applicationsDatabase.length);
 });
 
 // Theme Management
@@ -164,7 +166,6 @@ function toggleMobileMenu() {
         setTimeout(() => {
             mobileMenu.style.opacity = '1';
             mobileMenu.style.transform = 'translateY(0)';
-            // Force update the toggle button state
             updateToggleButton();
         }, 10);
         
@@ -184,10 +185,79 @@ function toggleMobileMenu() {
     }
 }
 
+// File Upload Handler
+function initializeFileUpload() {
+    const fileInput = document.getElementById('nidImage');
+    const fileLabel = document.querySelector('.file-label');
+    const fileNameDisplay = document.getElementById('fileName');
+    
+    if (!fileInput || !fileLabel) return;
+    
+    // Click to upload
+    fileLabel.addEventListener('click', () => fileInput.click());
+    
+    // Drag and drop
+    fileLabel.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileLabel.style.borderColor = 'var(--primary-hover)';
+        fileLabel.style.backgroundColor = 'var(--card-hover)';
+    });
+    
+    fileLabel.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        fileLabel.style.borderColor = 'var(--primary-color)';
+        fileLabel.style.backgroundColor = 'var(--input-bg)';
+    });
+    
+    fileLabel.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        fileLabel.style.borderColor = 'var(--primary-color)';
+        fileLabel.style.backgroundColor = 'var(--input-bg)';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect(files[0], fileNameDisplay);
+        }
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0], fileNameDisplay);
+        }
+    });
+}
+
+function handleFileSelect(file, fileNameDisplay) {
+    const fileInput = document.getElementById('nidImage');
+    
+    // Validate file
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    if (!validTypes.includes(file.type)) {
+        displayValidationResult(fileInput, false, 'Please upload a valid image file');
+        fileNameDisplay.textContent = '';
+        return;
+    }
+    
+    if (file.size > maxSize) {
+        displayValidationResult(fileInput, false, 'File size must be less than 10MB');
+        fileNameDisplay.textContent = '';
+        return;
+    }
+    
+    displayValidationResult(fileInput, true, '');
+    fileNameDisplay.textContent = `✓ ${file.name}`;
+}
+
 // Form Initialization
 function initializeForm() {
     const form = document.getElementById('signupForm');
-    const inputs = form.querySelectorAll('input, textarea');
+    const inputs = form.querySelectorAll('input:not([type="file"]), textarea');
     
     inputs.forEach(input => {
         input.addEventListener('blur', () => validateField(input));
@@ -195,9 +265,6 @@ function initializeForm() {
     });
     
     form.addEventListener('submit', handleFormSubmission);
-    
-    const passwordInput = document.getElementById('password');
-    passwordInput.addEventListener('input', updatePasswordStrength);
 }
 
 // Field Validation
@@ -205,20 +272,6 @@ function validateField(field) {
     const fieldName = field.name;
     const value = field.value.trim();
     const rules = VALIDATION_RULES[fieldName];
-    
-    if (fieldName === 'password') {
-        const result = validatePassword(value);
-        displayValidationResult(field, result.isValid, result.message);
-        return result.isValid;
-    }
-    
-    if (fieldName === 'confirmPassword') {
-        const password = document.getElementById('password').value;
-        const isValid = value && value === password;
-        const message = !value ? 'Please confirm your password' : !isValid ? 'Passwords do not match' : '';
-        displayValidationResult(field, isValid, message);
-        return isValid;
-    }
     
     if (!rules) return true;
     
@@ -240,82 +293,6 @@ function validateField(field) {
     return isValid;
 }
 
-// Password Validation
-function validatePassword(password) {
-    if (!password) return { isValid: false, message: 'Password is required' };
-    if (password.length < 8) return { isValid: false, message: 'Password must be at least 8 characters' };
-    if (!/(?=.*[a-z])/.test(password)) return { isValid: false, message: 'Password must contain at least one lowercase letter' };
-    if (!/(?=.*[A-Z])/.test(password)) return { isValid: false, message: 'Password must contain at least one uppercase letter' };
-    if (!/(?=.*\d)/.test(password)) return { isValid: false, message: 'Password must contain at least one number' };
-    
-    return { isValid: true, message: '' };
-}
-
-// Password Strength
-function updatePasswordStrength(event) {
-    const password = event.target.value;
-    let strengthIndicator = document.getElementById('passwordStrength');
-    
-    if (!strengthIndicator) {
-        strengthIndicator = createPasswordStrengthIndicator(event.target);
-    }
-    
-    const strength = calculatePasswordStrength(password);
-    updateStrengthDisplay(strengthIndicator, strength);
-}
-
-function createPasswordStrengthIndicator(passwordInput) {
-    const container = passwordInput.closest('.form-group');
-    const strengthDiv = document.createElement('div');
-    strengthDiv.id = 'passwordStrength';
-    strengthDiv.className = 'password-strength';
-    strengthDiv.innerHTML = `
-        <div class="strength-bar"><div class="strength-fill"></div></div>
-        <div class="strength-text">Password strength</div>
-    `;
-    
-    container.appendChild(strengthDiv);
-    
-    if (!document.getElementById('strength-styles')) {
-        const style = document.createElement('style');
-        style.id = 'strength-styles';
-        style.textContent = `
-            .password-strength { margin-top: 0.5rem; }
-            .strength-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 0.25rem; }
-            .strength-fill { height: 100%; transition: all 0.3s ease; border-radius: 2px; }
-            .strength-text { font-size: 0.75rem; color: var(--muted-foreground); }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    return strengthDiv;
-}
-
-function calculatePasswordStrength(password) {
-    let score = 0;
-    if (password.length >= 8) score += 1;
-    if (password.length >= 12) score += 1;
-    if (/[a-z]/.test(password)) score += 1;
-    if (/[A-Z]/.test(password)) score += 1;
-    if (/\d/.test(password)) score += 1;
-    if (/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\?]/.test(password)) score += 1;
-    
-    const feedback = score <= 2 ? 'Weak' : score <= 4 ? 'Medium' : 'Strong';
-    return { score, feedback };
-}
-
-function updateStrengthDisplay(indicator, strength) {
-    const fill = indicator.querySelector('.strength-fill');
-    const text = indicator.querySelector('.strength-text');
-    
-    const percentage = (strength.score / 6) * 100;
-    fill.style.width = percentage + '%';
-    
-    const colors = { Weak: '#ef4444', Medium: '#f59e0b', Strong: '#4caf50' };
-    fill.style.background = colors[strength.feedback];
-    text.textContent = `Password strength: ${strength.feedback}`;
-}
-
 // Display Validation Results
 function displayValidationResult(field, isValid, errorMessage) {
     const errorElement = document.getElementById(field.name + 'Error');
@@ -323,13 +300,17 @@ function displayValidationResult(field, isValid, errorMessage) {
     if (isValid) {
         field.classList.remove('error');
         field.classList.add('success');
-        errorElement.textContent = '';
-        errorElement.classList.remove('show');
+        if (errorElement) {
+            errorElement.textContent = '';
+            errorElement.classList.remove('show');
+        }
     } else {
         field.classList.remove('success');
         field.classList.add('error');
-        errorElement.textContent = errorMessage;
-        errorElement.classList.add('show');
+        if (errorElement) {
+            errorElement.textContent = errorMessage;
+            errorElement.classList.add('show');
+        }
         
         field.classList.add('shake');
         setTimeout(() => field.classList.remove('shake'), 300);
@@ -340,50 +321,33 @@ function clearError(field) {
     if (field.classList.contains('error')) {
         field.classList.remove('error');
         const errorElement = document.getElementById(field.name + 'Error');
-        errorElement.classList.remove('show');
+        if (errorElement) errorElement.classList.remove('show');
     }
 }
 
-// Password Visibility Toggle
-function togglePasswordVisibility(fieldId) {
-    const field = document.getElementById(fieldId);
-    const button = field.nextElementSibling;
-    const icon = button.querySelector('svg');
-    if (field.type === 'password') {
-        field.type = 'text';
-        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.142 4.142M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L12 12m6.878-6.878L21 3m-6.878 6.878L12 12"/>`;
-    } else {
-        field.type = 'password';
-        icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268-2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>`;
-    }
-    // Always reset transform to keep button in place
-    button.style.transform = 'translateY(-50%)';
-}
-
-// Form Submission
+// Form Submission - Application Storage
 async function handleFormSubmission(event) {
     event.preventDefault();
     
     if (isSubmitting) return;
     
     const form = event.target;
-    const formData = new FormData(form);
     const submitButton = document.getElementById('signupBtn');
     const btnText = submitButton.querySelector('.btn-text');
     const btnLoading = submitButton.querySelector('.btn-loading');
     
     // Validate all fields
     let isFormValid = true;
-    const inputs = form.querySelectorAll('input:not([type="checkbox"]), textarea');
+    const inputs = form.querySelectorAll('input:not([type="file"]), textarea');
     
     inputs.forEach(input => {
         if (!validateField(input)) isFormValid = false;
     });
     
-    // Check terms agreement
-    const agreeTerms = document.getElementById('agreeTerms');
-    if (!agreeTerms.checked) {
-        displayValidationResult(agreeTerms, false, 'You must agree to the terms and conditions');
+    // Validate file upload
+    const fileInput = document.getElementById('nidImage');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        displayValidationResult(fileInput, false, 'National ID image is required');
         isFormValid = false;
     }
     
@@ -399,12 +363,18 @@ async function handleFormSubmission(event) {
     btnLoading.style.display = 'flex';
     
     try {
-        await simulateSignupProcess(formData);
-        showNotification('Account created successfully! Redirecting to login...', 'success');
-        setTimeout(() => navigateTo('login.html'), 2000);
+        await submitApplication(form);
+        showNotification('Application submitted successfully!', 'success');
+        setTimeout(() => {
+            form.reset();
+            document.querySelectorAll('#fileName').forEach(el => el.textContent = '');
+            isSubmitting = false;
+            submitButton.disabled = false;
+            btnText.style.display = 'block';
+            btnLoading.style.display = 'none';
+        }, 1500);
     } catch (error) {
-        showNotification(error.message || 'Signup failed. Please try again.', 'error');
-    } finally {
+        showNotification(error.message || 'Application submission failed. Please try again.', 'error');
         isSubmitting = false;
         submitButton.disabled = false;
         btnText.style.display = 'block';
@@ -412,117 +382,64 @@ async function handleFormSubmission(event) {
     }
 }
 
-// Simulate Signup Process
-async function simulateSignupProcess(formData) {
+// Submit Application - Store in Array
+async function submitApplication(form) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
-            const email = formData.get('email');
-            const memberId = formData.get('memberId');
-            
-            if (email === 'test@shantisongho.org') {
-                reject(new Error('Email already exists'));
-                return;
+            try {
+                // Check if database is full
+                if (applicationsDatabase.length >= MAX_APPLICATIONS) {
+                    reject(new Error('Application queue is full. Please try again later.'));
+                    return;
+                }
+                
+                // Get form data
+                const formData = new FormData(form);
+                const fileInput = document.getElementById('nidImage');
+                
+                // Read file as base64
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const application = {
+                        id: 'APP-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                        status: 'pending', // pending, approved, rejected
+                        appliedDate: new Date().toLocaleString(),
+                        
+                        // User provided information
+                        fullName: formData.get('fullName'),
+                        email: formData.get('email'),
+                        phone: formData.get('phone'),
+                        shareAmount: formData.get('shareAmount') || 0,
+                        nid: formData.get('nid'),
+                        nidImage: e.target.result,
+                        address: formData.get('address'),
+                        
+                        // Admin added information (when approved)
+                        initialPassword: null,
+                        confirmPassword: null,
+                        approvedDate: null,
+                        approvedBy: null,
+                        modifiedInfo: null
+                    };
+                    
+                    // Add to database
+                    applicationsDatabase.push(application);
+                    
+                    // Save to localStorage
+                    localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+                    
+                    console.log('Application stored:', application);
+                    console.log('Total applications:', applicationsDatabase.length);
+                    
+                    resolve(application);
+                };
+                
+                reader.readAsDataURL(fileInput.files[0]);
+            } catch (error) {
+                reject(error);
             }
-            
-            if (memberId === 'SS000000') {
-                reject(new Error('Invalid member ID'));
-                return;
-            }
-            
-            const userData = {
-                fullName: formData.get('fullName'),
-                email: formData.get('email'),
-                phone: formData.get('phone'),
-                memberId: formData.get('memberId'),
-                nid: formData.get('nid'),
-                address: formData.get('address')
-            };
-            
-            localStorage.setItem('pendingUser', JSON.stringify(userData));
-            resolve(userData);
-        }, 2000);
+        }, 1500);
     });
-}
-
-// Show Terms Modal
-function showTerms() {
-    const modal = document.createElement('div');
-    modal.className = 'terms-modal';
-    modal.innerHTML = `
-        <div class="modal-overlay">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Terms & Conditions - SHANTISONGHO</h3>
-                    <button class="modal-close" onclick="closeTermsModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <h4>1. Membership Agreement</h4>
-                    <p>By joining SHANTISONGHO, you agree to abide by Islamic financial principles and our organizational guidelines.</p>
-                    <h4>2. Sharia Compliance</h4>
-                    <p>All financial transactions and investments will strictly follow Sharia-compliant principles as verified by our Islamic scholars.</p>
-                    <h4>3. Member Responsibilities</h4>
-                    <p>Members must provide accurate information and maintain ethical conduct in all dealings with the organization.</p>
-                    <h4>4. Financial Obligations</h4>
-                    <p>Members are expected to fulfill their financial commitments and participate in profit-sharing arrangements transparently.</p>
-                    <h4>5. Privacy & Data Protection</h4>
-                    <p>Your personal information will be protected according to Islamic privacy principles and modern data protection standards.</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary" onclick="acceptTerms()">I Accept</button>
-                    <button class="btn btn-secondary" onclick="closeTermsModal()">Close</button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    addModalStyles();
-    document.body.appendChild(modal);
-    
-    modal.querySelector('.modal-overlay').addEventListener('click', function(e) {
-        if (e.target === this) closeTermsModal();
-    });
-}
-
-function addModalStyles() {
-    if (document.getElementById('terms-modal-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'terms-modal-styles';
-    style.textContent = `
-        .terms-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10000; animation: modalFadeIn 0.3s ease; }
-        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; padding: 2rem; }
-        .modal-content { background: var(--card); border-radius: 1rem; max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); animation: modalSlideIn 0.3s ease; border: 1px solid var(--border); }
-        .modal-header { padding: 1.5rem 1.5rem 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
-        .modal-header h3 { color: var(--primary-color); margin: 0; font-size: 1.25rem; }
-        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted-foreground); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; }
-        .modal-close:hover { background: var(--primary-light); color: var(--primary-color); }
-        .modal-body { padding: 0 1.5rem 1.5rem; }
-        .modal-body h4 { color: var(--primary-color); margin: 1.5rem 0 0.5rem 0; font-weight: 600; }
-        .modal-body h4:first-child { margin-top: 0; }
-        .modal-body p { color: var(--muted-foreground); line-height: 1.6; margin-bottom: 1rem; }
-        .modal-footer { padding: 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 1rem; justify-content: flex-end; }
-        .btn-secondary { background: transparent; color: var(--primary-color); border: 2px solid var(--primary-color); }
-        .btn-secondary:hover { background: var(--primary-color); color: white; }
-        @keyframes modalFadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes modalSlideIn { from { transform: translateY(-20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
-        @keyframes modalFadeOut { from { opacity: 1; } to { opacity: 0; } }
-    `;
-    document.head.appendChild(style);
-}
-
-function closeTermsModal() {
-    const modal = document.querySelector('.terms-modal');
-    if (modal) {
-        modal.style.animation = 'modalFadeOut 0.3s ease';
-        setTimeout(() => modal.remove(), 300);
-    }
-}
-
-function acceptTerms() {
-    const checkbox = document.getElementById('agreeTerms');
-    checkbox.checked = true;
-    closeTermsModal();
-    displayValidationResult(checkbox, true, '');
 }
 
 // Notification System
@@ -559,6 +476,7 @@ function addNotificationStyles() {
         .notification-message { color: var(--foreground); font-weight: 500; }
         @keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        @media (max-width: 640px) { .notification { right: 1rem; max-width: calc(100% - 2rem); } }
     `;
     document.head.appendChild(style);
 }
@@ -585,5 +503,14 @@ animationStyle.textContent = `
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes shake { 0%, 100% { transform: translateX(0); } 10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); } 20%, 40%, 60%, 80% { transform: translateX(5px); } }
     .shake { animation: shake 0.3s ease-in-out; }
+    
+    .form-input.error, .form-textarea.error {
+        border-color: var(--error-color) !important;
+        background-color: rgba(239, 68, 68, 0.05);
+    }
+    
+    .form-input.success, .form-textarea.success {
+        border-color: var(--success-color) !important;
+    }
 `;
 document.head.appendChild(animationStyle);

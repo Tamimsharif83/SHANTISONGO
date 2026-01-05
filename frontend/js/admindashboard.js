@@ -1,4 +1,11 @@
 // Admin Dashboard JavaScript
+
+// Global variables for application management
+let applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
+let currentApplicationPage = 1;
+const APPS_PER_PAGE = 10;
+let currentViewingApp = null;
+
 class AdminDashboard {
     constructor() {
         this.currentSection = 'dashboard';
@@ -115,6 +122,11 @@ class AdminDashboard {
         }
 
         this.currentSection = sectionId;
+        
+        // Load applications when membership-applications section is shown
+        if (sectionId === 'membership-applications') {
+            loadApplicationsList();
+        }
         
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
@@ -1067,8 +1079,292 @@ function initInvestmentChart() {
 // Initialize charts when dashboard is shown
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeCharts, 500);
+    loadApplicationsList(); // Load applications when page loads
 });
 
+// ================== APPLICATION MANAGEMENT FUNCTIONS ==================
+
+function loadApplicationsList() {
+    // Reload from localStorage to get latest data
+    applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
+    currentApplicationPage = 1;
+    displayApplicationsTable();
+}
+
+function displayApplicationsTable() {
+    const tbody = document.getElementById('applicationsTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (applicationsDatabase.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No applications found</td></tr>';
+        return;
+    }
+    
+    // Get filtered and paginated data
+    let filteredApps = getFilteredApplications();
+    const startIdx = (currentApplicationPage - 1) * APPS_PER_PAGE;
+    const endIdx = startIdx + APPS_PER_PAGE;
+    const paginatedApps = filteredApps.slice(startIdx, endIdx);
+    
+    paginatedApps.forEach(app => {
+        const row = document.createElement('tr');
+        const statusClass = app.status === 'approved' ? 'approved' : app.status === 'rejected' ? 'rejected' : 'pending';
+        
+        row.innerHTML = `
+            <td>${app.id}</td>
+            <td>${app.fullName}</td>
+            <td>${app.email}</td>
+            <td>${app.phone}</td>
+            <td>${app.nid}</td>
+            <td>৳${Number(app.shareAmount || 0).toLocaleString()}</td>
+            <td>${app.appliedDate}</td>
+            <td><span class="status-badge ${statusClass}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span></td>
+            <td>
+                <button class="action-btn view" title="View Details" onclick="viewApplicationDetails('${app.id}')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+                ${app.status === 'pending' ? `
+                    <button class="action-btn delete" title="Delete Application" onclick="deleteApplication('${app.id}')">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                ` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination
+    updateApplicationsPagination(filteredApps.length);
+}
+
+function getFilteredApplications() {
+    const searchTerm = document.getElementById('appSearch')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    
+    return applicationsDatabase.filter(app => {
+        const matchesSearch = !searchTerm || 
+                            app.fullName.toLowerCase().includes(searchTerm) ||
+                            app.email.toLowerCase().includes(searchTerm);
+        const matchesStatus = !statusFilter || app.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+}
+
+function updateApplicationsPagination(totalItems) {
+    const totalPages = Math.ceil(totalItems / APPS_PER_PAGE);
+    const pageInfo = document.getElementById('pageInfo');
+    if (pageInfo) {
+        pageInfo.textContent = `Page ${currentApplicationPage} of ${totalPages || 1}`;
+    }
+}
+
+function filterApplications() {
+    currentApplicationPage = 1;
+    displayApplicationsTable();
+}
+
+function nextPage() {
+    const filteredApps = getFilteredApplications();
+    const totalPages = Math.ceil(filteredApps.length / APPS_PER_PAGE);
+    if (currentApplicationPage < totalPages) {
+        currentApplicationPage++;
+        displayApplicationsTable();
+    }
+}
+
+function previousPage() {
+    if (currentApplicationPage > 1) {
+        currentApplicationPage--;
+        displayApplicationsTable();
+    }
+}
+
+function viewApplicationDetails(appId) {
+    const app = applicationsDatabase.find(a => a.id === appId);
+    if (!app) {
+        alert('Application not found');
+        return;
+    }
+    
+    currentViewingApp = app;
+    const detailsContent = document.getElementById('appDetailsContent');
+    
+    const imagePreview = app.nidImage ? `<img src="${app.nidImage}" style="max-width: 300px; border-radius: 8px; margin: 1rem 0;">` : '';
+    
+    detailsContent.innerHTML = `
+        <div style="display: grid; gap: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Full Name:</strong>
+                    <p style="margin: 0.5rem 0;">${app.fullName}</p>
+                </div>
+                <div>
+                    <strong>Email:</strong>
+                    <p style="margin: 0.5rem 0;">${app.email}</p>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Phone:</strong>
+                    <p style="margin: 0.5rem 0;">${app.phone}</p>
+                </div>
+                <div>
+                    <strong>NID Number:</strong>
+                    <p style="margin: 0.5rem 0;">${app.nid}</p>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Share Amount:</strong>
+                    <p style="margin: 0.5rem 0;">৳${Number(app.shareAmount || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                    <strong>Applied Date:</strong>
+                    <p style="margin: 0.5rem 0;">${app.appliedDate}</p>
+                </div>
+            </div>
+            
+            <div>
+                <strong>Address:</strong>
+                <p style="margin: 0.5rem 0;">${app.address}</p>
+            </div>
+            
+            <div>
+                <strong>NID Card Image:</strong>
+                ${imagePreview}
+            </div>
+            
+            ${app.status === 'approved' ? `
+                <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #0284c7;">
+                    <strong>Approval Information:</strong>
+                    <p style="margin: 0.5rem 0;"><strong>Approved By:</strong> ${app.approvedBy || 'Admin'}</p>
+                    <p style="margin: 0.5rem 0;"><strong>Approved Date:</strong> ${app.approvedDate || 'N/A'}</p>
+                    <p style="margin: 0.5rem 0;"><strong>Initial Password:</strong> ••••••••</p>
+                </div>
+            ` : ''}
+            
+            ${app.status === 'approved' && app.modifiedInfo ? `
+                <div style="background: #f9fce7; padding: 1rem; border-radius: 8px; border-left: 4px solid #84cc16;">
+                    <strong>Modified Information:</strong>
+                    <p style="margin: 0.5rem 0; white-space: pre-wrap;">${JSON.stringify(app.modifiedInfo, null, 2)}</p>
+                </div>
+            ` : ''}
+            
+            ${app.status === 'pending' ? `
+                <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc2626;">
+                    <strong style="color: #dc2626;">Admin Actions Required</strong>
+                    <p style="margin: 0.5rem 0;">Set initial password to approve this application:</p>
+                    
+                    <div style="margin: 1rem 0;">
+                        <label style="display: block; margin-bottom: 0.5rem;"><strong>Initial Password:</strong></label>
+                        <input type="password" id="initialPassword" placeholder="Enter password" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin: 1rem 0;">
+                        <label style="display: block; margin-bottom: 0.5rem;"><strong>Confirm Password:</strong></label>
+                        <input type="password" id="confirmInitialPassword" placeholder="Confirm password" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.getElementById('appDetailsModal').style.display = 'block';
+}
+
+function approveApplication() {
+    if (!currentViewingApp) return;
+    
+    if (currentViewingApp.status !== 'pending') {
+        alert('This application has already been processed');
+        return;
+    }
+    
+    const password = document.getElementById('initialPassword')?.value;
+    const confirmPassword = document.getElementById('confirmInitialPassword')?.value;
+    
+    if (!password || !confirmPassword) {
+        alert('Please enter and confirm the password');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+    
+    // Update application
+    const appIndex = applicationsDatabase.findIndex(a => a.id === currentViewingApp.id);
+    if (appIndex !== -1) {
+        applicationsDatabase[appIndex].status = 'approved';
+        applicationsDatabase[appIndex].initialPassword = password;
+        applicationsDatabase[appIndex].confirmPassword = confirmPassword;
+        applicationsDatabase[appIndex].approvedDate = new Date().toLocaleString();
+        applicationsDatabase[appIndex].approvedBy = 'Admin'; // Get from logged in user
+        
+        localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+        
+        alert('Application approved successfully!');
+        closeAppModal();
+        loadApplicationsList();
+    }
+}
+
+function rejectApplication() {
+    if (!currentViewingApp) return;
+    
+    if (currentViewingApp.status !== 'pending') {
+        alert('This application has already been processed');
+        return;
+    }
+    
+    if (confirm('Are you sure you want to reject this application?')) {
+        const appIndex = applicationsDatabase.findIndex(a => a.id === currentViewingApp.id);
+        if (appIndex !== -1) {
+            applicationsDatabase[appIndex].status = 'rejected';
+            localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+            
+            alert('Application rejected');
+            closeAppModal();
+            loadApplicationsList();
+        }
+    }
+}
+
+function deleteApplication(appId) {
+    if (confirm('Are you sure you want to delete this application?')) {
+        applicationsDatabase = applicationsDatabase.filter(a => a.id !== appId);
+        localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+        loadApplicationsList();
+    }
+}
+
+function closeAppModal() {
+    document.getElementById('appDetailsModal').style.display = 'none';
+    currentViewingApp = null;
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('appDetailsModal');
+    if (event.target === modal) {
+        closeAppModal();
+    }
+});
 // Re-initialize charts on window resize for responsiveness
 window.addEventListener('resize', function() {
     if (transactionChart || investmentChart) {

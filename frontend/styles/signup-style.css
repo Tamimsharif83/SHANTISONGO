@@ -785,7 +785,75 @@ body {
     }
 }
 
+/* File Upload Styles */
+.file-upload-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.file-input {
+    display: none;
+}
+
+.file-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 2rem;
+    border: 2px dashed var(--primary-color);
+    border-radius: 0.5rem;
+    background-color: var(--input-bg);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--foreground);
+}
+
+.file-label:hover {
+    border-color: var(--primary-hover);
+    background-color: var(--card-hover);
+}
+
+.file-label svg {
+    width: 32px;
+    height: 32px;
+    color: var(--primary-color);
+}
+
+.file-label span:first-of-type {
+    font-weight: 500;
+    color: var(--foreground);
+}
+
+.file-info {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+}
+
+.file-name {
+    font-size: 0.875rem;
+    color: var(--success-color);
+    font-weight: 500;
+}
+
 @media (max-width: 768px) {
+    .file-label {
+        padding: 1.5rem;
+    }
+
+    .file-label svg {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Existing Media Queries */
+
     .nav-links {
         display: none;
     }
