@@ -1,6 +1,20 @@
 // Member Dashboard JavaScript
 class MemberDashboard {
     constructor() {
+        // Check if user is logged in and not on first login
+        const userId = sessionStorage.getItem('userId');
+        const firstLogin = sessionStorage.getItem('firstLogin');
+        
+        if (!userId) {
+            window.location.href = '/frontend/html/login.html';
+            return;
+        }
+        
+        if (firstLogin === 'true') {
+            window.location.href = '/frontend/html/change-password.html';
+            return;
+        }
+        
         this.currentSection = 'dashboard';
         this.isDarkTheme = localStorage.getItem('darkTheme') === 'true';
         this.editMode = false;
@@ -10,12 +24,12 @@ class MemberDashboard {
         this.currentReportData = null;
         this.currentReportTitle = '';
         this.memberData = {
-            name: 'M.M.Tamim Sharif',
-            id: 'SS123456',
+            name: sessionStorage.getItem('fullName') || 'Member',
+            id: sessionStorage.getItem('memberID') || 'N/A',
             shares: 5,
             memberSince: 'January 2025',
             phone: '01788594010',
-            email: 'tamimsharif2181@gmail.com',
+            email: sessionStorage.getItem('userEmail') || 'N/A',
             address: '123 Main Street, Dhaka, Bangladesh',
             nid: '1234567890123'
         };

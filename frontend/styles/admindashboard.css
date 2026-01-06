@@ -1657,6 +1657,140 @@ html {
     to { transform: translateY(0); opacity: 1; }
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+/* Credentials Modal Specific Styles */
+.credentials-info-box {
+    display: flex;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: #e3f2fd;
+    border-left: 4px solid var(--primary-blue);
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+}
+
+.credentials-info-box svg {
+    flex-shrink: 0;
+    color: var(--primary-blue);
+    margin-top: 2px;
+}
+
+.credentials-info-box p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #1565c0;
+    line-height: 1.5;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-gray);
+    border-radius: var(--border-radius);
+    font-size: 0.95rem;
+    transition: var(--transition);
+    font-family: inherit;
+    background: var(--white);
+    color: var(--text-dark);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+}
+
+.form-control::placeholder {
+    color: var(--text-gray);
+}
+
+.form-hint {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.8rem;
+    color: var(--text-gray);
+}
+
+.password-match-hint {
+    font-weight: 500;
+}
+
+.password-match-hint.match {
+    color: var(--primary-green);
+}
+
+.password-match-hint.no-match {
+    color: #dc3545;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper .form-control {
+    padding-right: 3rem;
+}
+
+.toggle-password-btn {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.375rem;
+    color: var(--text-gray);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    border-radius: 4px;
+}
+
+.toggle-password-btn:hover {
+    color: var(--primary-blue);
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.toggle-password-btn svg {
+    display: block;
+}
+
+.btn-success svg {
+    margin-right: 0.5rem;
+}
+
+/* Dark theme adjustments for credentials modal */
+.dark-theme .credentials-info-box {
+    background: rgba(33, 150, 243, 0.15);
+    border-left-color: var(--primary-blue);
+}
+
+.dark-theme .credentials-info-box p {
+    color: var(--primary-blue);
+}
+
 /* Status Badges */
 .status-badge {
     padding: 0.5rem 1rem;
