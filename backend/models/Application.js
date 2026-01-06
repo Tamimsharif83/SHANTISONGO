@@ -66,6 +66,22 @@ const ApplicationSchema = new mongoose.Schema({
   rejectedBy: {
     type: String,
     default: null
+  },
+
+  // Member credentials (filled when approved)
+  memberID: {
+    type: String,
+    default: null
+  },
+
+  initialPassword: {
+    type: String,
+    default: null
+  },
+
+  userCreated: {
+    type: Boolean,
+    default: false
   }
 });
 

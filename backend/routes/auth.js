@@ -9,7 +9,15 @@ router.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const user = await User.findOne({ username });
+    // Find user by memberID, username, or email
+    const user = await User.findOne({
+      $or: [
+        { memberID: username },
+        { username: username },
+        { email: username }
+      ]
+    });
+
     if (!user) {
       return res.status(400).json({ msg: "User not found" });
     }
@@ -23,7 +31,10 @@ router.post("/login", async (req, res) => {
       msg: "Login success",
       role: user.role,
       firstLogin: user.firstLogin,
-      userId: user._id
+      userId: user._id,
+      memberID: user.memberID,
+      email: user.email,
+      fullName: user.fullName
     });
 
   } catch (err) {

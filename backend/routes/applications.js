@@ -75,7 +75,16 @@ router.get("/:id", async (req, res) => {
 
 // APPROVE APPLICATION
 router.put("/approve/:id", async (req, res) => {
-  const { approvedBy } = req.body;
+  const { approvedBy, memberID, initialPassword } = req.body;
+
+  // Validate required fields
+  if (!memberID || !initialPassword) {
+    return res.status(400).json({ msg: "Member ID and initial password are required" });
+  }
+
+  if (initialPassword.length < 6) {
+    return res.status(400).json({ msg: "Password must be at least 6 characters" });
+  }
 
   try {
     const application = await Application.findById(req.params.id);
@@ -88,15 +97,46 @@ router.put("/approve/:id", async (req, res) => {
       return res.status(400).json({ msg: "Application has already been processed" });
     }
 
+    // Check if memberID already exists
+    const User = require("../models/User");
+    const bcrypt = require("bcryptjs");
+    
+    const existingUser = await User.findOne({ $or: [{ memberID }, { email: application.email }] });
+    if (existingUser) {
+      return res.status(400).json({ msg: "Member ID or email already exists" });
+    }
+
+    // Hash the initial password
+    const hashedPassword = await bcrypt.hash(initialPassword, 10);
+
+    // Create user account
+    const newUser = new User({
+      username: application.email,
+      email: application.email,
+      memberID: memberID,
+      fullName: application.fullName,
+      password: hashedPassword,
+      role: "member",
+      firstLogin: true,
+      applicationId: application._id
+    });
+
+    await newUser.save();
+
+    // Update application
     application.status = "approved";
     application.approvedDate = new Date();
     application.approvedBy = approvedBy || "Admin";
+    application.memberID = memberID;
+    application.initialPassword = initialPassword; // Store plain text for admin reference
+    application.userCreated = true;
 
     await application.save();
 
     res.json({
-      msg: "Application approved successfully",
-      application
+      msg: "Application approved and user account created successfully",
+      application,
+      memberID
     });
 
   } catch (err) {
