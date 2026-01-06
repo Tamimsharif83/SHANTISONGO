@@ -5,7 +5,8 @@ const path = require("path");
 require("dotenv").config();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(cors());
 
 // Serve static files from frontend folder
@@ -17,6 +18,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", require("./routes/auth"));
+app.use("/applications", require("./routes/applications"));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
