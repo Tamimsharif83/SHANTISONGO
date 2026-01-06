@@ -11,6 +11,27 @@ let currentViewingApp = null;
 
 class AdminDashboard {
     constructor() {
+        // Check if user is logged in and not on first login
+        const userId = sessionStorage.getItem('userId');
+        const firstLogin = sessionStorage.getItem('firstLogin');
+        const userRole = sessionStorage.getItem('userRole');
+        
+        if (!userId) {
+            window.location.href = '/frontend/html/login.html';
+            return;
+        }
+        
+        if (firstLogin === 'true') {
+            window.location.href = '/frontend/html/change-password.html';
+            return;
+        }
+        
+        if (userRole !== 'admin') {
+            alert('Unauthorized access!');
+            window.location.href = '/frontend/html/login.html';
+            return;
+        }
+        
         this.currentSection = 'dashboard';
         this.isDarkTheme = localStorage.getItem('darkTheme') === 'true';
         this.notificationsPanelOpen = false;
@@ -1286,29 +1307,128 @@ async function approveApplication() {
         return;
     }
     
+    // Show credentials modal
+    document.getElementById('setCredentialsModal').style.display = 'flex';
+    document.getElementById('memberIdInput').focus();
+    
+    // Reset form
+    document.getElementById('credentialsForm').reset();
+    document.getElementById('passwordMatchHint').textContent = '';
+    document.getElementById('passwordMatchHint').className = 'form-hint password-match-hint';
+}
+
+function closeCredentialsModal() {
+    document.getElementById('setCredentialsModal').style.display = 'none';
+    document.getElementById('credentialsForm').reset();
+}
+
+function togglePasswordVisibility(fieldId) {
+    const field = document.getElementById(fieldId);
+    const button = field.parentElement.querySelector('.toggle-password-btn');
+    const svg = button.querySelector('svg');
+    
+    if (field.type === 'password') {
+        field.type = 'text';
+        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+    } else {
+        field.type = 'password';
+        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+    }
+}
+
+// Real-time password match validation
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmPasswordInput = document.getElementById('confirmPasswordInput');
+    const initialPasswordInput = document.getElementById('initialPasswordInput');
+    const passwordMatchHint = document.getElementById('passwordMatchHint');
+    
+    if (confirmPasswordInput && initialPasswordInput && passwordMatchHint) {
+        const checkPasswordMatch = () => {
+            const password = initialPasswordInput.value;
+            const confirm = confirmPasswordInput.value;
+            
+            if (confirm.length === 0) {
+                passwordMatchHint.textContent = '';
+                passwordMatchHint.className = 'form-hint password-match-hint';
+            } else if (password === confirm) {
+                passwordMatchHint.textContent = '✓ Passwords match';
+                passwordMatchHint.className = 'form-hint password-match-hint match';
+            } else {
+                passwordMatchHint.textContent = '✗ Passwords do not match';
+                passwordMatchHint.className = 'form-hint password-match-hint no-match';
+            }
+        };
+        
+        confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+        initialPasswordInput.addEventListener('input', checkPasswordMatch);
+    }
+});
+
+async function submitApprovalWithCredentials(event) {
+    event.preventDefault();
+    
+    const memberID = document.getElementById('memberIdInput').value.trim();
+    const initialPassword = document.getElementById('initialPasswordInput').value;
+    const confirmPassword = document.getElementById('confirmPasswordInput').value;
+    const submitBtn = document.getElementById('submitCredentialsBtn');
+    
+    // Validate passwords match
+    if (initialPassword !== confirmPassword) {
+        alert('Passwords do not match');
+        return;
+    }
+    
+    // Validate password length
+    if (initialPassword.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+    
+    // Disable button and show loading
+    submitBtn.disabled = true;
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<span style="display: flex; align-items: center; gap: 0.5rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spinning"><circle cx="12" cy="12" r="10"/></svg>Processing...</span>';
+    
     try {
         const response = await fetch(`${API_BASE_URL}/applications/approve/${currentViewingApp._id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ approvedBy: 'Admin' })
+            body: JSON.stringify({ 
+                approvedBy: 'Admin',
+                memberID: memberID,
+                initialPassword: initialPassword
+            })
         });
         
         const data = await response.json();
         
         if (!response.ok) {
             alert(data.msg || 'Failed to approve application');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHTML;
             return;
         }
         
-        alert('Application approved successfully!');
+        // Success
+        closeCredentialsModal();
         closeAppModal();
+        
+        // Show success message with credentials
+        alert(`✓ Application Approved Successfully!\n\n` +
+              `Member ID: ${data.memberID}\n` +
+              `Email: ${currentViewingApp.email}\n` +
+              `Initial Password: ${initialPassword}\n\n` +
+              `The member can now login with their email and this password.`);
+        
         loadApplicationsList();
         
     } catch (error) {
         console.error('Error approving application:', error);
         alert('Failed to approve application. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
     }
 }
 

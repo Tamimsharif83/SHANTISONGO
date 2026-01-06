@@ -449,13 +449,19 @@ async function authenticateUser(credentials) {
             sessionStorage.setItem('userId', data.userId);
             sessionStorage.setItem('userRole', data.role);
             sessionStorage.setItem('firstLogin', data.firstLogin);
+            sessionStorage.setItem('userEmail', data.email || '');
+            sessionStorage.setItem('memberID', data.memberID || '');
+            sessionStorage.setItem('fullName', data.fullName || '');
             
             return {
                 success: true,
                 user: {
                     id: data.userId,
                     type: data.role,
-                    firstLogin: data.firstLogin
+                    firstLogin: data.firstLogin,
+                    email: data.email,
+                    memberID: data.memberID,
+                    fullName: data.fullName
                 }
             };
         } else {

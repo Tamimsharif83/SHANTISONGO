@@ -194,18 +194,13 @@ async function handleChangePassword(event) {
         const data = await response.json();
         
         if (response.ok) {
-            showNotification('Password changed successfully! Redirecting to dashboard...', 'success');
+            showNotification('Password changed successfully! Please login with your new password...', 'success');
             
-            // Clear firstLogin flag
-            sessionStorage.setItem('firstLogin', 'false');
+            // Clear all session data
+            sessionStorage.clear();
             
             setTimeout(() => {
-                const userRole = sessionStorage.getItem('userRole');
-                if (userRole === 'admin') {
-                    window.location.href = '/frontend/html/admindashboard.html';
-                } else {
-                    window.location.href = '/frontend/html/member-dashboard.html';
-                }
+                window.location.href = '/frontend/html/login.html';
             }, 2000);
         } else {
             throw new Error(data.msg || 'Failed to change password');
