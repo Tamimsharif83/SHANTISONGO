@@ -3,9 +3,8 @@ let isDarkMode = localStorage.getItem('darkMode') === 'true';
 let mobileMenuOpen = false;
 let isSubmitting = false;
 
-// Mock database for storing applications (30-40 size array for testing)
-let applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
-const MAX_APPLICATIONS = 40;
+// API Base URL
+const API_BASE_URL = 'http://localhost:5000';
 
 // Form validation rules for Application Form
 const VALIDATION_RULES = {
@@ -87,7 +86,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     console.log('SHANTISONGHO Application page initialized');
-    console.log('Applications in database:', applicationsDatabase.length);
 });
 
 // Theme Management
@@ -382,63 +380,60 @@ async function handleFormSubmission(event) {
     }
 }
 
-// Submit Application - Store in Array
+// Submit Application - Store in MongoDB via API
 async function submitApplication(form) {
     return new Promise((resolve, reject) => {
-        setTimeout(() => {
-            try {
-                // Check if database is full
-                if (applicationsDatabase.length >= MAX_APPLICATIONS) {
-                    reject(new Error('Application queue is full. Please try again later.'));
-                    return;
-                }
-                
-                // Get form data
-                const formData = new FormData(form);
-                const fileInput = document.getElementById('nidImage');
-                
-                // Read file as base64
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const application = {
-                        id: 'APP-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
-                        status: 'pending', // pending, approved, rejected
-                        appliedDate: new Date().toLocaleString(),
-                        
-                        // User provided information
-                        fullName: formData.get('fullName'),
-                        email: formData.get('email'),
-                        phone: formData.get('phone'),
-                        shareAmount: formData.get('shareAmount') || 0,
-                        nid: formData.get('nid'),
-                        nidImage: e.target.result,
-                        address: formData.get('address'),
-                        
-                        // Admin added information (when approved)
-                        initialPassword: null,
-                        confirmPassword: null,
-                        approvedDate: null,
-                        approvedBy: null,
-                        modifiedInfo: null
-                    };
-                    
-                    // Add to database
-                    applicationsDatabase.push(application);
-                    
-                    // Save to localStorage
-                    localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
-                    
-                    console.log('Application stored:', application);
-                    console.log('Total applications:', applicationsDatabase.length);
-                    
-                    resolve(application);
+        try {
+            // Get form data
+            const formData = new FormData(form);
+            const fileInput = document.getElementById('nidImage');
+            
+            // Read file as base64
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const applicationData = {
+                    fullName: formData.get('fullName'),
+                    email: formData.get('email'),
+                    phone: formData.get('phone'),
+                    shareAmount: formData.get('shareAmount') || 0,
+                    nid: formData.get('nid'),
+                    nidImage: e.target.result,
+                    address: formData.get('address')
                 };
                 
-                reader.readAsDataURL(fileInput.files[0]);
-            } catch (error) {
-                reject(error);
-            }
-        }, 1500);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/applications/submit`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(applicationData)
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        reject(new Error(data.msg || 'Application submission failed'));
+                        return;
+                    }
+                    
+                    console.log('Application stored:', data);
+                    resolve(data);
+                    
+                } catch (fetchError) {
+                    console.error('API Error:', fetchError);
+                    reject(new Error('Failed to connect to server. Please try again.'));
+                }
+            };
+            
+            reader.onerror = function() {
+                reject(new Error('Failed to read file'));
+            };
+            
+            reader.readAsDataURL(fileInput.files[0]);
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 

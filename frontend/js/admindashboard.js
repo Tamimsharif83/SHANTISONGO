@@ -1,7 +1,10 @@
 // Admin Dashboard JavaScript
 
+// API Base URL
+const API_BASE_URL = 'http://localhost:5000';
+
 // Global variables for application management
-let applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
+let applicationsDatabase = [];
 let currentApplicationPage = 1;
 const APPS_PER_PAGE = 10;
 let currentViewingApp = null;
@@ -1084,9 +1087,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ================== APPLICATION MANAGEMENT FUNCTIONS ==================
 
-function loadApplicationsList() {
-    // Reload from localStorage to get latest data
-    applicationsDatabase = JSON.parse(localStorage.getItem('applicationsDatabase')) || [];
+async function loadApplicationsList() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/applications/all`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('Failed to load applications:', data.msg);
+            applicationsDatabase = [];
+        } else {
+            applicationsDatabase = data;
+        }
+    } catch (error) {
+        console.error('Error fetching applications:', error);
+        applicationsDatabase = [];
+    }
+    
     currentApplicationPage = 1;
     displayApplicationsTable();
 }
@@ -1111,25 +1127,27 @@ function displayApplicationsTable() {
     paginatedApps.forEach(app => {
         const row = document.createElement('tr');
         const statusClass = app.status === 'approved' ? 'approved' : app.status === 'rejected' ? 'rejected' : 'pending';
+        const appId = app._id;
+        const appliedDate = new Date(app.appliedDate).toLocaleString();
         
         row.innerHTML = `
-            <td>${app.id}</td>
+            <td>${appId.slice(-8).toUpperCase()}</td>
             <td>${app.fullName}</td>
             <td>${app.email}</td>
             <td>${app.phone}</td>
             <td>${app.nid}</td>
             <td>৳${Number(app.shareAmount || 0).toLocaleString()}</td>
-            <td>${app.appliedDate}</td>
+            <td>${appliedDate}</td>
             <td><span class="status-badge ${statusClass}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span></td>
             <td>
-                <button class="action-btn view" title="View Details" onclick="viewApplicationDetails('${app.id}')">
+                <button class="action-btn view" title="View Details" onclick="viewApplicationDetails('${appId}')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                         <circle cx="12" cy="12" r="3"/>
                     </svg>
                 </button>
                 ${app.status === 'pending' ? `
-                    <button class="action-btn delete" title="Delete Application" onclick="deleteApplication('${app.id}')">
+                    <button class="action-btn delete" title="Delete Application" onclick="deleteApplication('${appId}')">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
                         </svg>
@@ -1187,7 +1205,7 @@ function previousPage() {
 }
 
 function viewApplicationDetails(appId) {
-    const app = applicationsDatabase.find(a => a.id === appId);
+    const app = applicationsDatabase.find(a => a._id === appId);
     if (!app) {
         alert('Application not found');
         return;
@@ -1195,6 +1213,8 @@ function viewApplicationDetails(appId) {
     
     currentViewingApp = app;
     const detailsContent = document.getElementById('appDetailsContent');
+    const appliedDate = new Date(app.appliedDate).toLocaleString();
+    const approvedDate = app.approvedDate ? new Date(app.approvedDate).toLocaleString() : 'N/A';
     
     const imagePreview = app.nidImage ? `<img src="${app.nidImage}" style="max-width: 300px; border-radius: 8px; margin: 1rem 0;">` : '';
     
@@ -1229,7 +1249,7 @@ function viewApplicationDetails(appId) {
                 </div>
                 <div>
                     <strong>Applied Date:</strong>
-                    <p style="margin: 0.5rem 0;">${app.appliedDate}</p>
+                    <p style="margin: 0.5rem 0;">${appliedDate}</p>
                 </div>
             </div>
             
@@ -1247,8 +1267,7 @@ function viewApplicationDetails(appId) {
                 <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #0284c7;">
                     <strong>Approval Information:</strong>
                     <p style="margin: 0.5rem 0;"><strong>Approved By:</strong> ${app.approvedBy || 'Admin'}</p>
-                    <p style="margin: 0.5rem 0;"><strong>Approved Date:</strong> ${app.approvedDate || 'N/A'}</p>
-                    <p style="margin: 0.5rem 0;"><strong>Initial Password:</strong> ••••••••</p>
+                    <p style="margin: 0.5rem 0;"><strong>Approved Date:</strong> ${approvedDate}</p>
                 </div>
             ` : ''}
             
@@ -1258,30 +1277,13 @@ function viewApplicationDetails(appId) {
                     <p style="margin: 0.5rem 0; white-space: pre-wrap;">${JSON.stringify(app.modifiedInfo, null, 2)}</p>
                 </div>
             ` : ''}
-            
-            ${app.status === 'pending' ? `
-                <div style="background: #fef2f2; padding: 1rem; border-radius: 8px; border-left: 4px solid #dc2626;">
-                    <strong style="color: #dc2626;">Admin Actions Required</strong>
-                    <p style="margin: 0.5rem 0;">Set initial password to approve this application:</p>
-                    
-                    <div style="margin: 1rem 0;">
-                        <label style="display: block; margin-bottom: 0.5rem;"><strong>Initial Password:</strong></label>
-                        <input type="password" id="initialPassword" placeholder="Enter password" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
-                    </div>
-                    
-                    <div style="margin: 1rem 0;">
-                        <label style="display: block; margin-bottom: 0.5rem;"><strong>Confirm Password:</strong></label>
-                        <input type="password" id="confirmInitialPassword" placeholder="Confirm password" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
-                    </div>
-                </div>
-            ` : ''}
         </div>
     `;
     
     document.getElementById('appDetailsModal').style.display = 'block';
 }
 
-function approveApplication() {
+async function approveApplication() {
     if (!currentViewingApp) return;
     
     if (currentViewingApp.status !== 'pending') {
@@ -1289,42 +1291,33 @@ function approveApplication() {
         return;
     }
     
-    const password = document.getElementById('initialPassword')?.value;
-    const confirmPassword = document.getElementById('confirmInitialPassword')?.value;
-    
-    if (!password || !confirmPassword) {
-        alert('Please enter and confirm the password');
-        return;
-    }
-    
-    if (password !== confirmPassword) {
-        alert('Passwords do not match');
-        return;
-    }
-    
-    if (password.length < 6) {
-        alert('Password must be at least 6 characters');
-        return;
-    }
-    
-    // Update application
-    const appIndex = applicationsDatabase.findIndex(a => a.id === currentViewingApp.id);
-    if (appIndex !== -1) {
-        applicationsDatabase[appIndex].status = 'approved';
-        applicationsDatabase[appIndex].initialPassword = password;
-        applicationsDatabase[appIndex].confirmPassword = confirmPassword;
-        applicationsDatabase[appIndex].approvedDate = new Date().toLocaleString();
-        applicationsDatabase[appIndex].approvedBy = 'Admin'; // Get from logged in user
+    try {
+        const response = await fetch(`${API_BASE_URL}/applications/approve/${currentViewingApp._id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ approvedBy: 'Admin' })
+        });
         
-        localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+        const data = await response.json();
+        
+        if (!response.ok) {
+            alert(data.msg || 'Failed to approve application');
+            return;
+        }
         
         alert('Application approved successfully!');
         closeAppModal();
         loadApplicationsList();
+        
+    } catch (error) {
+        console.error('Error approving application:', error);
+        alert('Failed to approve application. Please try again.');
     }
 }
 
-function rejectApplication() {
+async function rejectApplication() {
     if (!currentViewingApp) return;
     
     if (currentViewingApp.status !== 'pending') {
@@ -1333,23 +1326,53 @@ function rejectApplication() {
     }
     
     if (confirm('Are you sure you want to reject this application?')) {
-        const appIndex = applicationsDatabase.findIndex(a => a.id === currentViewingApp.id);
-        if (appIndex !== -1) {
-            applicationsDatabase[appIndex].status = 'rejected';
-            localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
+        try {
+            const response = await fetch(`${API_BASE_URL}/applications/reject/${currentViewingApp._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rejectedBy: 'Admin' })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                alert(data.msg || 'Failed to reject application');
+                return;
+            }
             
             alert('Application rejected');
             closeAppModal();
             loadApplicationsList();
+            
+        } catch (error) {
+            console.error('Error rejecting application:', error);
+            alert('Failed to reject application. Please try again.');
         }
     }
 }
 
-function deleteApplication(appId) {
+async function deleteApplication(appId) {
     if (confirm('Are you sure you want to delete this application?')) {
-        applicationsDatabase = applicationsDatabase.filter(a => a.id !== appId);
-        localStorage.setItem('applicationsDatabase', JSON.stringify(applicationsDatabase));
-        loadApplicationsList();
+        try {
+            const response = await fetch(`${API_BASE_URL}/applications/${appId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                alert(data.msg || 'Failed to delete application');
+                return;
+            }
+            
+            loadApplicationsList();
+            
+        } catch (error) {
+            console.error('Error deleting application:', error);
+            alert('Failed to delete application. Please try again.');
+        }
     }
 }
 
