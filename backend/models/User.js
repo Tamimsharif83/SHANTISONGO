@@ -7,6 +7,23 @@ const UserSchema = new mongoose.Schema({
     unique: true
   },
 
+  email: {
+    type: String,
+    required: true,
+    unique: true
+  },
+
+  memberID: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+
+  fullName: {
+    type: String,
+    required: true
+  },
+
   password: {
     type: String,
     required: true
@@ -20,6 +37,11 @@ const UserSchema = new mongoose.Schema({
   firstLogin: {
     type: Boolean,
     default: true
+  },
+
+  applicationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Application'
   }
 });
 

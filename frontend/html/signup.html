@@ -25,13 +25,13 @@
         </div>
 
         <div class="nav-links">
-          <button class="nav-btn" onclick="navigateTo('/')">
+          <button class="nav-btn" onclick="navigateTo('/frontend/html/index.html')">
             Home
           </button>
           <button class="nav-btn" onclick="navigateTo('/frontend/html/login.html')">
             Login
           </button>
-          <button class="nav-btn active">Sign Up</button>
+          <button class="nav-btn active">Apply Now</button>
 
           <div class="dark-mode-toggle">
             <span class="sun-icon">🌞</span>
@@ -53,13 +53,13 @@
       <!-- Mobile Menu -->
       <div class="mobile-menu" id="mobileMenu">
         <div class="mobile-menu-content">
-          <button class="mobile-nav-btn" onclick="navigateTo('/')">
+          <button class="mobile-nav-btn" onclick="navigateTo('/frontend/html/index.html')">
             Home
           </button>
           <button class="mobile-nav-btn" onclick="navigateTo('/frontend/html/login.html')">
             Login
           </button>
-          <button class="mobile-nav-btn active">Sign Up</button>
+          <button class="mobile-nav-btn active">Apply Now</button>
           <div class="mobile-dark-toggle">
             <span>🌞</span>
             <button class="mobile-toggle-btn" onclick="toggleDarkMode()">
@@ -94,8 +94,8 @@
               />
             </div>
             <div class="signup-title">
-              <h1>Join SHANTISONGHO</h1>
-              <p>Create your member account</p>
+              <h1>Apply Now</h1>
+              <p>Join SHANTISONGHO - Apply for membership</p>
             </div>
           </div>
 
@@ -142,21 +142,18 @@
               </div>
             </div>
 
-            <!-- Member ID -->
+            <!-- Amount of Share -->
             <div class="form-group">
-              <label class="form-label">Member ID *</label>
+              <label class="form-label">Amount of Share</label>
               <input
-                type="text"
-                id="memberId"
-                name="memberId"
+                type="number"
+                id="shareAmount"
+                name="shareAmount"
                 class="form-input"
-                placeholder="Enter your assigned member ID"
-                required
+                placeholder="Enter amount of share"
+                min="0"
               />
-              <div class="error-message" id="memberIdError"></div>
-              <div class="form-help">
-                Contact organization to get your member ID before registration
-              </div>
+              <div class="error-message" id="shareAmountError"></div>
             </div>
 
             <!-- NID -->
@@ -173,6 +170,30 @@
               <div class="error-message" id="nidError"></div>
             </div>
 
+            <!-- Upload NID Card Image -->
+            <div class="form-group">
+              <label class="form-label">Upload Image of National ID Card *</label>
+              <div class="file-upload-container">
+                <input
+                  type="file"
+                  id="nidImage"
+                  name="nidImage"
+                  class="file-input"
+                  accept="image/*"
+                  required
+                />
+                <label for="nidImage" class="file-label">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                  </svg>
+                  <span>Click to upload or drag and drop</span>
+                  <span class="file-info">PNG, JPG, GIF up to 10MB</span>
+                </label>
+                <div id="fileName" class="file-name"></div>
+              </div>
+              <div class="error-message" id="nidImageError"></div>
+            </div>
+
             <!-- Address -->
             <div class="form-group">
               <label class="form-label">Address *</label>
@@ -187,109 +208,6 @@
               <div class="error-message" id="addressError"></div>
             </div>
 
-            <!-- Password -->
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Password *</label>
-                <div class="password-input-container">
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    class="form-input"
-                    placeholder="Enter password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    class="password-toggle"
-                    onclick="togglePasswordVisibility('password')"
-                  >
-                    <svg
-                      class="eye-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div class="error-message" id="passwordError"></div>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Confirm Password *</label>
-                <div class="password-input-container">
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    class="form-input"
-                    placeholder="Confirm password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    class="password-toggle"
-                    onclick="togglePasswordVisibility('confirmPassword')"
-                  >
-                    <svg
-                      class="eye-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-                <div class="error-message" id="confirmPasswordError"></div>
-              </div>
-            </div>
-
-            <!-- Terms and Conditions -->
-            <div class="form-group">
-              <div class="checkbox-group">
-                <input
-                  type="checkbox"
-                  id="agreeTerms"
-                  name="agreeTerms"
-                  required
-                />
-                <label for="agreeTerms">
-                  I agree to the
-                  <button type="button" class="link-btn" onclick="showTerms()">
-                    terms and conditions
-                  </button>
-                  of SHANTISONGHO and confirm that all information provided is
-                  accurate.
-                </label>
-              </div>
-              <div class="error-message" id="agreeTermsError"></div>
-            </div>
-
             <!-- Submit Button -->
             <div class="form-group">
               <button
@@ -297,7 +215,7 @@
                 class="btn btn-primary signup-btn"
                 id="signupBtn"
               >
-                <span class="btn-text">Create Account</span>
+                <span class="btn-text">Submit Application</span>
                 <div class="btn-loading" style="display: none">
                   <svg class="spinner" viewBox="0 0 24 24">
                     <circle
@@ -314,7 +232,7 @@
                       d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Creating Account...
+                  Submitting Application...
                 </div>
               </button>
             </div>
@@ -338,23 +256,23 @@
         <!-- Information Section -->
         <div class="info-section">
           <div class="info-card">
-            <h3>Why Join SHANTISONGHO?</h3>
+            <h3>Application Process</h3>
             <ul class="info-list">
               <li>
+                <span class="info-icon">📝</span>
+                <span>Complete the application form with all required information</span>
+              </li>
+              <li>
+                <span class="info-icon">⏳</span>
+                <span>Admin will review your application within 3-5 business days</span>
+              </li>
+              <li>
                 <span class="info-icon">✅</span>
-                <span>100% Sharia-compliant financial services</span>
+                <span>Upon approval, you'll receive your account credentials</span>
               </li>
               <li>
-                <span class="info-icon">💰</span>
-                <span>Profit-sharing investment opportunities</span>
-              </li>
-              <li>
-                <span class="info-icon">🤝</span>
-                <span>Interest-free loans and financial support</span>
-              </li>
-              <li>
-                <span class="info-icon">🏘️</span>
-                <span>Community development initiatives</span>
+                <span class="info-icon">🔐</span>
+                <span>Start accessing our Sharia-compliant financial services</span>
               </li>
             </ul>
           </div>

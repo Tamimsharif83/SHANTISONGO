@@ -1,4 +1,14 @@
 // Admin Dashboard JavaScript
+
+// API Base URL
+const API_BASE_URL = 'http://localhost:5000';
+
+// Global variables for application management
+let applicationsDatabase = [];
+let currentApplicationPage = 1;
+const APPS_PER_PAGE = 10;
+let currentViewingApp = null;
+
 class AdminDashboard {
     constructor() {
         this.currentSection = 'dashboard';
@@ -115,6 +125,11 @@ class AdminDashboard {
         }
 
         this.currentSection = sectionId;
+        
+        // Load applications when membership-applications section is shown
+        if (sectionId === 'membership-applications') {
+            loadApplicationsList();
+        }
         
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
@@ -1067,8 +1082,307 @@ function initInvestmentChart() {
 // Initialize charts when dashboard is shown
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeCharts, 500);
+    loadApplicationsList(); // Load applications when page loads
 });
 
+// ================== APPLICATION MANAGEMENT FUNCTIONS ==================
+
+async function loadApplicationsList() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/applications/all`);
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('Failed to load applications:', data.msg);
+            applicationsDatabase = [];
+        } else {
+            applicationsDatabase = data;
+        }
+    } catch (error) {
+        console.error('Error fetching applications:', error);
+        applicationsDatabase = [];
+    }
+    
+    currentApplicationPage = 1;
+    displayApplicationsTable();
+}
+
+function displayApplicationsTable() {
+    const tbody = document.getElementById('applicationsTableBody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (applicationsDatabase.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No applications found</td></tr>';
+        return;
+    }
+    
+    // Get filtered and paginated data
+    let filteredApps = getFilteredApplications();
+    const startIdx = (currentApplicationPage - 1) * APPS_PER_PAGE;
+    const endIdx = startIdx + APPS_PER_PAGE;
+    const paginatedApps = filteredApps.slice(startIdx, endIdx);
+    
+    paginatedApps.forEach(app => {
+        const row = document.createElement('tr');
+        const statusClass = app.status === 'approved' ? 'approved' : app.status === 'rejected' ? 'rejected' : 'pending';
+        const appId = app._id;
+        const appliedDate = new Date(app.appliedDate).toLocaleString();
+        
+        row.innerHTML = `
+            <td>${appId.slice(-8).toUpperCase()}</td>
+            <td>${app.fullName}</td>
+            <td>${app.email}</td>
+            <td>${app.phone}</td>
+            <td>${app.nid}</td>
+            <td>৳${Number(app.shareAmount || 0).toLocaleString()}</td>
+            <td>${appliedDate}</td>
+            <td><span class="status-badge ${statusClass}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span></td>
+            <td>
+                <button class="action-btn view" title="View Details" onclick="viewApplicationDetails('${appId}')">
+                    👁️
+                </button>
+                ${app.status === 'pending' ? `
+                    <button class="action-btn delete" title="Delete Application" onclick="deleteApplication('${appId}')">
+                        🗑️
+                    </button>
+                ` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // Update pagination
+    updateApplicationsPagination(filteredApps.length);
+}
+
+function getFilteredApplications() {
+    const searchTerm = document.getElementById('appSearch')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    
+    return applicationsDatabase.filter(app => {
+        const matchesSearch = !searchTerm || 
+                            app.fullName.toLowerCase().includes(searchTerm) ||
+                            app.email.toLowerCase().includes(searchTerm);
+        const matchesStatus = !statusFilter || app.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+}
+
+function updateApplicationsPagination(totalItems) {
+    const totalPages = Math.ceil(totalItems / APPS_PER_PAGE);
+    const pageInfo = document.getElementById('pageInfo');
+    if (pageInfo) {
+        pageInfo.textContent = `Page ${currentApplicationPage} of ${totalPages || 1}`;
+    }
+}
+
+function filterApplications() {
+    currentApplicationPage = 1;
+    displayApplicationsTable();
+}
+
+function nextPage() {
+    const filteredApps = getFilteredApplications();
+    const totalPages = Math.ceil(filteredApps.length / APPS_PER_PAGE);
+    if (currentApplicationPage < totalPages) {
+        currentApplicationPage++;
+        displayApplicationsTable();
+    }
+}
+
+function previousPage() {
+    if (currentApplicationPage > 1) {
+        currentApplicationPage--;
+        displayApplicationsTable();
+    }
+}
+
+function viewApplicationDetails(appId) {
+    const app = applicationsDatabase.find(a => a._id === appId);
+    if (!app) {
+        alert('Application not found');
+        return;
+    }
+    
+    currentViewingApp = app;
+    const detailsContent = document.getElementById('appDetailsContent');
+    const appliedDate = new Date(app.appliedDate).toLocaleString();
+    const approvedDate = app.approvedDate ? new Date(app.approvedDate).toLocaleString() : 'N/A';
+    
+    const imagePreview = app.nidImage ? `<img src="${app.nidImage}" style="max-width: 300px; border-radius: 8px; margin: 1rem 0;">` : '';
+    
+    detailsContent.innerHTML = `
+        <div style="display: grid; gap: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Full Name:</strong>
+                    <p style="margin: 0.5rem 0;">${app.fullName}</p>
+                </div>
+                <div>
+                    <strong>Email:</strong>
+                    <p style="margin: 0.5rem 0;">${app.email}</p>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Phone:</strong>
+                    <p style="margin: 0.5rem 0;">${app.phone}</p>
+                </div>
+                <div>
+                    <strong>NID Number:</strong>
+                    <p style="margin: 0.5rem 0;">${app.nid}</p>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <strong>Share Amount:</strong>
+                    <p style="margin: 0.5rem 0;">৳${Number(app.shareAmount || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                    <strong>Applied Date:</strong>
+                    <p style="margin: 0.5rem 0;">${appliedDate}</p>
+                </div>
+            </div>
+            
+            <div>
+                <strong>Address:</strong>
+                <p style="margin: 0.5rem 0;">${app.address}</p>
+            </div>
+            
+            <div>
+                <strong>NID Card Image:</strong>
+                ${imagePreview}
+            </div>
+            
+            ${app.status === 'approved' ? `
+                <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #0284c7;">
+                    <strong>Approval Information:</strong>
+                    <p style="margin: 0.5rem 0;"><strong>Approved By:</strong> ${app.approvedBy || 'Admin'}</p>
+                    <p style="margin: 0.5rem 0;"><strong>Approved Date:</strong> ${approvedDate}</p>
+                </div>
+            ` : ''}
+            
+            ${app.status === 'approved' && app.modifiedInfo ? `
+                <div style="background: #f9fce7; padding: 1rem; border-radius: 8px; border-left: 4px solid #84cc16;">
+                    <strong>Modified Information:</strong>
+                    <p style="margin: 0.5rem 0; white-space: pre-wrap;">${JSON.stringify(app.modifiedInfo, null, 2)}</p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.getElementById('appDetailsModal').style.display = 'block';
+}
+
+async function approveApplication() {
+    if (!currentViewingApp) return;
+    
+    if (currentViewingApp.status !== 'pending') {
+        alert('This application has already been processed');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/applications/approve/${currentViewingApp._id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ approvedBy: 'Admin' })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            alert(data.msg || 'Failed to approve application');
+            return;
+        }
+        
+        alert('Application approved successfully!');
+        closeAppModal();
+        loadApplicationsList();
+        
+    } catch (error) {
+        console.error('Error approving application:', error);
+        alert('Failed to approve application. Please try again.');
+    }
+}
+
+async function rejectApplication() {
+    if (!currentViewingApp) return;
+    
+    if (currentViewingApp.status !== 'pending') {
+        alert('This application has already been processed');
+        return;
+    }
+    
+    if (confirm('Are you sure you want to reject this application?')) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/applications/reject/${currentViewingApp._id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rejectedBy: 'Admin' })
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                alert(data.msg || 'Failed to reject application');
+                return;
+            }
+            
+            alert('Application rejected');
+            closeAppModal();
+            loadApplicationsList();
+            
+        } catch (error) {
+            console.error('Error rejecting application:', error);
+            alert('Failed to reject application. Please try again.');
+        }
+    }
+}
+
+async function deleteApplication(appId) {
+    if (confirm('Are you sure you want to delete this application?')) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/applications/${appId}`, {
+                method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                alert(data.msg || 'Failed to delete application');
+                return;
+            }
+            
+            loadApplicationsList();
+            
+        } catch (error) {
+            console.error('Error deleting application:', error);
+            alert('Failed to delete application. Please try again.');
+        }
+    }
+}
+
+function closeAppModal() {
+    document.getElementById('appDetailsModal').style.display = 'none';
+    currentViewingApp = null;
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('appDetailsModal');
+    if (event.target === modal) {
+        closeAppModal();
+    }
+});
 // Re-initialize charts on window resize for responsiveness
 window.addEventListener('resize', function() {
     if (transactionChart || investmentChart) {
