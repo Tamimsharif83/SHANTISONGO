@@ -1141,16 +1141,11 @@ function displayApplicationsTable() {
             <td><span class="status-badge ${statusClass}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span></td>
             <td>
                 <button class="action-btn view" title="View Details" onclick="viewApplicationDetails('${appId}')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
+                    👁️
                 </button>
                 ${app.status === 'pending' ? `
                     <button class="action-btn delete" title="Delete Application" onclick="deleteApplication('${appId}')">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-                        </svg>
+                        🗑️
                     </button>
                 ` : ''}
             </td>
