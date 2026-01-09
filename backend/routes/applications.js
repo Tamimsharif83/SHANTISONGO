@@ -1,5 +1,6 @@
 const express = require("express");
 const Application = require("../models/Application");
+const { sendApprovalEmail } = require("../utils/emailService");
 
 const router = express.Router();
 
@@ -133,10 +134,26 @@ router.put("/approve/:id", async (req, res) => {
 
     await application.save();
 
+    // Send approval email with credentials
+    const emailResult = await sendApprovalEmail(
+      application.email,
+      application.fullName,
+      memberID,
+      initialPassword
+    );
+
+    if (emailResult.success) {
+      console.log(`✅ Approval email sent to ${application.email}`);
+    } else {
+      console.error(`⚠️ Failed to send email to ${application.email}:`, emailResult.error);
+      // Continue even if email fails - user account is still created
+    }
+
     res.json({
       msg: "Application approved and user account created successfully",
       application,
-      memberID
+      memberID,
+      emailSent: emailResult.success
     });
 
   } catch (err) {
