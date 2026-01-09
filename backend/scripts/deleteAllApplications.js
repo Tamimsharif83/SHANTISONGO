@@ -1,11 +1,17 @@
 const mongoose = require("mongoose");
+const path = require("path");
 const Application = require("../models/Application");
 
-// Load environment variables
-require("dotenv").config();
+// Load environment variables from parent directory
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 // MongoDB connection string
-const MONGO_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/shantisongho";
+const MONGO_URI = process.env.MONGODB_URI;
+
+if (!MONGO_URI) {
+  console.error("❌ Error: MONGODB_URI not found in .env file");
+  process.exit(1);
+}
 
 async function deleteAllApplications() {
   try {
