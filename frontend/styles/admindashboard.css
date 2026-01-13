@@ -399,6 +399,30 @@ body {
     display: block;
 }
 
+/* Nested Submenu Support */
+.menu-item.nested-submenu {
+    background: transparent;
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem; /* Slightly smaller than top level */
+}
+
+.menu-item.nested-submenu:hover {
+    background: var(--light-blue);
+    color: var(--primary-blue);
+}
+
+/* Increase indentation for deeper levels */
+.submenu .submenu {
+    padding-left: 1.5rem; /* Additive indentation */
+    background: rgba(0,0,0,0.02); /* Slight background diff */
+    border-radius: var(--border-radius);
+}
+
+.submenu .submenu .submenu-item {
+    font-size: 0.9rem;
+}
+
+
 @keyframes fadeIn {
     from {
         opacity: 0;

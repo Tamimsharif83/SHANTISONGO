@@ -98,23 +98,53 @@
                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
               </svg>
-              Data Entry
+              All Data Entry
               <svg class="submenu-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </div>
             <div class="submenu">
-              <div class="submenu-item" data-section="all-data-entry" onclick="showSection('all-data-entry')">All Data Entry</div>
-              <div class="submenu-item" data-section="monthly-share" onclick="showSection('monthly-share')">Monthly Share Deposit</div>
-              <div class="submenu-item" data-section="monthly-saving" onclick="showSection('monthly-saving')">Monthly Saving Account</div>
-              <div class="submenu-item" data-section="investment-recovery" onclick="showSection('investment-recovery')">Investment Recovery</div>
-              <div class="submenu-item" data-section="fixed-deposit-entry" onclick="showSection('fixed-deposit-entry')">Fixed Deposit Entry</div>
-              <div class="submenu-item" data-section="expenditure" onclick="showSection('expenditure')">Expenditure</div>
-              <div class="submenu-item" data-section="income" onclick="showSection('income')">Income</div>
-              <div class="submenu-item" data-section="profit-disbursement" onclick="showSection('profit-disbursement')">Profit Disbursement</div>
-              <div class="submenu-item" data-section="other-payments" onclick="showSection('other-payments')">Other Payments</div>
-              <div class="submenu-item" data-section="authorize-data" onclick="showSection('authorize-data')">Authorize/Delete Data</div>
-              <div class="submenu-item" data-section="reverse-data" onclick="showSection('reverse-data')">Delete/Reverse Authorized</div>
+              <!-- Deposit Submenu -->
+              <div class="menu-item has-submenu nested-submenu" onclick="toggleSubmenu(this)">
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+                 </svg>
+                 Deposit
+                 <svg class="submenu-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <polyline points="9 18 15 12 9 6" />
+                 </svg>
+              </div>
+              <div class="submenu">
+                <div class="submenu-item" data-section="monthly-share-deposit" onclick="showSection('monthly-share-deposit')">Monthly Share Deposit Entry</div>
+                <div class="submenu-item" data-section="monthly-saving-account" onclick="showSection('monthly-saving-account')">Monthly Saving Account</div>
+                <div class="submenu-item" data-section="investment-recovery-entry" onclick="showSection('investment-recovery-entry')">Investment Recovery Entry</div>
+                <div class="submenu-item" data-section="fixed-deposit-entry" onclick="showSection('fixed-deposit-entry')">Fixed Deposit Entry</div>
+              </div>
+
+              <!-- Withdrawal/Expenditure Submenu -->
+              <div class="menu-item has-submenu nested-submenu" onclick="toggleSubmenu(this)">
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4" />
+                    <path d="M4 6v12c0 1.1.9 2 2 2h14v-4" />
+                    <path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z" />
+                 </svg>
+                 Withdrawal/Expenditure
+                 <svg class="submenu-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                   <polyline points="9 18 15 12 9 6" />
+                 </svg>
+              </div>
+              <div class="submenu">
+                <div class="submenu-item" data-section="expenditure-entry" onclick="showSection('expenditure-entry')">Expenditure</div>
+                <div class="submenu-item" data-section="income-entry" onclick="showSection('income-entry')">Income</div>
+                <div class="submenu-item" data-section="profit-disbursement-entry" onclick="showSection('profit-disbursement-entry')">Profit Disbursement</div>
+                <div class="submenu-item" data-section="other-payments-entry" onclick="showSection('other-payments-entry')">Other Payments</div>
+              </div>
+
+               <!-- Authorize/Delete Data -->
+              <div class="submenu-item" data-section="authorize-delete-data" onclick="showSection('authorize-delete-data')">Authorize/Delete Data</div>
+              
+               <!-- Delete/Reverse Authorized Data -->
+              <div class="submenu-item" data-section="delete-reverse-authorized-data" onclick="showSection('delete-reverse-authorized-data')">Delete/Reverse Authorized Data</div>
             </div>
 
             <!-- Members & Customers -->
@@ -1988,6 +2018,239 @@
             </table>
           </div>
         </section>
+        <!-- ================= NEW DATA ENTRY SECTIONS ================= -->
+
+        <!-- 1. Monthly Share Deposit -->
+        <section id="monthly-share-deposit" class="content-section">
+          <div class="section-header"><h2>Monthly Share Deposit Entry</h2></div>
+          <div class="card">
+            <div class="data-entry-form" style="margin-bottom: 2rem;">
+               <h3>New Deposit</h3>
+               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                   <div><label>Member Name/ID</label><input type="text" class="input-field" placeholder="Select Member"></div>
+                   <div><label>Amount (৳)</label><input type="number" class="input-field" value="500"></div>
+                   <div><label>Month</label><input type="month" class="input-field"></div>
+                   <div><label>Date</label><input type="date" class="input-field"></div>
+               </div>
+               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Submit Entry</button>
+            </div>
+            <div class="recent-entries">
+               <h3>Recent Share Deposits (Dummy Data)</h3>
+               <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">ID</th><th style="padding:10px;">Member</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Date</th><th style="padding:10px;">Status</th></tr></thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SD-101</td><td style="padding:10px;">Abdul Karim</td><td style="padding:10px;">৳500</td><td style="padding:10px;">2024-01-10</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SD-102</td><td style="padding:10px;">Nasrin Akter</td><td style="padding:10px;">৳1000</td><td style="padding:10px;">2024-01-09</td><td style="padding:10px;"><span style="color:green">Authorized</span></td></tr>
+                   </tbody>
+               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Monthly Saving Account -->
+        <section id="monthly-saving-account" class="content-section">
+          <div class="section-header"><h2>Monthly Saving Account Entry</h2></div>
+          <div class="card">
+             <div class="data-entry-form" style="margin-bottom: 2rem;">
+               <h3>Savings Deposit</h3>
+               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                   <div><label>Account No</label><input type="text" class="input-field" placeholder="ACC-0000"></div>
+                   <div><label>Amount (৳)</label><input type="number" class="input-field" value="1000"></div>
+                   <div><label>Date</label><input type="date" class="input-field"></div>
+               </div>
+               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Deposit</button>
+            </div>
+            <div class="recent-entries">
+               <h3>Recent Savings (Dummy Data)</h3>
+               <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">ID</th><th style="padding:10px;">Account</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Date</th><th style="padding:10px;">Status</th></tr></thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SV-501</td><td style="padding:10px;">ACC-2345</td><td style="padding:10px;">৳2,000</td><td style="padding:10px;">2024-01-12</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SV-502</td><td style="padding:10px;">ACC-1122</td><td style="padding:10px;">৳500</td><td style="padding:10px;">2024-01-11</td><td style="padding:10px;"><span style="color:green">Authorized</span></td></tr>
+                   </tbody>
+               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. Investment Recovery -->
+        <section id="investment-recovery-entry" class="content-section">
+          <div class="section-header"><h2>Investment Recovery Entry</h2></div>
+          <div class="card">
+             <div class="data-entry-form" style="margin-bottom: 2rem;">
+               <h3>Loan/Investment Collection</h3>
+               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                   <div><label>Investment ID</label><input type="text" class="input-field" placeholder="INV-000"></div>
+                   <div><label>Installment Amt (৳)</label><input type="number" class="input-field"></div>
+                   <div><label>Profit/Interest</label><input type="number" class="input-field"></div>
+                   <div><label>Date</label><input type="date" class="input-field"></div>
+               </div>
+               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Collect</button>
+            </div>
+             <div class="recent-entries">
+               <h3>Recent Recoveries (Dummy Data)</h3>
+               <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">Trx ID</th><th style="padding:10px;">Investment ID</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Status</th></tr></thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">REC-991</td><td style="padding:10px;">INV-102 (Business Loan)</td><td style="padding:10px;">৳15,000</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
+                   </tbody>
+               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. Fixed Deposit Entry -->
+        <section id="fixed-deposit-entry" class="content-section">
+          <div class="section-header"><h2>Fixed Deposit (FDR) Entry</h2></div>
+           <div class="card">
+             <div class="data-entry-form" style="margin-bottom: 2rem;">
+               <h3>New FDR</h3>
+               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                   <div><label>Member</label><input type="text" class="input-field"></div>
+                   <div><label>Principal (৳)</label><input type="number" class="input-field"></div>
+                   <div><label>Term (Years)</label><input type="number" class="input-field" value="5"></div>
+                   <div><label>Maturity Date</label><input type="date" class="input-field"></div>
+               </div>
+               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Create FDR</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Expenditure -->
+        <section id="expenditure-entry" class="content-section">
+           <div class="section-header"><h2>General Expenditure Entry</h2></div>
+           <div class="card">
+             <div class="data-entry-form" style="margin-bottom: 2rem;">
+               <h3>Record Expense</h3>
+               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                   <div><label>Expense Head</label><select class="input-field"><option>Office Rent</option><option>Utilities</option><option>Salary</option><option>Stationary</option></select></div>
+                   <div><label>Amount (৳)</label><input type="number" class="input-field"></div>
+                   <div><label>Voucher No</label><input type="text" class="input-field"></div>
+                   <div><label>Date</label><input type="date" class="input-field"></div>
+               </div>
+               <button class="btn btn-secondary" style="background:#dc3545; color:white;" onclick="alert('Dummy processing...')">Record Expense</button>
+            </div>
+            <div class="recent-entries">
+               <h3>Recent Expenses</h3>
+               <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">Voucher</th><th style="padding:10px;">Head</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Status</th></tr></thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">V-201</td><td style="padding:10px;">Tea & Snacks</td><td style="padding:10px;">৳450</td><td style="padding:10px;">Authorized</td></tr>
+                   </tbody>
+               </table>
+            </div>
+           </div>
+        </section>
+
+        <!-- 6. Income -->
+        <section id="income-entry" class="content-section">
+           <div class="section-header"><h2>Income Entry</h2></div>
+           <div class="card">
+              <p>Record miscellaneous income entries here.</p>
+              <!-- Simplified form -->
+              <input type="text" class="input-field" placeholder="Source of Income" style="margin: 1rem 0; width: 50%;">
+              <br>
+              <button class="btn btn-primary">Save Income</button>
+           </div>
+        </section>
+
+        <!-- 7. Profit Disbursement -->
+        <section id="profit-disbursement-entry" class="content-section">
+            <div class="section-header"><h2>Profit Disbursement</h2></div>
+            <div class="card">
+                <p>Distribute profits to shareholders or savings accounts.</p>
+                <button class="btn btn-primary" style="margin-top:1rem;">Calculate & Disburse</button>
+            </div>
+        </section>
+
+        <!-- 8. Other Payments -->
+        <section id="other-payments-entry" class="content-section">
+             <div class="section-header"><h2>Other Payments</h2></div>
+             <div class="card">
+                <p>Miscellaneous payments or withdrawals.</p>
+             </div>
+        </section>
+
+        <!-- 9. Authorize/Delete Data -->
+        <section id="authorize-delete-data" class="content-section">
+            <div class="section-header"><h2>Authorize Data Entries</h2></div>
+            <div class="card">
+                <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <button class="btn btn-primary">All Pending</button>
+                    <button class="btn btn-secondary" style="background:#f1f5f9; color:black;">Deposits</button>
+                    <button class="btn btn-secondary" style="background:#f1f5f9; color:black;">Withdrawals</button>
+                </div>
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                   <thead style="background: #e3f2fd;">
+                       <tr>
+                           <th style="padding:12px;">Date</th>
+                           <th style="padding:12px;">Type</th>
+                           <th style="padding:12px;">Description</th>
+                           <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Entry By</th>
+                           <th style="padding:12px;">Actions</th>
+                       </tr>
+                   </thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;">
+                           <td style="padding:12px;">2024-01-12</td>
+                           <td style="padding:12px;">Share Deposit</td>
+                           <td style="padding:12px;">Member: Rahim (M-101)</td>
+                           <td style="padding:12px;">৳500</td>
+                           <td style="padding:12px;">Admin</td>
+                           <td style="padding:12px;">
+                               <button style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer;">Authorize</button>
+                               <button style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                           </td>
+                       </tr>
+                       <tr style="border-bottom: 1px solid #eee;">
+                           <td style="padding:12px;">2024-01-12</td>
+                           <td style="padding:12px;">Expenditure</td>
+                           <td style="padding:12px;">Electricity Bill</td>
+                           <td style="padding:12px;">৳3,500</td>
+                           <td style="padding:12px;">Manager</td>
+                           <td style="padding:12px;">
+                               <button style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer;">Authorize</button>
+                               <button style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                           </td>
+                       </tr>
+                   </tbody>
+               </table>
+            </div>
+        </section>
+
+        <!-- 10. Delete/Reverse Authorized Data -->
+        <section id="delete-reverse-authorized-data" class="content-section">
+            <div class="section-header"><h2>Reverse Authorized Transactions</h2></div>
+            <div class="card">
+                <div style="background: #fff3e0; padding: 1rem; border-radius: 4px; border-left: 4px solid orange; margin-bottom: 1rem;">
+                    <strong>Warning:</strong> Reversing authorized transactions will impact financial reports directly.
+                </div>
+                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                   <thead style="background: #f8d7da;">
+                       <tr>
+                           <th style="padding:12px;">Date</th>
+                           <th style="padding:12px;">Trx ID</th>
+                           <th style="padding:12px;">Type</th>
+                           <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Action</th>
+                       </tr>
+                   </thead>
+                   <tbody>
+                       <tr style="border-bottom: 1px solid #eee;">
+                           <td style="padding:12px;">2024-01-09</td>
+                           <td style="padding:12px;">TX-998877</td>
+                           <td style="padding:12px;">Share Deposit</td>
+                           <td style="padding:12px;">৳1000</td>
+                           <td style="padding:12px;">
+                               <button style="padding:5px 10px; background:orange; color:white; border:none; border-radius:4px; cursor:pointer;">Reverse</button>
+                           </td>
+                       </tr>
+                   </tbody>
+               </table>
+            </div>
+        </section>
+
       </main>
     </div>
 

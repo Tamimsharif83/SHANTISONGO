@@ -161,20 +161,34 @@ class AdminDashboard {
     toggleSubmenu(element) {
         const submenu = element.nextElementSibling;
         const isActive = submenu.classList.contains('active');
-        
-        // Close all submenus
-        document.querySelectorAll('.submenu').forEach(sub => {
-            sub.classList.remove('active');
-        });
-        
-        document.querySelectorAll('.menu-item.has-submenu').forEach(item => {
-            item.classList.remove('open');
-        });
+        const parentSubmenu = element.closest('.submenu');
+
+        // If this is a top-level menu item (not inside another submenu)
+        if (!parentSubmenu) {
+            // Close all other top-level submenus
+            document.querySelectorAll('.sidebar-menu > .submenu').forEach(sub => {
+                if (sub !== submenu) sub.classList.remove('active');
+            });
+            document.querySelectorAll('.sidebar-menu > .menu-item.has-submenu').forEach(item => {
+                if (item !== element) item.classList.remove('open');
+            });
+        } else {
+             // If nested, close siblings only (optional, but good for accordion feel)
+             // For now, let's just toggle independent state to allow multiple nested menus to be open if needed
+             // or strictly close siblings.
+             const siblingSubmenus = parentSubmenu.querySelectorAll('.submenu');
+             siblingSubmenus.forEach(sub => {
+                 if (sub !== submenu) sub.classList.remove('active');
+             });
+        }
 
         // Toggle clicked submenu
         if (!isActive) {
             submenu.classList.add('active');
             element.classList.add('open');
+        } else {
+            submenu.classList.remove('active');
+            element.classList.remove('open');
         }
     }
 
