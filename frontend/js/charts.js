@@ -1,6 +1,10 @@
 // Chart Initialization for Admin Dashboard
-let transactionChart = null;
-let investmentChart = null;
+if (typeof transactionChart === 'undefined') {
+    var transactionChart = null;
+}
+if (typeof investmentChart === 'undefined') {
+    var investmentChart = null;
+}
 
 function initializeCharts() {
     // Wait for Chart.js to load

@@ -2026,21 +2026,44 @@
           <div class="card">
             <div class="data-entry-form" style="margin-bottom: 2rem;">
                <h3>New Deposit</h3>
-               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
-                   <div><label>Member Name/ID</label><input type="text" class="input-field" placeholder="Select Member"></div>
-                   <div><label>Amount (৳)</label><input type="number" class="input-field" value="500"></div>
-                   <div><label>Month</label><input type="month" class="input-field"></div>
-                   <div><label>Date</label><input type="date" class="input-field"></div>
-               </div>
-               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Submit Entry</button>
+               <form id="monthlyShareForm">
+                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                       <div>
+                           <label>Member ID</label>
+                           <input type="text" id="memberId" class="input-field" placeholder="2025001" required>
+                           <small id="memberNameDisplay" style="color: #666; display: block; margin-top: 0.25rem;"></small>
+                       </div>
+                       <div>
+                           <label>Amount (৳)</label>
+                           <input type="number" id="shareAmount" class="input-field" value="500" required>
+                       </div>
+                       <div>
+                           <label>Month</label>
+                           <input type="month" id="shareMonth" class="input-field" required>
+                       </div>
+                       <div>
+                           <label>Date</label>
+                           <input type="date" id="shareDate" class="input-field" required>
+                       </div>
+                   </div>
+                   <button type="submit" class="btn btn-primary" id="submitShareBtn">Submit Entry</button>
+               </form>
             </div>
             <div class="recent-entries">
-               <h3>Recent Share Deposits (Dummy Data)</h3>
+               <h3>Recent Share Deposits</h3>
                <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
-                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">ID</th><th style="padding:10px;">Member</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Date</th><th style="padding:10px;">Status</th></tr></thead>
-                   <tbody>
-                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SD-101</td><td style="padding:10px;">Abdul Karim</td><td style="padding:10px;">৳500</td><td style="padding:10px;">2024-01-10</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
-                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SD-102</td><td style="padding:10px;">Nasrin Akter</td><td style="padding:10px;">৳1000</td><td style="padding:10px;">2024-01-09</td><td style="padding:10px;"><span style="color:green">Authorized</span></td></tr>
+                   <thead style="background: #f1f5f9;">
+                       <tr>
+                           <th style="padding:10px;">Member</th>
+                           <th style="padding:10px;">Member ID</th>
+                           <th style="padding:10px;">Amount</th>
+                           <th style="padding:10px;">Month</th>
+                           <th style="padding:10px;">Date</th>
+                           <th style="padding:10px;">Status</th>
+                       </tr>
+                   </thead>
+                   <tbody id="monthlyShareTableBody">
+                       <!-- Data will be loaded dynamically -->
                    </tbody>
                </table>
             </div>
@@ -2176,44 +2199,21 @@
             <div class="section-header"><h2>Authorize Data Entries</h2></div>
             <div class="card">
                 <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
-                    <button class="btn btn-primary">All Pending</button>
-                    <button class="btn btn-secondary" style="background:#f1f5f9; color:black;">Deposits</button>
-                    <button class="btn btn-secondary" style="background:#f1f5f9; color:black;">Withdrawals</button>
+                    <button class="btn btn-primary" onclick="loadPendingEntries()">Refresh</button>
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                    <thead style="background: #e3f2fd;">
                        <tr>
                            <th style="padding:12px;">Date</th>
                            <th style="padding:12px;">Type</th>
-                           <th style="padding:12px;">Description</th>
+                           <th style="padding:12px;">Member</th>
                            <th style="padding:12px;">Amount</th>
                            <th style="padding:12px;">Entry By</th>
                            <th style="padding:12px;">Actions</th>
                        </tr>
                    </thead>
-                   <tbody>
-                       <tr style="border-bottom: 1px solid #eee;">
-                           <td style="padding:12px;">2024-01-12</td>
-                           <td style="padding:12px;">Share Deposit</td>
-                           <td style="padding:12px;">Member: Rahim (M-101)</td>
-                           <td style="padding:12px;">৳500</td>
-                           <td style="padding:12px;">Admin</td>
-                           <td style="padding:12px;">
-                               <button style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer;">Authorize</button>
-                               <button style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
-                           </td>
-                       </tr>
-                       <tr style="border-bottom: 1px solid #eee;">
-                           <td style="padding:12px;">2024-01-12</td>
-                           <td style="padding:12px;">Expenditure</td>
-                           <td style="padding:12px;">Electricity Bill</td>
-                           <td style="padding:12px;">৳3,500</td>
-                           <td style="padding:12px;">Manager</td>
-                           <td style="padding:12px;">
-                               <button style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer;">Authorize</button>
-                               <button style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
-                           </td>
-                       </tr>
+                   <tbody id="pendingEntriesTableBody">
+                       <!-- Pending entries will be loaded dynamically -->
                    </tbody>
                </table>
             </div>
@@ -2435,5 +2435,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="/frontend/js/admindashboard.js"></script>
     <script src="/frontend/js/charts.js"></script>
+    <script src="/frontend/js/monthlyShare.js"></script>
   </body>
 </html>
