@@ -116,7 +116,7 @@
               </div>
               <div class="submenu">
                 <div class="submenu-item" data-section="monthly-share-deposit" onclick="showSection('monthly-share-deposit')">Monthly Share Deposit Entry</div>
-                <div class="submenu-item" data-section="monthly-saving-account" onclick="showSection('monthly-saving-account')">Monthly Saving Account</div>
+                <div class="submenu-item" data-section="monthly-saving-account" onclick="showSection('monthly-saving-account')">Saving Account Entry</div>
                 <div class="submenu-item" data-section="investment-recovery-entry" onclick="showSection('investment-recovery-entry')">Investment Recovery Entry</div>
                 <div class="submenu-item" data-section="fixed-deposit-entry" onclick="showSection('fixed-deposit-entry')">Fixed Deposit Entry</div>
               </div>
@@ -2070,26 +2070,45 @@
           </div>
         </section>
 
-        <!-- 2. Monthly Saving Account -->
+        <!-- 2. Saving Account Entry -->
         <section id="monthly-saving-account" class="content-section">
-          <div class="section-header"><h2>Monthly Saving Account Entry</h2></div>
+          <div class="section-header"><h2>Saving Account Entry</h2></div>
           <div class="card">
              <div class="data-entry-form" style="margin-bottom: 2rem;">
                <h3>Savings Deposit</h3>
-               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
-                   <div><label>Account No</label><input type="text" class="input-field" placeholder="ACC-0000"></div>
-                   <div><label>Amount (৳)</label><input type="number" class="input-field" value="1000"></div>
-                   <div><label>Date</label><input type="date" class="input-field"></div>
-               </div>
-               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Deposit</button>
+               <form id="savingsAccountForm">
+                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
+                       <div>
+                           <label>Member ID</label>
+                           <input type="text" id="savingsMemberId" class="input-field" placeholder="2025001" required>
+                           <small id="savingsMemberNameDisplay" style="color: #666; display: block; margin-top: 0.25rem;"></small>
+                       </div>
+                       <div>
+                           <label>Amount (৳)</label>
+                           <input type="number" id="savingsAmount" class="input-field" placeholder="1000" required>
+                       </div>
+                       <div>
+                           <label>Date</label>
+                           <input type="date" id="savingsDate" class="input-field" required>
+                       </div>
+                   </div>
+                   <button type="submit" class="btn btn-primary" id="submitSavingsBtn">Deposit</button>
+               </form>
             </div>
             <div class="recent-entries">
-               <h3>Recent Savings (Dummy Data)</h3>
+               <h3>Recent Savings Deposits</h3>
                <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
-                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">ID</th><th style="padding:10px;">Account</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Date</th><th style="padding:10px;">Status</th></tr></thead>
-                   <tbody>
-                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SV-501</td><td style="padding:10px;">ACC-2345</td><td style="padding:10px;">৳2,000</td><td style="padding:10px;">2024-01-12</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
-                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">SV-502</td><td style="padding:10px;">ACC-1122</td><td style="padding:10px;">৳500</td><td style="padding:10px;">2024-01-11</td><td style="padding:10px;"><span style="color:green">Authorized</span></td></tr>
+                   <thead style="background: #f1f5f9;">
+                       <tr>
+                           <th style="padding:10px;">Member</th>
+                           <th style="padding:10px;">Member ID</th>
+                           <th style="padding:10px;">Amount</th>
+                           <th style="padding:10px;">Date</th>
+                           <th style="padding:10px;">Status</th>
+                       </tr>
+                   </thead>
+                   <tbody id="savingsAccountTableBody">
+                       <!-- Data will be loaded dynamically -->
                    </tbody>
                </table>
             </div>
@@ -2436,5 +2455,6 @@
     <script src="/frontend/js/admindashboard.js"></script>
     <script src="/frontend/js/charts.js"></script>
     <script src="/frontend/js/monthlyShare.js"></script>
+    <script src="/frontend/js/savingsAccount.js"></script>
   </body>
 </html>

@@ -82,6 +82,22 @@ async function validateMemberId(memberId) {
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('monthlyShareForm');
     const memberIdInput = document.getElementById('memberId');
+    const shareDateInput = document.getElementById('shareDate');
+    const shareMonthInput = document.getElementById('shareMonth');
+    
+    // Set today's date as default and max date to today (disable future dates)
+    if (shareDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        shareDateInput.value = today;
+        shareDateInput.max = today;
+    }
+    
+    // Set current month as default and max month to current (disable future months)
+    if (shareMonthInput) {
+        const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+        shareMonthInput.value = currentMonth;
+        shareMonthInput.max = currentMonth;
+    }
     
     // Add member ID validation on input
     if (memberIdInput) {
@@ -146,15 +162,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load pending entries for authorization
 function loadPendingEntries() {
-    fetch(`${API_BASE_URL}/api/monthlyshare/pending`)
-        .then(response => response.json())
-        .then(data => {
-            displayPendingEntries(data);
-        })
-        .catch(error => {
-            console.error('Error loading pending entries:', error);
-            showNotification('Failed to load pending entries', 'error');
-        });
+    // Load both monthly share and savings account pending entries
+    Promise.all([
+        fetch(`${API_BASE_URL}/api/monthlyshare/pending`).then(res => res.json()),
+        fetch(`${API_BASE_URL}/api/savings/pending`).then(res => res.json())
+    ])
+    .then(([shareEntries, savingsEntries]) => {
+        // Combine and sort entries by date
+        const allEntries = [
+            ...shareEntries.map(e => ({...e, type: 'Share Deposit'})),
+            ...savingsEntries.map(e => ({...e, type: 'Savings Deposit'}))
+        ].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        displayPendingEntries(allEntries);
+    })
+    .catch(error => {
+        console.error('Error loading pending entries:', error);
+        showNotification('Failed to load pending entries', 'error');
+    });
 }
 
 // Display pending entries in authorize section
@@ -169,17 +194,18 @@ function displayPendingEntries(entries) {
 
     tbody.innerHTML = entries.map(entry => {
         const date = new Date(entry.date).toLocaleDateString('en-GB');
+        const isSavings = entry.type === 'Savings Deposit';
         
         return `
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding:12px;">${date}</td>
-                <td style="padding:12px;">Share Deposit</td>
+                <td style="padding:12px;">${entry.type}</td>
                 <td style="padding:12px;">${entry.memberName} (${entry.memberId})</td>
                 <td style="padding:12px;">৳${entry.amount.toLocaleString()}</td>
                 <td style="padding:12px;">${entry.entryBy}</td>
                 <td style="padding:12px;">
-                    <button onclick="authorizeEntry('${entry._id}')" style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Authorize</button>
-                    <button onclick="deleteEntry('${entry._id}')" style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
+                    <button onclick="${isSavings ? 'authorizeSavingsEntry' : 'authorizeEntry'}('${entry._id}')" style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Authorize</button>
+                    <button onclick="${isSavings ? 'deleteSavingsEntry' : 'deleteEntry'}('${entry._id}')" style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
                 </td>
             </tr>
         `;
@@ -264,6 +290,10 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (sectionId === 'monthly-share-deposit') {
                 loadMonthlyShareEntries();
+            } else if (sectionId === 'monthly-saving-account') {
+                if (typeof loadSavingsAccountEntries === 'function') {
+                    loadSavingsAccountEntries();
+                }
             } else if (sectionId === 'authorize-delete-data') {
                 loadPendingEntries();
             }
