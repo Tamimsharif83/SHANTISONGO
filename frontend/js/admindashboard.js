@@ -1817,3 +1817,116 @@ function showInvestmentError(message) {
     const tbody = document.getElementById('investmentRequestsTableBody');
     tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger-red);">${message}</td></tr>`;
 }
+
+
+// Create Member Form Handler
+document.addEventListener("DOMContentLoaded", function() {
+    const createMemberForm = document.getElementById("createMemberForm");
+    if (createMemberForm) {
+        createMemberForm.addEventListener("submit", handleCreateMember);
+    }
+});
+
+async function handleCreateMember(e) {
+    e.preventDefault();
+    
+    const fullName = document.getElementById("createMemberFullName").value.trim();
+    const memberID = document.getElementById("createMemberID").value.trim();
+    const email = document.getElementById("createMemberEmail").value.trim();
+    const password = document.getElementById("createMemberPassword").value;
+    const confirmPassword = document.getElementById("createMemberConfirmPassword").value;
+    const numberOfShares = parseInt(document.getElementById("createMemberShares").value) || 0;
+    const phone = document.getElementById("createMemberPhone").value.trim();
+    const nid = document.getElementById("createMemberNID").value.trim();
+    const address = document.getElementById("createMemberAddress").value.trim();
+    
+    // Validate passwords match
+    if (password !== confirmPassword) {
+        if (typeof dashboard !== "undefined") {
+            dashboard.showNotification("Passwords do not match", "error");
+        } else {
+            alert("Passwords do not match");
+        }
+        return;
+    }
+    
+    // Validate password length
+    if (password.length < 6) {
+        if (typeof dashboard !== "undefined") {
+            dashboard.showNotification("Password must be at least 6 characters", "error");
+        } else {
+            alert("Password must be at least 6 characters");
+        }
+        return;
+    }
+    
+    // Show loading
+    if (typeof dashboard !== "undefined") {
+        dashboard.showLoading("Creating member...");
+    }
+    
+    try {
+        const response = await fetch("http://localhost:5000/auth/create-member", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                fullName,
+                memberID,
+                email,
+                password,
+                numberOfShares,
+                phone,
+                nid,
+                address
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (typeof dashboard !== "undefined") {
+            dashboard.hideLoading();
+        }
+        
+        if (response.ok) {
+            if (typeof dashboard !== "undefined") {
+                dashboard.showNotification(data.msg || "Member created successfully", "success");
+            } else {
+                alert(data.msg || "Member created successfully");
+            }
+            
+            // Reset form
+            document.getElementById("createMemberForm").reset();
+            
+            // Show member credentials
+            alert(`Member Created Successfully!
+
+Member ID: ${data.memberID}
+Email: ${data.email}
+Password: (as set)
+
+Please provide these credentials to the member.`);
+        } else {
+            if (typeof dashboard !== "undefined") {
+                dashboard.showNotification(data.msg || "Failed to create member", "error");
+            } else {
+                alert(data.msg || "Failed to create member");
+            }
+        }
+    } catch (error) {
+        if (typeof dashboard !== "undefined") {
+            dashboard.hideLoading();
+        }
+        console.error("Error creating member:", error);
+        if (typeof dashboard !== "undefined") {
+            dashboard.showNotification("Error creating member", "error");
+        } else {
+            alert("Error creating member");
+        }
+    }
+}
+
+function resetCreateMemberForm() {
+    document.getElementById("createMemberForm").reset();
+}

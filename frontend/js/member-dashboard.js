@@ -87,7 +87,24 @@ class MemberDashboard {
         }
     }
 
-    loadMemberData() {
+    async loadMemberData() {
+        // Fetch user data from backend
+        const userId = sessionStorage.getItem('userId');
+        if (userId) {
+            try {
+                const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    this.memberData.name = data.fullName || this.memberData.name;
+                    this.memberData.id = data.memberID || this.memberData.id;
+                    this.memberData.email = data.email || this.memberData.email;
+                    this.memberData.shares = data.numberOfShares || 0;
+                }
+            } catch (error) {
+                console.error('Error loading member data:', error);
+            }
+        }
+
         document.getElementById('memberName').textContent = this.memberData.name;
         document.getElementById('memberID').textContent = this.memberData.id;
         document.getElementById('memberShares').textContent = this.memberData.shares;

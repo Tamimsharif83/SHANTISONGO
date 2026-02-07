@@ -47,6 +47,11 @@ const UserSchema = new mongoose.Schema({
   profilePicture: {
     type: String,
     default: null
+  },
+
+  numberOfShares: {
+    type: Number,
+    default: 0
   }
 });
 

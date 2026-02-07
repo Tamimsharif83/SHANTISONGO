@@ -119,7 +119,8 @@ router.put("/approve/:id", async (req, res) => {
       password: hashedPassword,
       role: "member",
       firstLogin: true,
-      applicationId: application._id
+      applicationId: application._id,
+      numberOfShares: application.shareAmount || 0
     });
 
     await newUser.save();

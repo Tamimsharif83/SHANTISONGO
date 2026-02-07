@@ -202,20 +202,19 @@ function validateField(field) {
                 errorMessage = `${currentUserType === 'admin' ? 'Admin ID' : 'Member ID or Email'} is required`;
                 isValid = false;
             } else if (currentUserType === 'admin') {
-                // Accept both 'admin' username and AD###### format
+                // Accept both 'admin' username and any admin ID format
                 const isAdminUsername = value.toLowerCase() === 'admin';
-                const isAdminIdFormat = /^AD\d{6}$/.test(value);
                 
-                if (!isAdminUsername && !isAdminIdFormat) {
-                    errorMessage = 'Enter "admin" or Admin ID in format: AD123456';
+                if (!isAdminUsername && value.length === 0) {
+                    errorMessage = 'Enter "admin" or Admin ID';
                     isValid = false;
                 }
             } else {
+                // Accept email or any member ID format (no strict validation)
                 const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-                const isMemberId = /^SS\d{6}$/.test(value);
                 
-                if (!isEmail && !isMemberId) {
-                    errorMessage = 'Enter valid email address or member ID (SS123456)';
+                if (!isEmail && value.trim().length === 0) {
+                    errorMessage = 'Enter valid email address or member ID';
                     isValid = false;
                 }
             }
