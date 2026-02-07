@@ -166,24 +166,6 @@
             </div>
             <div
               class="menu-item"
-              data-section="password"
-              onclick="showSection('password')"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <circle cx="12" cy="16" r="1" />
-                <path d="M7 11V7a5 5 0 0110 0v4" />
-              </svg>
-              Password
-            </div>
-            <div
-              class="menu-item"
               data-section="notices"
               onclick="showSection('notices')"
             >
@@ -340,9 +322,14 @@
         <section id="profile" class="content-section">
           <div class="section-header">
             <h2>Personal Profile</h2>
-            <button class="btn btn-primary" onclick="toggleEditProfile()">
-              <span id="editProfileBtn">Edit Profile</span>
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" onclick="openChangePasswordModal()">
+                Change Password
+              </button>
+              <button class="btn btn-primary" onclick="toggleEditProfile()">
+                <span id="editProfileBtn">Edit Profile</span>
+              </button>
+            </div>
           </div>
           <div class="profile-content">
             <!-- Profile Picture Section -->
@@ -479,39 +466,8 @@
               New Application
             </button>
           </div>
-          <div class="investment-list">
-            <div class="investment-item">
-              <div class="investment-header">
-                <span class="investment-id">INV-2025-001</span>
-                <span class="investment-status approved">Approved</span>
-              </div>
-              <div class="investment-details">
-                <div class="detail-item">
-                  <label>Amount Requested:</label>
-                  <span>৳15,000</span>
-                </div>
-                <div class="detail-item">
-                  <label>Purpose:</label>
-                  <span>Small Business</span>
-                </div>
-                <div class="detail-item">
-                  <label>Application Date:</label>
-                  <span>15 Jan 2025</span>
-                </div>
-                <div class="detail-item">
-                  <label>Status Date:</label>
-                  <span>20 Jan 2025</span>
-                </div>
-              </div>
-              <div class="investment-actions">
-                <button
-                  class="btn btn-sm"
-                  onclick="viewInvestment('INV-2025-001')"
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
+          <div class="investment-list" id="investmentList">
+            <div class="loading-message">Loading investment requests...</div>
           </div>
         </section>
 
@@ -749,37 +705,7 @@
           </div>
         </section>
 
-        <!-- Change Password Section -->
-        <section id="password" class="content-section">
-          <div class="section-header">
-            <h2>Change Password</h2>
-          </div>
-          <div class="password-form-container">
-            <form id="passwordForm" class="password-form">
-              <div class="form-group">
-                <label>Current Password</label>
-                <input type="password" id="currentPassword" required />
-              </div>
-              <div class="form-group">
-                <label>New Password</label>
-                <input type="password" id="newPassword" required />
-              </div>
-              <div class="form-group">
-                <label>Confirm New Password</label>
-                <input type="password" id="confirmPassword" required />
-              </div>
-              <div class="form-actions">
-                <button
-                  type="button"
-                  class="btn btn-primary"
-                  onclick="changePassword()"
-                >
-                  Change Password
-                </button>
-              </div>
-            </form>
-          </div>
-        </section>
+
 
         <!-- Notices Section -->
         <section id="notices" class="content-section">
@@ -877,6 +803,40 @@
 
     <!-- Modals will be inserted here by JavaScript -->
     <div id="modalContainer"></div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Change Password</h3>
+          <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="modalCurrentPassword" required />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="modalNewPassword" required />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="modalConfirmPassword" required />
+            </div>
+            <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+              <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
     <script src="/frontend/js/member-dashboard.js"></script>
   </body>

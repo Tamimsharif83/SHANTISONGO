@@ -1871,6 +1871,69 @@
           </div>
         </section>
 
+        <!-- Investment Monitoring Section -->
+        <section id="investment-monitoring" class="content-section">
+          <div class="section-header">
+            <h2>Investment Monitoring</h2>
+            <div class="filter-tabs">
+              <button class="filter-tab-btn active" onclick="filterInvestmentRequests('all')">All</button>
+              <button class="filter-tab-btn" onclick="filterInvestmentRequests('pending')">Pending</button>
+              <button class="filter-tab-btn" onclick="filterInvestmentRequests('approved')">Approved</button>
+              <button class="filter-tab-btn" onclick="filterInvestmentRequests('rejected')">Rejected</button>
+            </div>
+          </div>
+          
+          <div class="stats-grid" style="margin-bottom: 2rem;">
+            <div class="stat-card">
+              <div class="stat-info">
+                <div class="stat-label">Pending Requests</div>
+                <div class="stat-value" id="pendingCount">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-info">
+                <div class="stat-label">Approved Requests</div>
+                <div class="stat-value" id="approvedCount">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-info">
+                <div class="stat-label">Rejected Requests</div>
+                <div class="stat-value" id="rejectedCount">0</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-info">
+                <div class="stat-label">Total Amount Approved</div>
+                <div class="stat-value" id="approvedAmount">৳0</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Member Name</th>
+                  <th>Member ID</th>
+                  <th>Amount</th>
+                  <th>Purpose</th>
+                  <th>Duration</th>
+                  <th>Application Date</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="investmentRequestsTableBody">
+                <tr>
+                  <td colspan="9" style="text-align: center;">Loading investment requests...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
         <!-- Investment Report Section -->
         <section id="investment-report" class="content-section">
           <div class="section-header">

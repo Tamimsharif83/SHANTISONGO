@@ -45,12 +45,13 @@ class MemberDashboard {
         this.loadMembersList();
         this.loadBoardMembers();
         this.loadProfilePicture();
+        this.loadInvestmentRequests();
     }
 
     setupEventListeners() {
         document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
         document.getElementById('mobileMenuToggle').addEventListener('click', () => this.toggleMobileMenu());
-        document.getElementById('passwordForm').addEventListener('submit', (e) => this.handlePasswordChange(e));
+        document.getElementById('changePasswordForm').addEventListener('submit', (e) => this.handlePasswordChange(e));
         document.getElementById('chatInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') this.sendMessage();
         });
@@ -117,11 +118,44 @@ class MemberDashboard {
             }
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const imageData = e.target.result;
-                this.setProfilePicture(imageData);
-                localStorage.setItem('profilePicture', imageData);
-                this.showNotification('Profile picture updated successfully', 'success');
+                
+                // Save to backend
+                const userId = sessionStorage.getItem('userId');
+                if (!userId) {
+                    this.showNotification('User not logged in', 'error');
+                    return;
+                }
+
+                this.showLoading('Uploading profile picture...');
+                
+                try {
+                    const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            userId: userId,
+                            profilePicture: imageData
+                        })
+                    });
+
+                    const data = await response.json();
+                    this.hideLoading();
+
+                    if (response.ok) {
+                        this.setProfilePicture(imageData);
+                        this.showNotification('Profile picture updated successfully', 'success');
+                    } else {
+                        this.showNotification(data.msg || 'Failed to update profile picture', 'error');
+                    }
+                } catch (error) {
+                    this.hideLoading();
+                    console.error('Error:', error);
+                    this.showNotification('Error updating profile picture', 'error');
+                }
             };
             reader.readAsDataURL(file);
         }
@@ -153,17 +187,58 @@ class MemberDashboard {
         }
     }
 
-    removeProfilePicture() {
-        this.setProfilePicture(null);
-        localStorage.removeItem('profilePicture');
-        document.getElementById('profilePictureInput').value = '';
-        this.showNotification('Profile picture removed', 'success');
+    async removeProfilePicture() {
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) {
+            this.showNotification('User not logged in', 'error');
+            return;
+        }
+
+        this.showLoading('Removing profile picture...');
+        
+        try {
+            const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    profilePicture: null
+                })
+            });
+
+            const data = await response.json();
+            this.hideLoading();
+
+            if (response.ok) {
+                this.setProfilePicture(null);
+                document.getElementById('profilePictureInput').value = '';
+                this.showNotification('Profile picture removed', 'success');
+            } else {
+                this.showNotification(data.msg || 'Failed to remove profile picture', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            console.error('Error:', error);
+            this.showNotification('Error removing profile picture', 'error');
+        }
     }
 
-    loadProfilePicture() {
-        const savedPicture = localStorage.getItem('profilePicture');
-        if (savedPicture) {
-            this.setProfilePicture(savedPicture);
+    async loadProfilePicture() {
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) return;
+
+        try {
+            const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.profilePicture) {
+                    this.setProfilePicture(data.profilePicture);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading profile picture:', error);
         }
     }
 
@@ -339,6 +414,79 @@ class MemberDashboard {
     }
 
     // Investment Management
+    async loadInvestmentRequests() {
+        const investmentList = document.getElementById('investmentList');
+        const userId = sessionStorage.getItem('userId');
+        
+        if (!userId) {
+            investmentList.innerHTML = '<div class="error-message">User not logged in</div>';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`http://localhost:5000/api/investment-requests/my-requests/${userId}`);
+            const data = await response.json();
+            
+            if (response.ok) {
+                if (data.length === 0) {
+                    investmentList.innerHTML = '<div class="no-data-message">No investment requests found. Click "New Application" to submit one.</div>';
+                } else {
+                    investmentList.innerHTML = data.map(request => this.createInvestmentCard(request)).join('');
+                }
+            } else {
+                investmentList.innerHTML = '<div class="error-message">Failed to load investment requests</div>';
+            }
+        } catch (error) {
+            console.error('Error loading investment requests:', error);
+            investmentList.innerHTML = '<div class="error-message">Error loading investment requests</div>';
+        }
+    }
+
+    createInvestmentCard(request) {
+        const statusClass = request.status === 'approved' ? 'approved' : request.status === 'rejected' ? 'rejected' : 'pending';
+        const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+        const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        const reviewDate = request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+        
+        return `
+            <div class="investment-item">
+                <div class="investment-header">
+                    <span class="investment-id">${request.requestId}</span>
+                    <span class="investment-status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="investment-details">
+                    <div class="detail-item">
+                        <label>Amount Requested:</label>
+                        <span>৳${request.amount.toLocaleString()}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Purpose:</label>
+                        <span>${request.purpose}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Duration:</label>
+                        <span>${request.duration} Months</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Application Date:</label>
+                        <span>${appDate}</span>
+                    </div>
+                    ${request.status !== 'pending' ? `
+                    <div class="detail-item">
+                        <label>Status Date:</label>
+                        <span>${reviewDate}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="investment-actions">
+                    <button class="btn btn-sm" onclick="viewInvestment('${request._id}')">
+                        View Details
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
     showNewInvestmentForm() {
         const modalHTML = `
             <div class="modal-overlay" onclick="closeModal()">
@@ -351,36 +499,35 @@ class MemberDashboard {
                         <form id="newInvestmentForm">
                             <div class="form-group">
                                 <label>Investment Amount (৳)</label>
-                                <input type="number" name="amount" min="10000" max="50000" required>
-                                <small>Range: ৳10,000 - ৳50,000</small>
+                                <input type="number" id="investmentAmount" name="amount" min="1000" required>
                             </div>
                             <div class="form-group">
                                 <label>Purpose</label>
-                                <select name="purpose" required>
-                                    <option value="">Select Purpose</option>
-                                    <option value="business">Small Business</option>
-                                    <option value="education">Education</option>
-                                    <option value="medical">Medical Emergency</option>
-                                    <option value="home">Home Improvement</option>
-                                    <option value="agriculture">Agriculture</option>
-                                </select>
+                                <input type="text" id="investmentPurpose" name="purpose" required>
                             </div>
                             <div class="form-group">
-                                <label>Description</label>
-                                <textarea name="description" rows="4" required></textarea>
+                                <label>Duration (Months)</label>
+                                <input type="number" id="investmentDuration" name="duration" min="6" max="60" required>
                             </div>
                             <div class="form-group">
-                                <label>Monthly Income (৳)</label>
-                                <input type="number" name="income" required>
+                                <label>Monthly Installment (৳)</label>
+                                <input type="number" id="investmentInstallment" name="monthlyInstallment" required>
                             </div>
                             <div class="form-group">
-                                <label>Repayment Period</label>
-                                <select name="period" required>
-                                    <option value="6">6 Months</option>
-                                    <option value="12">12 Months</option>
-                                    <option value="18">18 Months</option>
-                                    <option value="24">24 Months</option>
-                                </select>
+                                <label>Collateral</label>
+                                <textarea id="investmentCollateral" name="collateral" rows="3" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Guarantor Name</label>
+                                <input type="text" id="guarantorName" name="guarantorName" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Guarantor Phone</label>
+                                <input type="tel" id="guarantorPhone" name="guarantorPhone" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Guarantor Relationship</label>
+                                <input type="text" id="guarantorRelationship" name="guarantorRelationship" required>
                             </div>
                         </form>
                     </div>
@@ -394,45 +541,71 @@ class MemberDashboard {
         this.showModal(modalHTML);
     }
 
-    viewInvestment(investmentId) {
-        const data = {
-            id: 'INV-2025-001',
-            amount: '৳15,000',
-            purpose: 'Small Business',
-            description: 'Starting a small grocery store',
-            status: 'Approved',
-            applicationDate: '15 Jan 2025',
-            approvalDate: '20 Jan 2025',
-            repaymentPeriod: '12 Months',
-            monthlyInstallment: '৳1,350'
-        };
-
-        const modalHTML = `
-            <div class="modal-overlay" onclick="closeModal()">
-                <div class="modal-content" onclick="event.stopPropagation()">
-                    <div class="modal-header">
-                        <h3>Investment Details - ${data.id}</h3>
-                        <button onclick="closeModal()" class="modal-close">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-                            <div><strong>Amount:</strong> ${data.amount}</div>
-                            <div><strong>Purpose:</strong> ${data.purpose}</div>
-                            <div><strong>Status:</strong> <span style="color: var(--primary-green);">${data.status}</span></div>
-                            <div><strong>Application Date:</strong> ${data.applicationDate}</div>
+    async viewInvestment(investmentId) {
+        this.showLoading('Loading details...');
+        
+        try {
+            const response = await fetch(`http://localhost:5000/api/investment-requests/${investmentId}`);
+            const data = await response.json();
+            
+            this.hideLoading();
+            
+            if (response.ok) {
+                const appDate = new Date(data.applicationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+                const reviewDate = data.reviewedAt ? new Date(data.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+                const statusColor = data.status === 'approved' ? 'var(--primary-green)' : data.status === 'rejected' ? 'var(--danger-red)' : 'var(--warning-orange)';
+                
+                const modalHTML = `
+                    <div class="modal-overlay" onclick="closeModal()">
+                        <div class="modal-content" onclick="event.stopPropagation()">
+                            <div class="modal-header">
+                                <h3>Investment Details - ${data.requestId}</h3>
+                                <button onclick="closeModal()" class="modal-close">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                                    <div><strong>Amount:</strong> ৳${data.amount.toLocaleString()}</div>
+                                    <div><strong>Purpose:</strong> ${data.purpose}</div>
+                                    <div><strong>Status:</strong> <span style="color: ${statusColor};">${data.status.toUpperCase()}</span></div>
+                                    <div><strong>Duration:</strong> ${data.duration} Months</div>
+                                    <div><strong>Monthly Installment:</strong> ৳${data.monthlyInstallment.toLocaleString()}</div>
+                                    <div><strong>Application Date:</strong> ${appDate}</div>
+                                    ${data.reviewedAt ? `<div><strong>Review Date:</strong> ${reviewDate}</div>` : ''}
+                                </div>
+                                <div style="margin-top: 1.5rem;">
+                                    <strong>Collateral:</strong>
+                                    <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${data.collateral}</p>
+                                </div>
+                                <div style="margin-top: 1rem;">
+                                    <strong>Guarantor Information:</strong>
+                                    <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                        <p><strong>Name:</strong> ${data.guarantor.name}</p>
+                                        <p><strong>Phone:</strong> ${data.guarantor.phone}</p>
+                                        <p><strong>Relationship:</strong> ${data.guarantor.relationship}</p>
+                                    </div>
+                                </div>
+                                ${data.adminNote ? `
+                                <div style="margin-top: 1rem;">
+                                    <strong>Admin Note:</strong>
+                                    <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${data.adminNote}</p>
+                                </div>
+                                ` : ''}
+                            </div>
+                            <div class="modal-footer">
+                                <button onclick="closeModal()" class="btn btn-primary">Close</button>
+                            </div>
                         </div>
-                        <div style="margin-top: 1.5rem;">
-                            <strong>Description:</strong>
-                            <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${data.description}</p>
-                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button onclick="closeModal()" class="btn btn-primary">Close</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        this.showModal(modalHTML);
+                `;
+                this.showModal(modalHTML);
+            } else {
+                this.showNotification('Failed to load investment details', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            console.error('Error viewing investment:', error);
+            this.showNotification('Error loading investment details', 'error');
+        }
     }
 
     // Reports Management
@@ -688,11 +861,11 @@ class MemberDashboard {
     }
 
     // Password Change
-    handlePasswordChange(e) {
+    async handlePasswordChange(e) {
         e.preventDefault();
-        const currentPassword = document.getElementById('currentPassword').value;
-        const newPassword = document.getElementById('newPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+        const currentPassword = document.getElementById('modalCurrentPassword').value;
+        const newPassword = document.getElementById('modalNewPassword').value;
+        const confirmPassword = document.getElementById('modalConfirmPassword').value;
 
         if (newPassword !== confirmPassword) {
             this.showNotification('New passwords do not match', 'error');
@@ -704,12 +877,42 @@ class MemberDashboard {
             return;
         }
 
+        const userId = sessionStorage.getItem('userId');
+        if (!userId) {
+            this.showNotification('User not logged in', 'error');
+            return;
+        }
+
         this.showLoading('Changing password...');
-        setTimeout(() => {
+        
+        try {
+            const response = await fetch('http://localhost:5000/auth/update-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId: userId,
+                    oldPassword: currentPassword,
+                    newPassword: newPassword
+                })
+            });
+
+            const data = await response.json();
             this.hideLoading();
-            this.showNotification('Password changed successfully', 'success');
-            document.getElementById('passwordForm').reset();
-        }, 1500);
+
+            if (response.ok) {
+                this.showNotification('Password changed successfully', 'success');
+                document.getElementById('changePasswordForm').reset();
+                closeChangePasswordModal();
+            } else {
+                this.showNotification(data.msg || 'Failed to change password', 'error');
+            }
+        } catch (error) {
+            this.hideLoading();
+            console.error('Error:', error);
+            this.showNotification('Error changing password', 'error');
+        }
     }
 
     // Chat System
@@ -883,10 +1086,21 @@ function showReportTab(tab) { dashboard.showReportTab(tab); }
 function generateDepositReport() { dashboard.generateDepositReport(); }
 function generateInvestmentReport() { dashboard.generateInvestmentReport(); }
 function generatePersonalReport() { dashboard.generatePersonalReport(); }
-function changePassword() { document.getElementById('passwordForm').dispatchEvent(new Event('submit')); }
 function sendMessage() { dashboard.sendMessage(); }
 function startNewComplaint() { dashboard.startNewComplaint(); }
 function toggleMobileMenu() { dashboard.toggleMobileMenu(); }
+
+// Change Password Modal Functions
+function openChangePasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').style.display = 'none';
+    document.body.style.overflow = 'auto';
+    document.getElementById('changePasswordForm').reset();
+}
 
 // Modal Functions
 function closeModal() {
@@ -895,12 +1109,55 @@ function closeModal() {
 }
 
 function submitInvestmentApplication() {
-    dashboard.showLoading('Submitting...');
-    setTimeout(() => {
+    const form = document.getElementById('newInvestmentForm');
+    const formData = new FormData(form);
+    
+    const userId = sessionStorage.getItem('userId');
+    
+    if (!userId) {
+        dashboard.showNotification('User not logged in', 'error');
+        return;
+    }
+    
+    const requestData = {
+        userId: userId,
+        amount: parseFloat(formData.get('amount')),
+        purpose: formData.get('purpose'),
+        duration: parseInt(formData.get('duration')),
+        monthlyInstallment: parseFloat(formData.get('monthlyInstallment')),
+        collateral: formData.get('collateral'),
+        guarantor: {
+            name: formData.get('guarantorName'),
+            phone: formData.get('guarantorPhone'),
+            relationship: formData.get('guarantorRelationship')
+        }
+    };
+    
+    dashboard.showLoading('Submitting application...');
+    
+    fetch('http://localhost:5000/api/investment-requests', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json())
+    .then(data => {
         dashboard.hideLoading();
-        closeModal();
-        dashboard.showNotification('Application submitted successfully', 'success');
-    }, 1500);
+        if (data.message) {
+            closeModal();
+            dashboard.showNotification(data.message, 'success');
+            dashboard.loadInvestmentRequests();
+        } else {
+            dashboard.showNotification('Failed to submit application', 'error');
+        }
+    })
+    .catch(error => {
+        dashboard.hideLoading();
+        console.error('Error:', error);
+        dashboard.showNotification('Error submitting application', 'error');
+    });
 }
 
 function submitComplaint() {
@@ -926,12 +1183,15 @@ function logout() {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-    if (e.altKey && e.key >= '1' && e.key <= '8') {
-        const sections = ['dashboard', 'profile', 'investment', 'reports', 'board', 'committee', 'password', 'notices', 'chat'];
+    if (e.altKey && e.key >= '1' && e.key <= '7') {
+        const sections = ['dashboard', 'profile', 'investment', 'reports', 'board', 'committee', 'notices', 'chat'];
         const index = parseInt(e.key) - 1;
         if (sections[index]) dashboard.showSection(sections[index]);
     }
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+        closeModal();
+        closeChangePasswordModal();
+    }
 });
 
 function logoRefresh() {

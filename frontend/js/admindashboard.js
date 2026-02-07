@@ -152,6 +152,11 @@ class AdminDashboard {
             loadApplicationsList();
         }
         
+        // Load investment requests when investment-monitoring section is shown
+        if (sectionId === 'investment-monitoring') {
+            loadInvestmentRequests();
+        }
+        
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
             this.toggleMobileMenu();
@@ -1519,7 +1524,296 @@ window.addEventListener('click', function(event) {
 });
 // Re-initialize charts on window resize for responsiveness
 window.addEventListener('resize', function() {
-    if (transactionChart || investmentChart) {
-        setTimeout(initializeCharts, 100);
+    if (dashboard && dashboard.charts) {
+        Object.values(dashboard.charts).forEach(chart => {
+            if (chart && chart.resize) chart.resize();
+        });
     }
 });
+
+// ============================================
+// INVESTMENT MONITORING FUNCTIONS
+// ============================================
+
+let currentInvestmentFilter = 'all';
+let allInvestmentRequests = [];
+
+async function loadInvestmentRequests(filter = 'all') {
+    currentInvestmentFilter = filter;
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-requests/admin/all');
+        const data = await response.json();
+        
+        if (response.ok) {
+            allInvestmentRequests = data;
+            displayInvestmentRequests(filter);
+            await loadInvestmentStatistics();
+        } else {
+            showInvestmentError('Failed to load investment requests');
+        }
+    } catch (error) {
+        console.error('Error loading investment requests:', error);
+        showInvestmentError('Error loading investment requests');
+    }
+}
+
+function displayInvestmentRequests(filter = 'all') {
+    const tbody = document.getElementById('investmentRequestsTableBody');
+    
+    let filteredRequests = allInvestmentRequests;
+    if (filter !== 'all') {
+        filteredRequests = allInvestmentRequests.filter(req => req.status === filter);
+    }
+    
+    if (filteredRequests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center;">No investment requests found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filteredRequests.map(request => {
+        const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        });
+        
+        const statusClass = request.status === 'approved' ? 'status-approved' : 
+                           request.status === 'rejected' ? 'status-rejected' : 'status-pending';
+        
+        const statusBadge = `<span class="${statusClass}" style="padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">${request.status.toUpperCase()}</span>`;
+        
+        let actionButtons = '';
+        if (request.status === 'pending') {
+            actionButtons = `
+                <button class="btn btn-sm" onclick="viewInvestmentRequest('${request._id}')" style="margin-right: 5px; padding: 4px 12px;">View</button>
+                <button class="btn btn-sm" onclick="showApproveRejectModal('${request._id}', 'approve')" style="background: var(--primary-green); margin-right: 5px; padding: 4px 12px;">Approve</button>
+                <button class="btn btn-sm" onclick="showApproveRejectModal('${request._id}', 'reject')" style="background: var(--danger-red); padding: 4px 12px;">Reject</button>
+            `;
+        } else {
+            actionButtons = `<button class="btn btn-sm" onclick="viewInvestmentRequest('${request._id}')" style="padding: 4px 12px;">View</button>`;
+        }
+        
+        return `
+            <tr>
+                <td>${request.requestId}</td>
+                <td>${request.memberName}</td>
+                <td>${request.memberID}</td>
+                <td>৳${request.amount.toLocaleString()}</td>
+                <td>${request.purpose}</td>
+                <td>${request.duration} months</td>
+                <td>${appDate}</td>
+                <td>${statusBadge}</td>
+                <td>${actionButtons}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+async function loadInvestmentStatistics() {
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-requests/admin/statistics');
+        const stats = await response.json();
+        
+        if (response.ok) {
+            document.getElementById('pendingCount').textContent = stats.pendingCount;
+            document.getElementById('approvedCount').textContent = stats.approvedCount;
+            document.getElementById('rejectedCount').textContent = stats.rejectedCount;
+            document.getElementById('approvedAmount').textContent = `৳${stats.approvedAmount.toLocaleString()}`;
+        }
+    } catch (error) {
+        console.error('Error loading statistics:', error);
+    }
+}
+
+function filterInvestmentRequests(filter) {
+    // Update active button
+    document.querySelectorAll('.filter-tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    displayInvestmentRequests(filter);
+}
+
+async function viewInvestmentRequest(requestId) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-requests/${requestId}`);
+        const request = await response.json();
+        
+        if (response.ok) {
+            showInvestmentDetailsModal(request);
+        } else {
+            alert('Failed to load investment request details');
+        }
+    } catch (error) {
+        console.error('Error viewing investment request:', error);
+        alert('Error loading investment request details');
+    }
+}
+
+function showInvestmentDetailsModal(request) {
+    const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    const reviewDate = request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    }) : 'N/A';
+    
+    const statusColor = request.status === 'approved' ? 'var(--primary-green)' : 
+                       request.status === 'rejected' ? 'var(--danger-red)' : 'var(--warning-orange)';
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="investmentDetailsModal" onclick="closeInvestmentModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative;">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">Investment Request Details - ${request.requestId}</h3>
+                    <button onclick="closeInvestmentModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0.5rem; color: var(--text-gray);">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div><strong>Member Name:</strong> ${request.memberName}</div>
+                        <div><strong>Member ID:</strong> ${request.memberID}</div>
+                        <div><strong>Amount:</strong> ৳${request.amount.toLocaleString()}</div>
+                        <div><strong>Purpose:</strong> ${request.purpose}</div>
+                        <div><strong>Duration:</strong> ${request.duration} Months</div>
+                        <div><strong>Monthly Installment:</strong> ৳${request.monthlyInstallment.toLocaleString()}</div>
+                        <div><strong>Application Date:</strong> ${appDate}</div>
+                        <div><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${request.status.toUpperCase()}</span></div>
+                        ${request.reviewedAt ? `<div><strong>Review Date:</strong> ${reviewDate}</div>` : ''}
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Collateral:</strong>
+                        <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${request.collateral}</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Guarantor Information:</strong>
+                        <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                            <p><strong>Name:</strong> ${request.guarantor.name}</p>
+                            <p><strong>Phone:</strong> ${request.guarantor.phone}</p>
+                            <p><strong>Relationship:</strong> ${request.guarantor.relationship}</p>
+                        </div>
+                    </div>
+                    
+                    ${request.adminNote ? `
+                    <div>
+                        <strong>Admin Note:</strong>
+                        <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${request.adminNote}</p>
+                    </div>
+                    ` : ''}
+                </div>
+                <div class="modal-footer" style="padding: 1.5rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    ${request.status === 'pending' ? `
+                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'approve')" class="btn" style="background: var(--primary-green); color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Approve</button>
+                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'reject')" class="btn" style="background: var(--danger-red); color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reject</button>
+                    ` : ''}
+                    <button onclick="closeInvestmentModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+}
+
+function showApproveRejectModal(requestId, action) {
+    const actionText = action === 'approve' ? 'Approve' : 'Reject';
+    const actionColor = action === 'approve' ? 'var(--primary-green)' : 'var(--danger-red)';
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="approveRejectModal" onclick="closeApproveRejectModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 550px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative;">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">${actionText} Investment Request</h3>
+                    <button onclick="closeApproveRejectModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0.5rem; color: var(--text-gray);">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 2rem;">
+                    <p style="margin-bottom: 1.5rem; font-size: 1rem; color: var(--text-dark);">
+                        Are you sure you want to <strong style="color: ${actionColor};">${action}</strong> this investment request?
+                    </p>
+                    <div class="form-group">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-dark);">
+                            Note/Comment: <span style="color: var(--text-gray); font-weight: 400; font-size: 0.9rem;">(Optional)</span>
+                        </label>
+                        <textarea 
+                            id="adminNoteInput" 
+                            rows="5" 
+                            placeholder="Enter your note or reason here..." 
+                            style="width: 100%; 
+                                   padding: 0.75rem; 
+                                   border: 2px solid var(--border-gray); 
+                                   border-radius: 8px; 
+                                   font-family: inherit; 
+                                   font-size: 0.95rem; 
+                                   resize: vertical;
+                                   min-height: 120px;
+                                   transition: border-color 0.2s;"
+                            onfocus="this.style.borderColor='var(--primary-green)'"
+                            onblur="this.style.borderColor='var(--border-gray)'"
+                        ></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1.5rem 2rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeApproveRejectModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Cancel</button>
+                    <button onclick="processInvestmentRequest('${requestId}', '${action}')" class="btn" style="background: ${actionColor}; color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Confirm ${actionText}</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+}
+
+async function processInvestmentRequest(requestId, action) {
+    const adminNote = document.getElementById('adminNoteInput').value;
+    const userId = sessionStorage.getItem('userId');
+    const status = action === 'approve' ? 'approved' : 'rejected';
+    
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-requests/${requestId}/status`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: status,
+                adminNote: adminNote,
+                reviewerId: userId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            closeApproveRejectModal();
+            dashboard.showNotification(data.message, 'success');
+            loadInvestmentRequests(currentInvestmentFilter);
+        } else {
+            alert(data.message || 'Failed to process request');
+        }
+    } catch (error) {
+        console.error('Error processing investment request:', error);
+        alert('Error processing investment request');
+    }
+}
+
+function closeInvestmentModal() {
+    const modal = document.getElementById('investmentDetailsModal');
+    if (modal) {
+        modal.parentElement.remove();
+    }
+}
+
+function closeApproveRejectModal() {
+    const modal = document.getElementById('approveRejectModal');
+    if (modal) {
+        modal.parentElement.remove();
+    }
+}
+
+function showInvestmentError(message) {
+    const tbody = document.getElementById('investmentRequestsTableBody');
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger-red);">${message}</td></tr>`;
+}

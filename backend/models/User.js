@@ -42,6 +42,11 @@ const UserSchema = new mongoose.Schema({
   applicationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Application'
+  },
+
+  profilePicture: {
+    type: String,
+    default: null
   }
 });
 

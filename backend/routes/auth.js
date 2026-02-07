@@ -103,5 +103,49 @@ router.post("/update-password", async (req, res) => {
   }
 });
 
+// UPDATE PROFILE PICTURE API
+router.post("/update-profile-picture", async (req, res) => {
+  const { userId, profilePicture } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ msg: "User ID is required" });
+  }
+
+  try {
+    await User.findByIdAndUpdate(userId, {
+      profilePicture: profilePicture || null
+    });
+
+    res.json({ msg: "Profile picture updated successfully", profilePicture });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// GET USER PROFILE API
+router.get("/user-profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId).select('fullName memberID email profilePicture');
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({ 
+      fullName: user.fullName,
+      memberID: user.memberID,
+      email: user.email,
+      profilePicture: user.profilePicture
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
 
 module.exports = router;
