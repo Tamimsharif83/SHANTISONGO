@@ -22,6 +22,8 @@ app.use("/applications", require("./routes/applications"));
 app.use("/api/monthlyshare", require("./routes/monthlyShare"));
 app.use("/api/savings", require("./routes/savingsAccount"));
 app.use("/api/investment-requests", require("./routes/investmentRequest"));
+app.use("/api/investment-accounts", require("./routes/investmentAccount"));
+app.use("/api/investment-recovery", require("./routes/investmentRecovery"));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)

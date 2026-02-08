@@ -31,6 +31,11 @@ const ApplicationSchema = new mongoose.Schema({
     required: true
   },
 
+  profilePicture: {
+    type: String, // Base64 encoded image
+    required: true
+  },
+
   address: {
     type: String,
     required: true

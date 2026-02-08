@@ -6,10 +6,10 @@ const router = express.Router();
 
 // SUBMIT APPLICATION (from signup/apply form)
 router.post("/submit", async (req, res) => {
-  const { fullName, email, phone, shareAmount, nid, nidImage, address } = req.body;
+  const { fullName, email, phone, shareAmount, nid, nidImage, profilePicture, address } = req.body;
 
   // Basic validation
-  if (!fullName || !email || !phone || !nid || !nidImage || !address) {
+  if (!fullName || !email || !phone || !nid || !nidImage || !profilePicture || !address) {
     return res.status(400).json({ msg: "All required fields must be provided" });
   }
 
@@ -31,6 +31,7 @@ router.post("/submit", async (req, res) => {
       shareAmount: shareAmount || 0,
       nid,
       nidImage,
+      profilePicture,
       address,
       status: "pending",
       appliedDate: new Date()
@@ -120,7 +121,8 @@ router.put("/approve/:id", async (req, res) => {
       role: "member",
       firstLogin: true,
       applicationId: application._id,
-      numberOfShares: application.shareAmount || 0
+      numberOfShares: application.shareAmount || 0,
+      profilePicture: application.profilePicture
     });
 
     await newUser.save();

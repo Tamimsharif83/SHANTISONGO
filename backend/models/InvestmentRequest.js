@@ -27,13 +27,22 @@ const investmentRequestSchema = new mongoose.Schema({
         required: true,
         min: 1
     },
-    monthlyInstallment: {
-        type: Number,
-        required: true
-    },
-    collateral: {
+    bankName: {
         type: String,
         required: true
+    },
+    bankBranch: {
+        type: String,
+        required: true
+    },
+    bankAccountNo: {
+        type: String,
+        required: true
+    },
+    bankAccountType: {
+        type: String,
+        required: true,
+        enum: ['Savings', 'Current', 'Fixed Deposit']
     },
     guarantor: {
         name: {

@@ -2,11 +2,13 @@ const express = require('express');
 const router = express.Router();
 const InvestmentRequest = require('../models/InvestmentRequest');
 const User = require('../models/User');
+const MonthlyShare = require('../models/MonthlyShare');
+const SavingsAccount = require('../models/SavingsAccount');
 
 // Create new investment request (Member)
 router.post('/', async (req, res) => {
     try {
-        const { userId, amount, purpose, duration, monthlyInstallment, collateral, guarantor } = req.body;
+        const { userId, amount, purpose, duration, bankName, bankBranch, bankAccountNo, bankAccountType, guarantor } = req.body;
         
         if (!userId) {
             return res.status(400).json({ message: 'User ID is required' });
@@ -25,8 +27,10 @@ router.post('/', async (req, res) => {
             amount,
             purpose,
             duration,
-            monthlyInstallment,
-            collateral,
+            bankName,
+            bankBranch,
+            bankAccountNo,
+            bankAccountType,
             guarantor,
             status: 'pending'
         });
@@ -62,7 +66,7 @@ router.get('/my-requests/:userId', async (req, res) => {
     }
 });
 
-// Get single investment request details
+// Get single investment request details with member history
 router.get('/:id', async (req, res) => {
     try {
         const request = await InvestmentRequest.findById(req.params.id);
@@ -71,12 +75,109 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ message: 'Investment request not found' });
         }
 
-        res.json(request);
+        // Fetch member's financial history
+        const memberHistory = await getMemberFinancialHistory(request.userId, request.memberID, request.applicationDate);
+        
+        // Fetch member's profile picture
+        const user = await User.findById(request.userId).select('profilePicture');
+        const profilePicture = user ? user.profilePicture : null;
+
+        res.json({
+            ...request.toObject(),
+            memberHistory,
+            memberProfilePicture: profilePicture
+        });
     } catch (error) {
         console.error('Error fetching investment request:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
+
+// Helper function to get member financial history
+async function getMemberFinancialHistory(userId, memberId, applicationDate) {
+    try {
+        // Calculate total share amount before application date
+        const totalShares = await MonthlyShare.aggregate([
+            {
+                $match: {
+                    memberId: memberId,
+                    status: 'Authorized',
+                    date: { $lt: new Date(applicationDate) }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' }
+                }
+            }
+        ]);
+
+        // Calculate total savings amount before application date
+        const totalSavings = await SavingsAccount.aggregate([
+            {
+                $match: {
+                    memberId: memberId,
+                    status: 'Authorized',
+                    date: { $lt: new Date(applicationDate) }
+                }
+            },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: '$amount' }
+                }
+            }
+        ]);
+
+        // Get previous investments before this application
+        const previousInvestments = await InvestmentRequest.find({
+            userId: userId,
+            applicationDate: { $lt: new Date(applicationDate) }
+        });
+
+        // Calculate total previous investment amount
+        const totalPreviousInvestment = previousInvestments.reduce((sum, inv) => {
+            if (inv.status === 'approved') {
+                return sum + inv.amount;
+            }
+            return sum;
+        }, 0);
+
+        // Count cleared and pending investments
+        const clearedInvestments = previousInvestments.filter(inv => 
+            inv.status === 'approved' && inv.cleared === true
+        ).length;
+        
+        const pendingInvestments = previousInvestments.filter(inv => 
+            inv.status === 'approved' && inv.cleared !== true
+        ).length;
+
+        return {
+            totalShareAmount: totalShares[0]?.total || 0,
+            totalSavingsAmount: totalSavings[0]?.total || 0,
+            totalPreviousInvestment,
+            clearedInvestmentsCount: clearedInvestments,
+            pendingInvestmentsCount: pendingInvestments,
+            previousInvestments: previousInvestments.map(inv => ({
+                amount: inv.amount,
+                status: inv.status,
+                purpose: inv.purpose,
+                date: inv.applicationDate
+            }))
+        };
+    } catch (error) {
+        console.error('Error fetching member history:', error);
+        return {
+            totalShareAmount: 0,
+            totalSavingsAmount: 0,
+            totalPreviousInvestment: 0,
+            clearedInvestmentsCount: 0,
+            pendingInvestmentsCount: 0,
+            previousInvestments: []
+        };
+    }
+}
 
 // Get all investment requests (Admin only)
 router.get('/admin/all', async (req, res) => {
@@ -131,6 +232,33 @@ router.patch('/:id/status', async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating investment request:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
+// Delete investment request (Member only - only pending requests)
+router.delete('/:id', async (req, res) => {
+    try {
+        const request = await InvestmentRequest.findById(req.params.id);
+        
+        if (!request) {
+            return res.status(404).json({ message: 'Investment request not found' });
+        }
+
+        // Only allow deletion of pending requests
+        if (request.status !== 'pending') {
+            return res.status(403).json({ 
+                message: 'Cannot delete request. Only pending requests can be deleted.' 
+            });
+        }
+
+        await InvestmentRequest.findByIdAndDelete(req.params.id);
+        
+        res.json({ 
+            message: 'Investment request deleted successfully' 
+        });
+    } catch (error) {
+        console.error('Error deleting investment request:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
