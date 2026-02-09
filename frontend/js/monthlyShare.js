@@ -1,5 +1,296 @@
-// Monthly Share Deposit Functions
+// Monthly Share Deposit Functions with Dropdown & Search
 // Note: API_BASE_URL is declared in admindashboard.js
+
+// ========================================
+// PAISA CONVERSION UTILITIES
+// ========================================
+function takaToPaysa(taka) {
+    return Math.round(parseFloat(taka) * 100);
+}
+
+function paysaToTaka(paisa) {
+    return paisa / 100;
+}
+
+function formatPaysaAsTaka(paisa, decimals = 2) {
+    const taka = paysaToTaka(paisa);
+    return `৳${taka.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    })}`;
+}
+// ========================================
+
+// Share price constant (1000 paisa per share = ৳10.00)
+const SHARE_PRICE_PAISA = 100000; // ৳1000 in paisa
+
+let currentSelectedMember = null;
+let allMembers = [];
+
+// Load all members into dropdown
+async function loadMembersDropdown() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/monthlyshare/all-members`);
+        const members = await response.json();
+        allMembers = members;
+        
+        const dropdown = document.getElementById('memberShareDropdown');
+        dropdown.innerHTML = '<option value="">-- Select a Member --</option>';
+        
+        members.forEach(member => {
+            const option = document.createElement('option');
+            option.value = member.memberID;
+            option.textContent = `${member.memberID} - ${member.fullName} (${member.numberOfShares} shares)`;
+            dropdown.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading members:', error);
+        showShareNotification('Failed to load members list', 'error');
+    }
+}
+
+// Select member from dropdown
+function selectMemberFromDropdown() {
+    const dropdown = document.getElementById('memberShareDropdown');
+    const memberId = dropdown.value;
+    
+    if (!memberId) {
+        // Clear displays
+        document.getElementById('memberDetailsDisplay').style.display = 'none';
+        document.getElementById('monthlyShareFormContainer').style.display = 'none';
+        document.getElementById('memberIdSearch').value = '';
+        currentSelectedMember = null;
+        return;
+    }
+    
+    // Find member in allMembers array
+    const member = allMembers.find(m => m.memberID === memberId);
+    if (member) {
+        currentSelectedMember = member;
+        displayMemberDetails(member);
+        showShareForm(member);
+        // Clear manual search
+        document.getElementById('memberIdSearch').value = '';
+    }
+}
+
+// Search member by ID
+async function searchMemberById() {
+    const memberId = document.getElementById('memberIdSearch').value.trim();
+    
+    if (!memberId) {
+        showShareNotification('Please enter a Member ID', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/monthlyshare/validate-member/${memberId}`);
+        
+        if (response.ok) {
+            const member = await response.json();
+            currentSelectedMember = member;
+            displayMemberDetails(member);
+            showShareForm(member);
+            
+            // Select in dropdown if exists
+            const dropdown = document.getElementById('memberShareDropdown');
+            dropdown.value = memberId;
+        } else {
+            showShareNotification('Member ID not found', 'error');
+            document.getElementById('memberDetailsDisplay').style.display = 'none';
+            document.getElementById('monthlyShareFormContainer').style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error searching member:', error);
+        showShareNotification('Error searching for member', 'error');
+    }
+}
+
+// Display member details with picture
+function displayMemberDetails(member) {
+    const profilePictureHTML = member.profilePicture 
+        ? `<img src="${member.profilePicture}" alt="${member.fullName}" style="width: 100%; height: 100%; object-fit: cover;" />`
+        : `<div style="width: 100%; height: 100%; background: var(--primary-green); color: white; display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold;">
+               ${member.fullName.charAt(0).toUpperCase()}
+           </div>`;
+    
+    const shareValue = member.numberOfShares * SHARE_PRICE_PAISA;
+    
+    const detailsHTML = `
+        <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 8px; border: 2px solid var(--primary-green); margin-bottom: 1.5rem; display: flex; gap: 1.5rem;">
+            <!-- Profile Picture -->
+            <div style="flex-shrink: 0;">
+                <div style="width: 150px; height: 150px; border-radius: 8px; overflow: hidden; border: 3px solid var(--primary-green); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    ${profilePictureHTML}
+                </div>
+                <div style="text-align: center; margin-top: 0.5rem; font-weight: bold; color: var(--primary-green);">
+                    ${member.fullName}
+                </div>
+                <div style="text-align: center; font-size: 0.9rem; color: #666;">
+                    ${member.memberID}
+                </div>
+            </div>
+            
+            <!-- Member Details -->
+            <div style="flex: 1;">
+                <h4 style="color: var(--primary-green); margin: 0 0 1rem 0;">Member Share Information</h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; font-size: 0.95rem;">
+                    <div><strong>Member ID:</strong> ${member.memberID}</div>
+                    <div><strong>Full Name:</strong> ${member.fullName}</div>
+                    <div><strong>Number of Shares:</strong> ${member.numberOfShares} shares</div>
+                    <div><strong>Share Price:</strong> ${formatPaysaAsTaka(SHARE_PRICE_PAISA, 0)} per share</div>
+                    <div style="grid-column: 1 / -1;">
+                        <strong>Total Share Value:</strong> 
+                        <span style="color: var(--primary-green); font-size: 1.2rem; font-weight: bold;">
+                            ${formatPaysaAsTaka(shareValue)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('memberDetailsDisplay').innerHTML = detailsHTML;
+    document.getElementById('memberDetailsDisplay').style.display = 'block';
+}
+
+// Show share deposit form
+function showShareForm(member) {
+    const today = new Date().toISOString().split('T')[0];
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    
+    // Calculate default amount (share value in taka)
+    const shareValuePaisa = member.numberOfShares * SHARE_PRICE_PAISA;
+    const shareValueTaka = Math.round(paysaToTaka(shareValuePaisa));
+    
+    const formHTML = `
+        <div style="background: #fff3cd; padding: 1.5rem; border-radius: 8px; border: 2px solid #856404;">
+            <h4 style="color: #856404; margin: 0 0 1rem 0;">Record Share Deposit</h4>
+            
+            <form id="monthlyShareForm" onsubmit="submitShareDeposit(event)">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Month *</label>
+                        <input 
+                            type="month" 
+                            id="shareMonth" 
+                            value="${currentMonth}"
+                            max="${currentMonth}"
+                            required
+                            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Date *</label>
+                        <input 
+                            type="date" 
+                            id="shareDate" 
+                            value="${today}"
+                            max="${today}"
+                            required
+                            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                        />
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Amount (৳) *</label>
+                    <input 
+                        type="number" 
+                        id="shareAmount" 
+                        value="${shareValueTaka}"
+                        min="1"
+                        step="1"
+                        required
+                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                    />
+                    <small style="color: #666;">Default: ${member.numberOfShares} shares × ৳1,000 = ৳${shareValueTaka.toLocaleString()}, you can modify</small>
+                </div>
+                
+                <div style="margin-bottom: 1rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Remarks (Optional)</label>
+                    <textarea 
+                        id="shareRemarks" 
+                        rows="3" 
+                        placeholder="Enter any additional notes..."
+                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-family: inherit; resize: vertical;"
+                    ></textarea>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" onclick="clearShareForm()" class="btn btn-secondary" style="padding: 0.75rem 1.5rem;">Clear</button>
+                    <button type="submit" class="btn btn-primary" style="padding: 0.75rem 2rem;">Submit for Authorization</button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.getElementById('monthlyShareFormContainer').innerHTML = formHTML;
+    document.getElementById('monthlyShareFormContainer').style.display = 'block';
+}
+
+// Submit share deposit
+async function submitShareDeposit(event) {
+    event.preventDefault();
+    
+    if (!currentSelectedMember) {
+        showShareNotification('Please select a member first', 'error');
+        return;
+    }
+    
+    const month = document.getElementById('shareMonth').value;
+    const date = document.getElementById('shareDate').value;
+    const amountInput = document.getElementById('shareAmount').value;
+    const amount = takaToPaysa(amountInput); // Convert to paisa
+    const remarks = document.getElementById('shareRemarks')?.value.trim() || '';
+    
+    if (!month || !date || !amountInput) {
+        showShareNotification('Please fill all required fields', 'error');
+        return;
+    }
+    
+    if (amount <= 0) {
+        showShareNotification('Amount must be greater than 0', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/monthlyshare`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                memberId: currentSelectedMember.memberID,
+                amount: amount,  // In paisa
+                month: month,
+                date: date,
+                remarks: remarks,
+                entryBy: sessionStorage.getItem('userName') || 'Admin'
+            })
+        });
+        
+        if (response.ok) {
+            showShareNotification('Share deposit entry created successfully! Status: Pending', 'success');
+            clearShareForm();
+            loadMonthlyShareEntries();
+        } else {
+            const error = await response.json();
+            showShareNotification('Failed to save entry: ' + error.message, 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting share deposit:', error);
+        showShareNotification('Error submitting entry', 'error');
+    }
+}
+
+// Clear form
+function clearShareForm() {
+    currentSelectedMember = null;
+    document.getElementById('memberShareDropdown').value = '';
+    document.getElementById('memberIdSearch').value = '';
+    document.getElementById('memberDetailsDisplay').style.display = 'none';
+    document.getElementById('monthlyShareFormContainer').style.display = 'none';
+}
 
 // Load monthly share entries when section is shown
 function loadMonthlyShareEntries() {
@@ -32,7 +323,7 @@ function displayMonthlyShareEntries(entries) {
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding:10px;">${entry.memberName}</td>
                 <td style="padding:10px;">${entry.memberId}</td>
-                <td style="padding:10px;">৳${entry.amount.toLocaleString()}</td>
+                <td style="padding:10px;">${formatPaysaAsTaka(entry.amount)}</td>
                 <td style="padding:10px;">${entry.month}</td>
                 <td style="padding:10px;">${date}</td>
                 <td style="padding:10px;">
@@ -43,245 +334,20 @@ function displayMonthlyShareEntries(entries) {
     }).join('');
 }
 
-// Validate member ID and show member name
-async function validateMemberId(memberId) {
-    const memberNameDisplay = document.getElementById('memberNameDisplay');
-    const submitBtn = document.getElementById('submitShareBtn');
-    
-    if (!memberId) {
-        memberNameDisplay.textContent = '';
-        memberNameDisplay.style.color = '#666';
-        return false;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/monthlyshare/validate-member/${memberId}`);
-        
-        if (response.ok) {
-            const data = await response.json();
-            memberNameDisplay.textContent = `✓ ${data.fullName}`;
-            memberNameDisplay.style.color = 'green';
-            submitBtn.disabled = false;
-            return true;
-        } else {
-            memberNameDisplay.textContent = '✗ Member ID not found';
-            memberNameDisplay.style.color = 'red';
-            submitBtn.disabled = true;
-            return false;
-        }
-    } catch (error) {
-        console.error('Error validating member ID:', error);
-        memberNameDisplay.textContent = '✗ Validation failed';
-        memberNameDisplay.style.color = 'red';
-        submitBtn.disabled = true;
-        return false;
-    }
-}
-
-// Handle form submission
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('monthlyShareForm');
-    const memberIdInput = document.getElementById('memberId');
-    const shareDateInput = document.getElementById('shareDate');
-    const shareMonthInput = document.getElementById('shareMonth');
-    
-    // Set today's date as default and max date to today (disable future dates)
-    if (shareDateInput) {
-        const today = new Date().toISOString().split('T')[0];
-        shareDateInput.value = today;
-        shareDateInput.max = today;
-    }
-    
-    // Set current month as default and max month to current (disable future months)
-    if (shareMonthInput) {
-        const currentMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
-        shareMonthInput.value = currentMonth;
-        shareMonthInput.max = currentMonth;
-    }
-    
-    // Add member ID validation on input
-    if (memberIdInput) {
-        memberIdInput.addEventListener('blur', function() {
-            validateMemberId(this.value);
-        });
-        
-        memberIdInput.addEventListener('input', function() {
-            if (this.value.length >= 4) {
-                validateMemberId(this.value);
-            }
-        });
-    }
-    
-    if (form) {
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const memberId = document.getElementById('memberId').value;
-            
-            // Validate member ID before submission
-            const isValid = await validateMemberId(memberId);
-            if (!isValid) {
-                showShareNotification('Please enter a valid Member ID', 'error');
-                return;
-            }
-
-            const formData = {
-                memberId: memberId,
-                amount: parseFloat(document.getElementById('shareAmount').value),
-                month: document.getElementById('shareMonth').value,
-                date: document.getElementById('shareDate').value,
-                entryBy: sessionStorage.getItem('userName') || 'Admin'
-            };
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/monthlyshare`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-
-                if (response.ok) {
-                    showShareNotification('Entry saved successfully! Status: Pending', 'success');
-                    form.reset();
-                    document.getElementById('memberNameDisplay').textContent = '';
-                    loadMonthlyShareEntries();
-                    loadPendingEntries();
-                } else {
-                    const error = await response.json();
-                    showShareNotification('Failed to save entry: ' + error.message, 'error');
-                }
-            } catch (error) {
-                console.error('Error saving entry:', error);
-                showShareNotification('Failed to save entry', 'error');
-            }
-        });
-    }
-});
-
-// Load pending entries for authorization
-function loadPendingEntries() {
-    // Load both monthly share and savings account pending entries
-    Promise.all([
-        fetch(`${API_BASE_URL}/api/monthlyshare/pending`).then(res => res.json()),
-        fetch(`${API_BASE_URL}/api/savings/pending`).then(res => res.json())
-    ])
-    .then(([shareEntries, savingsEntries]) => {
-        // Combine and sort entries by date
-        const allEntries = [
-            ...shareEntries.map(e => ({...e, type: 'Share Deposit'})),
-            ...savingsEntries.map(e => ({...e, type: 'Savings Deposit'}))
-        ].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        displayPendingEntries(allEntries);
-    })
-    .catch(error => {
-        console.error('Error loading pending entries:', error);
-        showNotification('Failed to load pending entries', 'error');
-    });
-}
-
-// Display pending entries in authorize section
-function displayPendingEntries(entries) {
-    const tbody = document.getElementById('pendingEntriesTableBody');
-    if (!tbody) return;
-
-    if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No pending entries</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = entries.map(entry => {
-        const date = new Date(entry.date).toLocaleDateString('en-GB');
-        const isSavings = entry.type === 'Savings Deposit';
-        
-        return `
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding:12px;">${date}</td>
-                <td style="padding:12px;">${entry.type}</td>
-                <td style="padding:12px;">${entry.memberName} (${entry.memberId})</td>
-                <td style="padding:12px;">৳${entry.amount.toLocaleString()}</td>
-                <td style="padding:12px;">${entry.entryBy}</td>
-                <td style="padding:12px;">
-                    <button onclick="${isSavings ? 'authorizeSavingsEntry' : 'authorizeEntry'}('${entry._id}')" style="padding:5px 10px; background:green; color:white; border:none; border-radius:4px; cursor:pointer; margin-right:5px;">Authorize</button>
-                    <button onclick="${isSavings ? 'deleteSavingsEntry' : 'deleteEntry'}('${entry._id}')" style="padding:5px 10px; background:red; color:white; border:none; border-radius:4px; cursor:pointer;">Delete</button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-
-// Authorize an entry
-async function authorizeEntry(entryId) {
-    if (!confirm('Are you sure you want to authorize this entry?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/monthlyshare/${entryId}/authorize`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                authorizedBy: sessionStorage.getItem('userName') || 'Admin'
-            })
-        });
-
-        if (response.ok) {
-            showShareNotification('Entry authorized successfully!', 'success');
-            loadPendingEntries();
-            loadMonthlyShareEntries();
-        } else {
-            const error = await response.json();
-            showShareNotification('Failed to authorize: ' + error.message, 'error');
-        }
-    } catch (error) {
-        console.error('Error authorizing entry:', error);
-        showShareNotification('Failed to authorize entry', 'error');
-    }
-}
-
-// Delete an entry
-async function deleteEntry(entryId) {
-    if (!confirm('Are you sure you want to delete this entry?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE_URL}/api/monthlyshare/${entryId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            showShareNotification('Entry deleted successfully!', 'success');
-            loadPendingEntries();
-            loadMonthlyShareEntries();
-        } else {
-            const error = await response.json();
-            showShareNotification('Failed to delete: ' + error.message, 'error');
-        }
-    } catch (error) {
-        console.error('Error deleting entry:', error);
-        showShareNotification('Failed to delete entry', 'error');
-    }
-}
-
 // Helper function to show notifications
 function showShareNotification(message, type) {
-    // Use dashboard showNotification if available
-    if (typeof AdminDashboard !== 'undefined' && AdminDashboard.prototype && AdminDashboard.prototype.showNotification) {
-        const dashboard = new AdminDashboard();
+    if (typeof dashboard !== 'undefined' && dashboard.showNotification) {
         dashboard.showNotification(message, type);
     } else {
-        // Fallback to alert
         alert(message);
     }
 }
 
-// Load data when monthly share section is shown
+// Initialize when monthly share section is shown
 document.addEventListener('DOMContentLoaded', function() {
+    // Load members when page loads
+    loadMembersDropdown();
+    
     // Override showSection to load data when section changes
     const originalShowSection = window.showSection;
     if (originalShowSection) {
@@ -289,13 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
             originalShowSection(sectionId);
             
             if (sectionId === 'monthly-share-deposit') {
+                loadMembersDropdown();
                 loadMonthlyShareEntries();
-            } else if (sectionId === 'monthly-saving-account') {
-                if (typeof loadSavingsAccountEntries === 'function') {
-                    loadSavingsAccountEntries();
-                }
-            } else if (sectionId === 'authorize-delete-data') {
-                loadPendingEntries();
             }
         };
     }

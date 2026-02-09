@@ -55,6 +55,12 @@ const VALIDATION_RULES = {
         messages: {
             required: 'National ID image is required'
         }
+    },
+    profilePicture: {
+        required: true,
+        messages: {
+            required: 'Profile picture is required'
+        }
     }
 };
 
@@ -185,14 +191,22 @@ function toggleMobileMenu() {
 
 // File Upload Handler
 function initializeFileUpload() {
-    const fileInput = document.getElementById('nidImage');
-    const fileLabel = document.querySelector('.file-label');
-    const fileNameDisplay = document.getElementById('fileName');
+    // Initialize NID Image upload
+    initializeFileInput('nidImage', 'fileName');
+    // Initialize Profile Picture upload
+    initializeFileInput('profilePicture', 'profileFileName');
+}
+
+function initializeFileInput(inputId, displayId) {
+    const fileInput = document.getElementById(inputId);
+    const fileLabel = fileInput ? fileInput.nextElementSibling : null;
+    const fileNameDisplay = document.getElementById(displayId);
     
     if (!fileInput || !fileLabel) return;
     
     // Click to upload
     fileLabel.addEventListener('click', () => fileInput.click());
+    
     
     // Drag and drop
     fileLabel.addEventListener('dragover', (e) => {
@@ -217,20 +231,20 @@ function initializeFileUpload() {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
-            handleFileSelect(files[0], fileNameDisplay);
+            handleFileSelect(files[0], fileNameDisplay, inputId);
         }
     });
     
     // File input change
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0], fileNameDisplay);
+            handleFileSelect(e.target.files[0], fileNameDisplay, inputId);
         }
     });
 }
 
-function handleFileSelect(file, fileNameDisplay) {
-    const fileInput = document.getElementById('nidImage');
+function handleFileSelect(file, fileNameDisplay, inputId) {
+    const fileInput = document.getElementById(inputId);
     
     // Validate file
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -342,10 +356,16 @@ async function handleFormSubmission(event) {
         if (!validateField(input)) isFormValid = false;
     });
     
-    // Validate file upload
-    const fileInput = document.getElementById('nidImage');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        displayValidationResult(fileInput, false, 'National ID image is required');
+    // Validate file uploads
+    const nidFileInput = document.getElementById('nidImage');
+    if (!nidFileInput.files || nidFileInput.files.length === 0) {
+        displayValidationResult(nidFileInput, false, 'National ID image is required');
+        isFormValid = false;
+    }
+    
+    const profileFileInput = document.getElementById('profilePicture');
+    if (!profileFileInput.files || profileFileInput.files.length === 0) {
+        displayValidationResult(profileFileInput, false, 'Profile picture is required');
         isFormValid = false;
     }
     
@@ -386,20 +406,25 @@ async function submitApplication(form) {
         try {
             // Get form data
             const formData = new FormData(form);
-            const fileInput = document.getElementById('nidImage');
+            const nidFileInput = document.getElementById('nidImage');
+            const profileFileInput = document.getElementById('profilePicture');
             
-            // Read file as base64
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const applicationData = {
-                    fullName: formData.get('fullName'),
-                    email: formData.get('email'),
-                    phone: formData.get('phone'),
-                    shareAmount: formData.get('shareAmount') || 0,
-                    nid: formData.get('nid'),
-                    nidImage: e.target.result,
-                    address: formData.get('address')
-                };
+            // Read NID file as base64
+            const nidReader = new FileReader();
+            nidReader.onload = function(nidEvent) {
+                // Read profile picture as base64
+                const profileReader = new FileReader();
+                profileReader.onload = async function(profileEvent) {
+                    const applicationData = {
+                        fullName: formData.get('fullName'),
+                        email: formData.get('email'),
+                        phone: formData.get('phone'),
+                        shareAmount: formData.get('shareAmount') || 0,
+                        nid: formData.get('nid'),
+                        nidImage: nidEvent.target.result,
+                        profilePicture: profileEvent.target.result,
+                        address: formData.get('address')
+                    };
                 
                 try {
                     const response = await fetch(`${API_BASE_URL}/applications/submit`, {
@@ -426,11 +451,18 @@ async function submitApplication(form) {
                 }
             };
             
-            reader.onerror = function() {
-                reject(new Error('Failed to read file'));
+            profileReader.onerror = function() {
+                reject(new Error('Failed to read profile picture'));
             };
             
-            reader.readAsDataURL(fileInput.files[0]);
+            profileReader.readAsDataURL(profileFileInput.files[0]);
+        };
+        
+        nidReader.onerror = function() {
+            reject(new Error('Failed to read NID image'));
+        };
+        
+        nidReader.readAsDataURL(nidFileInput.files[0]);
         } catch (error) {
             reject(error);
         }

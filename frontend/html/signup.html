@@ -195,6 +195,31 @@
               <div class="error-message" id="nidImageError"></div>
             </div>
 
+            <!-- Upload Profile Picture -->
+            <div class="form-group">
+              <label class="form-label">Upload Profile Picture *</label>
+              <div class="file-upload-container">
+                <input
+                  type="file"
+                  id="profilePicture"
+                  name="profilePicture"
+                  class="file-input"
+                  accept="image/*"
+                  required
+                />
+                <label for="profilePicture" class="file-label">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>Click to upload or drag and drop</span>
+                  <span class="file-info">PNG, JPG, GIF up to 10MB</span>
+                </label>
+                <div id="profileFileName" class="file-name"></div>
+              </div>
+              <div class="error-message" id="profilePictureError"></div>
+            </div>
+
             <!-- Address -->
             <div class="form-group">
               <label class="form-label">Address *</label>

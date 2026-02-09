@@ -43,7 +43,10 @@ router.post('/create-account', async (req, res) => {
             profitPercentage, 
             startDate,
             createdBy,
-            adminNote
+            adminNote,
+            customMonthlyProfit,  // Optional: Admin-modified monthly profit in paisa
+            customTotalProfit,    // Optional: Admin-modified total profit in paisa
+            customTotalAmount     // Optional: Admin-modified total amount in paisa
         } = req.body;
 
         // Validate inputs
@@ -102,8 +105,16 @@ router.post('/create-account', async (req, res) => {
             createdBy: createdBy
         });
 
-        // Calculate profits
-        investmentAccount.calculateMonthlyProfit();
+        // Calculate profits (or use custom values if provided by admin)
+        if (customMonthlyProfit && customTotalProfit && customTotalAmount) {
+            // Use admin's custom values (already in paisa)
+            investmentAccount.monthlyProfit = customMonthlyProfit;
+            investmentAccount.totalProfit = customTotalProfit;
+            investmentAccount.totalAmount = customTotalAmount;
+        } else {
+            // Auto-calculate profits
+            investmentAccount.calculateMonthlyProfit();
+        }
 
         // Calculate end date
         const endDate = new Date(startDate);
@@ -194,18 +205,32 @@ router.post('/calculate-profit', (req, res) => {
             });
         }
 
-        const annualProfit = amount * (profitPercentage / 100);
-        const monthlyProfit = annualProfit / 12;
-        const totalProfit = monthlyProfit * duration;
-        const totalAmount = amount + totalProfit;
+        // All calculations in paisa (integer) - NO FLOATING POINT
+        // amount is already in paisa from frontend
+        const amountPaisa = amount;  // integer
+        
+        // Calculate annual profit in paisa
+        const annualProfitPaisa = Math.round((amountPaisa * profitPercentage) / 100);
+        
+        // Calculate monthly profit in paisa (.5+ rounds up, <.5 rounds down)
+        const monthlyProfitPaisa = Math.round(annualProfitPaisa / 12);
+        
+        // Calculate total profit with proper remainder handling
+        const totalProfitWithoutRemainder = monthlyProfitPaisa * duration;
+        const remainder = annualProfitPaisa - (monthlyProfitPaisa * 12);
+        const totalProfitPaisa = totalProfitWithoutRemainder + Math.min(remainder, duration);
+        
+        // Total amount in paisa
+        const totalAmountPaisa = amountPaisa + totalProfitPaisa;
 
+        // Return all amounts in paisa (integers)
         res.json({
-            amount,
+            amount: amountPaisa,           // in paisa
             profitPercentage,
             duration,
-            monthlyProfit: Math.round(monthlyProfit * 100) / 100,
-            totalProfit: Math.round(totalProfit * 100) / 100,
-            totalAmount: Math.round(totalAmount * 100) / 100
+            monthlyProfit: monthlyProfitPaisa,    // in paisa
+            totalProfit: totalProfitPaisa,        // in paisa
+            totalAmount: totalAmountPaisa         // in paisa
         });
     } catch (error) {
         console.error('Error calculating profit:', error);

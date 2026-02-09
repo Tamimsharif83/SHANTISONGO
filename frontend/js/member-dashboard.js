@@ -1,4 +1,46 @@
 // Member Dashboard JavaScript
+
+// ========================================
+// PAISA CONVERSION UTILITIES
+// ========================================
+// Rule: 1 Taka = 100 Paisa
+// Storage & Calculation: Always in PAISA (integer)
+// Display: Convert to Taka (paisa / 100) with max 2 decimals
+
+/**
+ * Convert Taka (from user input) to Paisa for backend
+ * @param {number} taka - Amount in taka (can be decimal)
+ * @returns {number} Amount in paisa (integer)
+ */
+function takaToPaysa(taka) {
+    return Math.round(parseFloat(taka) * 100);
+}
+
+/**
+ * Convert Paisa (from backend) to Taka for display
+ * @param {number} paisa - Amount in paisa (integer)
+ * @returns {number} Amount in taka (with decimals)
+ */
+function paysaToTaka(paisa) {
+    return paisa / 100;
+}
+
+/**
+ * Format paisa as taka string with ৳ symbol
+ * @param {number} paisa - Amount in paisa (integer)
+ * @param {number} decimals - Number of decimal places (default: 2)
+ * @returns {string} Formatted string like "৳1,234.56"
+ */
+function formatPaysaAsTaka(paisa, decimals = 2) {
+    const taka = paysaToTaka(paisa);
+    return `৳${taka.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    })}`;
+}
+
+// ========================================
+
 class MemberDashboard {
     constructor() {
         // Check if user is logged in and not on first login
@@ -499,6 +541,11 @@ class MemberDashboard {
                     <button class="btn btn-sm" onclick="viewInvestment('${request._id}')">
                         View Details
                     </button>
+                    ${request.status === 'pending' ? `
+                    <button class="btn btn-sm" onclick="deleteInvestmentRequest('${request._id}')" style="background: var(--danger-red); margin-left: 0.5rem;">
+                        Delete
+                    </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -527,12 +574,25 @@ class MemberDashboard {
                                 <input type="number" id="investmentDuration" name="duration" min="6" max="60" required>
                             </div>
                             <div class="form-group">
-                                <label>Monthly Installment (৳)</label>
-                                <input type="number" id="investmentInstallment" name="monthlyInstallment" required>
+                                <label>Bank Name</label>
+                                <input type="text" id="bankName" name="bankName" required>
                             </div>
                             <div class="form-group">
-                                <label>Collateral</label>
-                                <textarea id="investmentCollateral" name="collateral" rows="3" required></textarea>
+                                <label>Bank Branch</label>
+                                <input type="text" id="bankBranch" name="bankBranch" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Bank Account No.</label>
+                                <input type="text" id="bankAccountNo" name="bankAccountNo" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Bank Account Type</label>
+                                <select id="bankAccountType" name="bankAccountType" required>
+                                    <option value="">Select Account Type</option>
+                                    <option value="Savings">Savings</option>
+                                    <option value="Current">Current</option>
+                                    <option value="Fixed Deposit">Fixed Deposit</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>Guarantor Name</label>
@@ -585,13 +645,17 @@ class MemberDashboard {
                                     <div><strong>Purpose:</strong> ${data.purpose}</div>
                                     <div><strong>Status:</strong> <span style="color: ${statusColor};">${data.status.toUpperCase()}</span></div>
                                     <div><strong>Duration:</strong> ${data.duration} Months</div>
-                                    <div><strong>Monthly Installment:</strong> ৳${data.monthlyInstallment.toLocaleString()}</div>
                                     <div><strong>Application Date:</strong> ${appDate}</div>
                                     ${data.reviewedAt ? `<div><strong>Review Date:</strong> ${reviewDate}</div>` : ''}
                                 </div>
                                 <div style="margin-top: 1.5rem;">
-                                    <strong>Collateral:</strong>
-                                    <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${data.collateral}</p>
+                                    <strong>Bank Details:</strong>
+                                    <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                                        <p><strong>Bank Name:</strong> ${data.bankName}</p>
+                                        <p><strong>Branch:</strong> ${data.bankBranch}</p>
+                                        <p><strong>Account No:</strong> ${data.bankAccountNo}</p>
+                                        <p><strong>Account Type:</strong> ${data.bankAccountType}</p>
+                                    </div>
                                 </div>
                                 <div style="margin-top: 1rem;">
                                     <strong>Guarantor Information:</strong>
@@ -1138,11 +1202,13 @@ function submitInvestmentApplication() {
     
     const requestData = {
         userId: userId,
-        amount: parseFloat(formData.get('amount')),
+        amount: takaToPaysa(formData.get('amount')),  // Convert taka → paisa
         purpose: formData.get('purpose'),
         duration: parseInt(formData.get('duration')),
-        monthlyInstallment: parseFloat(formData.get('monthlyInstallment')),
-        collateral: formData.get('collateral'),
+        bankName: formData.get('bankName'),
+        bankBranch: formData.get('bankBranch'),
+        bankAccountNo: formData.get('bankAccountNo'),
+        bankAccountType: formData.get('bankAccountType'),
         guarantor: {
             name: formData.get('guarantorName'),
             phone: formData.get('guarantorPhone'),
@@ -1174,6 +1240,34 @@ function submitInvestmentApplication() {
         dashboard.hideLoading();
         console.error('Error:', error);
         dashboard.showNotification('Error submitting application', 'error');
+    });
+}
+
+function deleteInvestmentRequest(requestId) {
+    if (!confirm('Are you sure you want to delete this investment application? This action cannot be undone.')) {
+        return;
+    }
+
+    dashboard.showLoading('Deleting application...');
+    
+    fetch(`http://localhost:5000/api/investment-requests/${requestId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        dashboard.hideLoading();
+        if (data.message) {
+            dashboard.showNotification('Application deleted successfully', 'success');
+            // Reload investment list
+            dashboard.loadInvestmentRequests();
+        } else {
+            dashboard.showNotification('Failed to delete application', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting application:', error);
+        dashboard.hideLoading();
+        dashboard.showNotification('Error deleting application', 'error');
     });
 }
 

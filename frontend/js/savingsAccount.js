@@ -1,6 +1,26 @@
 // Savings Account Deposit Functions
 // Note: API_BASE_URL is declared in admindashboard.js
 
+// ========================================
+// PAISA CONVERSION UTILITIES
+// ========================================
+function takaToPaysa(taka) {
+    return Math.round(parseFloat(taka) * 100);
+}
+
+function paysaToTaka(paisa) {
+    return paisa / 100;
+}
+
+function formatPaysaAsTaka(paisa, decimals = 2) {
+    const taka = paysaToTaka(paisa);
+    return `৳${taka.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    })}`;
+}
+// ========================================
+
 // Load savings account entries when section is shown
 function loadSavingsAccountEntries() {
     fetch(`${API_BASE_URL}/api/savings`)
@@ -32,7 +52,7 @@ function displaySavingsAccountEntries(entries) {
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding:10px;">${entry.memberName}</td>
                 <td style="padding:10px;">${entry.memberId}</td>
-                <td style="padding:10px;">৳${entry.amount.toLocaleString()}</td>
+                <td style="padding:10px;">${formatPaysaAsTaka(entry.amount)}</td>
                 <td style="padding:10px;">${date}</td>
                 <td style="padding:10px;">
                     <span style="color:${statusColor}; font-weight:600;">${entry.status}</span>
@@ -118,7 +138,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const formData = {
                 memberId: memberId,
-                amount: parseFloat(document.getElementById('savingsAmount').value),
+                amount: takaToPaysa(document.getElementById('savingsAmount').value),  // Convert to paisa
                 date: document.getElementById('savingsDate').value,
                 entryBy: sessionStorage.getItem('userName') || 'Admin'
             };

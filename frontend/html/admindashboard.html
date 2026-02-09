@@ -813,6 +813,13 @@
                   <label>Number of Shares *</label>
                   <input type="number" id="createMemberShares" placeholder="Enter number of shares" min="0" step="1" required />
                 </div>
+                <div class="form-group">
+                  <label>Upload Profile Picture*</label>
+                  <input type="file" id="createMemberProfilePicture" accept="image/*" style="padding: 0.5rem;" required />
+                  <small style="color: var(--text-gray); font-size: 0.8rem; margin-top: 0.25rem; display: block;">
+                   PNG, JPG, GIF up to 5MB
+                  </small>
+                </div>
               </div>
 
               <div class="form-row">
@@ -1625,51 +1632,79 @@
         <section id="investment-account" class="content-section">
           <div class="section-header">
             <h2>Investment Accounts</h2>
+            <p style="color: var(--text-gray); margin-top: 0.5rem;">All created investment accounts with payment tracking</p>
           </div>
+
+          <!-- Search and Filter -->
+          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <input 
+              type="text" 
+              id="investmentAccountSearchInput" 
+              placeholder="Enter Member ID or Account Number..." 
+              style="flex: 1; min-width: 250px; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+            />
+            <select 
+              id="investmentAccountSearchType" 
+              style="padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; min-width: 150px;"
+            >
+              <option value="memberID">Member ID</option>
+              <option value="accountNumber">Account Number</option>
+            </select>
+            <button 
+              onclick="searchInvestmentAccounts()" 
+              class="btn btn-primary"
+              style="padding: 0.75rem 1.5rem;"
+            >
+              Search
+            </button>
+            <button 
+              onclick="loadInvestmentAccounts()" 
+              class="btn btn-secondary"
+              style="padding: 0.75rem 1.5rem;"
+            >
+              Clear
+            </button>
+          </div>
+
+          <!-- Status Filter -->
+          <div style="margin-bottom: 1.5rem;">
+            <button onclick="filterInvestmentAccounts('all')" class="filter-btn active" data-filter="all">
+              All Accounts
+            </button>
+            <button onclick="filterInvestmentAccounts('active')" class="filter-btn" data-filter="active">
+              Active
+            </button>
+            <button onclick="filterInvestmentAccounts('completed')" class="filter-btn" data-filter="completed">
+              Completed
+            </button>
+          </div>
+
           <div class="data-table-container">
             <table class="data-table">
               <thead>
                 <tr>
                   <th>Account No</th>
-                  <th>Member</th>
-                  <th>Project</th>
+                  <th>Member ID</th>
+                  <th>Member Name</th>
                   <th>Invested Amount</th>
-                  <th>ROI</th>
+                  <th>Profit (%)</th>
+                  <th>Total Profit</th>
+                  <th>Paid Amount</th>
+                  <th>Pending Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="investmentAccountTableBody">
                 <tr>
-                  <td>INV-202</td>
-                  <td>Karim Mia</td>
-                  <td>Agro Project</td>
-                  <td>৳500,000</td>
-                  <td>12%</td>
-                </tr>
-                <tr>
-                  <td>INV-203</td>
-                  <td>Shamsul Islam</td>
-                  <td>SME Business</td>
-                  <td>৳350,000</td>
-                  <td>10%</td>
-                </tr>
-                <tr>
-                  <td>INV-204</td>
-                  <td>Monira Begum</td>
-                  <td>Retail Shop</td>
-                  <td>৳280,000</td>
-                  <td>11%</td>
-                </tr>
-                <tr>
-                  <td>INV-205</td>
-                  <td>Mizanur Rahman</td>
-                  <td>Transport Business</td>
-                  <td>৳600,000</td>
-                  <td>13%</td>
+                  <td colspan="10" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
+
+        <!-- Monthly Share Section -->
 
         <!-- Account Maintenance Section -->
         <section id="account-maintenance" class="content-section">
@@ -1865,6 +1900,29 @@
             </div>
           </div>
           
+          <!-- Search Section -->
+          <div style="background: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+              <div style="flex: 1; min-width: 200px;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-dark);">Search By</label>
+                <select id="investmentSearchType" style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-size: 0.95rem;">
+                  <option value="memberID">Member ID</option>
+                  <option value="requestID">Request ID</option>
+                </select>
+              </div>
+              <div style="flex: 2; min-width: 300px;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-dark);">Search Value</label>
+                <input type="text" id="investmentSearchInput" placeholder="Enter Member ID or Request ID..." style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-size: 0.95rem;" onkeypress="if(event.key === 'Enter') searchInvestmentRequests()">
+              </div>
+              <button onclick="searchInvestmentRequests()" style="padding: 0.75rem 2rem; background: #2196F3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                🔍 Search
+              </button>
+              <button onclick="clearInvestmentSearch()" style="padding: 0.75rem 1.5rem; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem;">
+                Clear
+              </button>
+            </div>
+          </div>
+          
           <div class="stats-grid" style="margin-bottom: 2rem;">
             <div class="stat-card">
               <div class="stat-info">
@@ -1920,29 +1978,58 @@
         <section id="investment-report" class="content-section">
           <div class="section-header">
             <h2>Investment Report</h2>
+            <p style="color: var(--text-gray); margin-top: 0.5rem;">Approved investment requests ready to be converted into investment accounts</p>
           </div>
+
+          <!-- Search and Filter -->
+          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+            <input 
+              type="text" 
+              id="investmentReportSearchInput" 
+              placeholder="Enter Member ID or Request ID..." 
+              style="flex: 1; min-width: 250px; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+            />
+            <select 
+              id="investmentReportSearchType" 
+              style="padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; min-width: 150px;"
+            >
+              <option value="memberID">Member ID</option>
+              <option value="requestID">Request ID</option>
+            </select>
+            <button 
+              onclick="searchInvestmentReport()" 
+              class="btn btn-primary"
+              style="padding: 0.75rem 1.5rem;"
+            >
+              Search
+            </button>
+            <button 
+              onclick="loadInvestmentReport()" 
+              class="btn btn-secondary"
+              style="padding: 0.75rem 1.5rem;"
+            >
+              Clear
+            </button>
+          </div>
+
           <div class="data-table-container">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Sector</th>
-                  <th>Total Invested</th>
-                  <th>Recovered</th>
-                  <th>Outstanding</th>
+                  <th>Request ID</th>
+                  <th>Member ID</th>
+                  <th>Member Name</th>
+                  <th>Amount</th>
+                  <th>Duration</th>
+                  <th>Purpose</th>
+                  <th>Approved Date</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody id="investmentReportTableBody">
                 <tr>
-                  <td>Agriculture</td>
-                  <td>৳1,000,000</td>
-                  <td>৳200,000</td>
-                  <td>৳800,000</td>
-                </tr>
-                <tr>
-                  <td>SME</td>
-                  <td>৳500,000</td>
-                  <td>৳100,000</td>
-                  <td>৳400,000</td>
+                  <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
                 </tr>
               </tbody>
             </table>
@@ -2070,30 +2157,48 @@
           <div class="section-header"><h2>Monthly Share Deposit Entry</h2></div>
           <div class="card">
             <div class="data-entry-form" style="margin-bottom: 2rem;">
-               <h3>New Deposit</h3>
-               <form id="monthlyShareForm">
-                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
-                       <div>
-                           <label>Member ID</label>
-                           <input type="text" id="memberId" class="input-field" placeholder="2025001" required>
-                           <small id="memberNameDisplay" style="color: #666; display: block; margin-top: 0.25rem;"></small>
-                       </div>
-                       <div>
-                           <label>Amount (৳)</label>
-                           <input type="number" id="shareAmount" class="input-field" value="500" required>
-                       </div>
-                       <div>
-                           <label>Month</label>
-                           <input type="month" id="shareMonth" class="input-field" required>
-                       </div>
-                       <div>
-                           <label>Date</label>
-                           <input type="date" id="shareDate" class="input-field" required>
-                       </div>
+               <h3>Select Member</h3>
+               
+               <!-- Member Dropdown Selection -->
+               <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 2px solid var(--primary-green);">
+                   <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Members with Shares</label>
+                   <select 
+                       id="memberShareDropdown" 
+                       style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-size: 1rem;"
+                       onchange="selectMemberFromDropdown()"
+                   >
+                       <option value="">-- Select a Member --</option>
+                   </select>
+                   <small style="color: #666; display: block; margin-top: 0.5rem;">Choose a member from the list to auto-fill their information</small>
+               </div>
+               
+               <div style="text-align: center; margin: 1rem 0; font-weight: bold; color: #666;">OR</div>
+               
+               <!-- Manual Search -->
+               <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid #856404;">
+                   <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Search by Member ID</label>
+                   <div style="display: flex; gap: 0.5rem;">
+                       <input 
+                           type="text" 
+                           id="memberIdSearch" 
+                           placeholder="Enter Member ID (e.g., 2026001)" 
+                           style="flex: 1; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                       />
+                       <button 
+                           onclick="searchMemberById()" 
+                           class="btn btn-primary" 
+                           style="padding: 0.75rem 1.5rem;"
+                       >Search</button>
                    </div>
-                   <button type="submit" class="btn btn-primary" id="submitShareBtn">Submit Entry</button>
-               </form>
+               </div>
+               
+               <!-- Member Details Display -->
+               <div id="memberDetailsDisplay" style="display: none;"></div>
+               
+               <!-- Monthly Share Form -->
+               <div id="monthlyShareFormContainer" style="display: none;"></div>
             </div>
+            
             <div class="recent-entries">
                <h3>Recent Share Deposits</h3>
                <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
@@ -2162,27 +2267,84 @@
 
         <!-- 3. Investment Recovery -->
         <section id="investment-recovery-entry" class="content-section">
-          <div class="section-header"><h2>Investment Recovery Entry</h2></div>
+          <div class="section-header">
+            <h2>Investment Recovery Entry</h2>
+            <p style="color: var(--text-gray); margin-top: 0.5rem;">Record investment installment payments</p>
+          </div>
+          
+          <div class="card" style="margin-bottom: 2rem;">
+            <h3 style="color: var(--primary-green); margin-bottom: 1rem;">Select Investment Account</h3>
+            
+            <!-- Pending Accounts List -->
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Accounts with Pending Recovery</label>
+              <select 
+                id="pendingAccountsDropdown" 
+                class="input-field" 
+                style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                onchange="loadSelectedInvestmentAccount()"
+              >
+                <option value="">-- Select an account --</option>
+              </select>
+              <p style="color: var(--text-gray); font-size: 0.9rem; margin-top: 0.5rem;">
+                <i>This list shows only accounts with pending payments. Fully paid accounts won't appear here.</i>
+              </p>
+            </div>
+
+            <div style="text-align: center; margin: 1rem 0;">
+              <strong style="color: var(--text-gray);">OR</strong>
+            </div>
+
+            <!-- Manual Search -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+              <input 
+                type="text" 
+                id="recoveryInvestmentIdInput" 
+                class="input-field" 
+                placeholder="Enter Investment Account Number (e.g., INV2026000001)"
+                style="flex: 1; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+              />
+              <button 
+                onclick="searchInvestmentForRecovery()" 
+                class="btn btn-primary"
+                style="padding: 0.75rem 2rem;"
+              >
+                Search
+              </button>
+            </div>
+
+            <!-- Investment Details Display -->
+            <div id="investmentRecoveryDetails" style="display: none;">
+              <!-- Details will be loaded here -->
+            </div>
+
+            <!-- Recovery Form -->
+            <div id="recoveryFormContainer" style="display: none;">
+              <!-- Form will be loaded here -->
+            </div>
+          </div>
+
+          <!-- Recent Recovery Entries -->
           <div class="card">
-             <div class="data-entry-form" style="margin-bottom: 2rem;">
-               <h3>Loan/Investment Collection</h3>
-               <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin: 1rem 0;">
-                   <div><label>Investment ID</label><input type="text" class="input-field" placeholder="INV-000"></div>
-                   <div><label>Installment Amt (৳)</label><input type="number" class="input-field"></div>
-                   <div><label>Profit/Interest</label><input type="number" class="input-field"></div>
-                   <div><label>Date</label><input type="date" class="input-field"></div>
-               </div>
-               <button class="btn btn-primary" onclick="alert('Dummy processing...')">Collect</button>
-            </div>
-             <div class="recent-entries">
-               <h3>Recent Recoveries (Dummy Data)</h3>
-               <table class="data-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
-                   <thead style="background: #f1f5f9;"><tr><th style="padding:10px;">Trx ID</th><th style="padding:10px;">Investment ID</th><th style="padding:10px;">Amount</th><th style="padding:10px;">Status</th></tr></thead>
-                   <tbody>
-                       <tr style="border-bottom: 1px solid #eee;"><td style="padding:10px;">REC-991</td><td style="padding:10px;">INV-102 (Business Loan)</td><td style="padding:10px;">৳15,000</td><td style="padding:10px;"><span style="color:orange">Pending</span></td></tr>
-                   </tbody>
-               </table>
-            </div>
+            <h3 style="color: var(--primary-green); margin-bottom: 1rem;">Recent Recovery Entries</h3>
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr>
+                  <th>Recovery ID</th>
+                  <th>Account No</th>
+                  <th>Member ID</th>
+                  <th>Installment Amount</th>
+                  <th>Profit/Interest</th>
+                  <th>Recovery Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recentRecoveryTableBody">
+                <tr>
+                  <td colspan="7" style="text-align: center; padding: 2rem;">No recent entries</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -2260,24 +2422,32 @@
 
         <!-- 9. Authorize/Delete Data -->
         <section id="authorize-delete-data" class="content-section">
-            <div class="section-header"><h2>Authorize Data Entries</h2></div>
+            <div class="section-header">
+              <h2>Authorize Data Entries</h2>
+              <p style="color: var(--text-gray); margin-top: 0.5rem;">Review and authorize pending investment recovery entries</p>
+            </div>
             <div class="card">
                 <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
-                    <button class="btn btn-primary" onclick="loadPendingEntries()">Refresh</button>
+                    <button class="btn btn-primary" onclick="loadPendingRecoveryEntries()">Refresh</button>
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                    <thead style="background: #e3f2fd;">
                        <tr>
-                           <th style="padding:12px;">Date</th>
-                           <th style="padding:12px;">Type</th>
-                           <th style="padding:12px;">Member</th>
+                           <th style="padding:12px;">Recovery ID</th>
+                           <th style="padding:12px;">Account No</th>
+                           <th style="padding:12px;">Member ID</th>
+                           <th style="padding:12px;">Member Name</th>
+                           <th style="padding:12px;">Month</th>
                            <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Recovery Date</th>
                            <th style="padding:12px;">Entry By</th>
                            <th style="padding:12px;">Actions</th>
                        </tr>
                    </thead>
                    <tbody id="pendingEntriesTableBody">
-                       <!-- Pending entries will be loaded dynamically -->
+                       <tr>
+                         <td colspan="9" style="text-align: center; padding: 2rem;">Loading...</td>
+                       </tr>
                    </tbody>
                </table>
             </div>

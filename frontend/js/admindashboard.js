@@ -3,6 +3,47 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:5000';
 
+// ========================================
+// PAISA CONVERSION UTILITIES
+// ========================================
+// Rule: 1 Taka = 100 Paisa
+// Storage & Calculation: Always in PAISA (integer)
+// Display: Convert to Taka (paisa / 100) with max 2 decimals
+
+/**
+ * Convert Taka (from user input) to Paisa for backend
+ * @param {number} taka - Amount in taka (can be decimal)
+ * @returns {number} Amount in paisa (integer)
+ */
+function takaToPaysa(taka) {
+    return Math.round(parseFloat(taka) * 100);
+}
+
+/**
+ * Convert Paisa (from backend) to Taka for display
+ * @param {number} paisa - Amount in paisa (integer)
+ * @returns {number} Amount in taka (with decimals)
+ */
+function paysaToTaka(paisa) {
+    return paisa / 100;
+}
+
+/**
+ * Format paisa as taka string with ৳ symbol
+ * @param {number} paisa - Amount in paisa (integer)
+ * @param {number} decimals - Number of decimal places (default: 2)
+ * @returns {string} Formatted string like "৳1,234.56"
+ */
+function formatPaysaAsTaka(paisa, decimals = 2) {
+    const taka = paysaToTaka(paisa);
+    return `৳${taka.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    })}`;
+}
+
+// ========================================
+
 // Global variables for application management
 let applicationsDatabase = [];
 let currentApplicationPage = 1;
@@ -155,6 +196,27 @@ class AdminDashboard {
         // Load investment requests when investment-monitoring section is shown
         if (sectionId === 'investment-monitoring') {
             loadInvestmentRequests();
+        }
+        
+        // Load investment report when investment-report section is shown
+        if (sectionId === 'investment-report') {
+            loadInvestmentReport();
+        }
+        
+        // Load investment accounts when investment-account section is shown
+        if (sectionId === 'investment-account') {
+            loadInvestmentAccounts();
+        }
+        
+        // Load recent recoveries and pending accounts when investment-recovery-entry section is shown
+        if (sectionId === 'investment-recovery-entry') {
+            loadPendingRecoveryAccounts();
+            loadRecentRecoveries();
+        }
+        
+        // Load pending recovery entries when authorize-delete-data section is shown
+        if (sectionId === 'authorize-delete-data') {
+            loadPendingRecoveryEntries();
         }
         
         // Close mobile menu on section change
@@ -1176,7 +1238,7 @@ function displayApplicationsTable() {
             <td>${app.email}</td>
             <td>${app.phone}</td>
             <td>${app.nid}</td>
-            <td>৳${Number(app.shareAmount || 0).toLocaleString()}</td>
+            <td>${formatPaysaAsTaka(Number(app.shareAmount || 0))}</td>
             <td>${appliedDate}</td>
             <td><span class="status-badge ${statusClass}">${app.status.charAt(0).toUpperCase() + app.status.slice(1)}</span></td>
             <td>
@@ -1251,10 +1313,18 @@ function viewApplicationDetails(appId) {
     const appliedDate = new Date(app.appliedDate).toLocaleString();
     const approvedDate = app.approvedDate ? new Date(app.approvedDate).toLocaleString() : 'N/A';
     
-    const imagePreview = app.nidImage ? `<img src="${app.nidImage}" style="max-width: 300px; border-radius: 8px; margin: 1rem 0;">` : '';
+    const nidImagePreview = app.nidImage ? `<img src="${app.nidImage}" style="max-width: 300px; border-radius: 8px; margin: 1rem 0;">` : '';
+    const profilePicturePreview = app.profilePicture ? `<img src="${app.profilePicture}" style="width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 4px solid var(--primary-green); box-shadow: 0 4px 12px rgba(0,0,0,0.15); margin: 1rem 0;">` : '';
     
     detailsContent.innerHTML = `
         <div style="display: grid; gap: 1rem;">
+            ${profilePicturePreview ? `
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <strong style="display: block; margin-bottom: 0.5rem;">Profile Picture:</strong>
+                ${profilePicturePreview}
+            </div>
+            ` : ''}
+            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <strong>Full Name:</strong>
@@ -1280,7 +1350,7 @@ function viewApplicationDetails(appId) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div>
                     <strong>Share Amount:</strong>
-                    <p style="margin: 0.5rem 0;">৳${Number(app.shareAmount || 0).toLocaleString()}</p>
+                    <p style="margin: 0.5rem 0;">${formatPaysaAsTaka(Number(app.shareAmount || 0))}</p>
                 </div>
                 <div>
                     <strong>Applied Date:</strong>
@@ -1295,7 +1365,7 @@ function viewApplicationDetails(appId) {
             
             <div>
                 <strong>NID Card Image:</strong>
-                ${imagePreview}
+                ${nidImagePreview}
             </div>
             
             ${app.status === 'approved' ? `
@@ -1537,6 +1607,8 @@ window.addEventListener('resize', function() {
 
 let currentInvestmentFilter = 'all';
 let allInvestmentRequests = [];
+let investmentSearchTerm = '';
+let investmentSearchType = '';
 
 async function loadInvestmentRequests(filter = 'all') {
     currentInvestmentFilter = filter;
@@ -1562,8 +1634,23 @@ function displayInvestmentRequests(filter = 'all') {
     const tbody = document.getElementById('investmentRequestsTableBody');
     
     let filteredRequests = allInvestmentRequests;
+    
+    // Apply status filter
     if (filter !== 'all') {
-        filteredRequests = allInvestmentRequests.filter(req => req.status === filter);
+        filteredRequests = filteredRequests.filter(req => req.status === filter);
+    }
+    
+    // Apply search filter
+    if (investmentSearchTerm && investmentSearchType) {
+        if (investmentSearchType === 'memberID') {
+            filteredRequests = filteredRequests.filter(req => 
+                req.memberID.toLowerCase().includes(investmentSearchTerm.toLowerCase())
+            );
+        } else if (investmentSearchType === 'requestID') {
+            filteredRequests = filteredRequests.filter(req => 
+                req.requestId.toLowerCase().includes(investmentSearchTerm.toLowerCase())
+            );
+        }
     }
     
     if (filteredRequests.length === 0) {
@@ -1581,28 +1668,23 @@ function displayInvestmentRequests(filter = 'all') {
         
         const statusBadge = `<span class="${statusClass}" style="padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">${request.status.toUpperCase()}</span>`;
         
-        let actionButtons = '';
-        if (request.status === 'pending') {
-            actionButtons = `
-                <button class="btn btn-sm" onclick="viewInvestmentRequest('${request._id}')" style="margin-right: 5px; padding: 4px 12px;">View</button>
-                <button class="btn btn-sm" onclick="showApproveRejectModal('${request._id}', 'approve')" style="background: var(--primary-green); margin-right: 5px; padding: 4px 12px;">Approve</button>
-                <button class="btn btn-sm" onclick="showApproveRejectModal('${request._id}', 'reject')" style="background: var(--danger-red); padding: 4px 12px;">Reject</button>
-            `;
-        } else {
-            actionButtons = `<button class="btn btn-sm" onclick="viewInvestmentRequest('${request._id}')" style="padding: 4px 12px;">View</button>`;
-        }
+        const actionButton = `
+            <button class="btn btn-sm" onclick="viewInvestmentRequest('${request._id}')" style="padding: 6px 16px; background: var(--primary-blue); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                Action
+            </button>
+        `;
         
         return `
             <tr>
                 <td>${request.requestId}</td>
                 <td>${request.memberName}</td>
                 <td>${request.memberID}</td>
-                <td>৳${request.amount.toLocaleString()}</td>
+                <td>${formatPaysaAsTaka(request.amount)}</td>
                 <td>${request.purpose}</td>
                 <td>${request.duration} months</td>
                 <td>${appDate}</td>
                 <td>${statusBadge}</td>
-                <td>${actionButtons}</td>
+                <td>${actionButton}</td>
             </tr>
         `;
     }).join('');
@@ -1617,7 +1699,7 @@ async function loadInvestmentStatistics() {
             document.getElementById('pendingCount').textContent = stats.pendingCount;
             document.getElementById('approvedCount').textContent = stats.approvedCount;
             document.getElementById('rejectedCount').textContent = stats.rejectedCount;
-            document.getElementById('approvedAmount').textContent = `৳${stats.approvedAmount.toLocaleString()}`;
+            document.getElementById('approvedAmount').textContent = formatPaysaAsTaka(stats.approvedAmount);
         }
     } catch (error) {
         console.error('Error loading statistics:', error);
@@ -1659,29 +1741,75 @@ function showInvestmentDetailsModal(request) {
     const statusColor = request.status === 'approved' ? 'var(--primary-green)' : 
                        request.status === 'rejected' ? 'var(--danger-red)' : 'var(--warning-orange)';
     
+    // Member history section
+    const memberHistory = request.memberHistory || {};
+    const profileAndHistorySection = memberHistory.totalShareAmount !== undefined ? `
+        <div style="margin-bottom: 1.5rem; display: grid; grid-template-columns: ${request.memberProfilePicture ? '1fr auto' : '1fr'}; gap: 1.5rem; align-items: stretch;">
+            <div style="padding: 1rem; background: #f0f9ff; border: 2px solid var(--primary-green); border-radius: 8px; display: flex; flex-direction: column;">
+                <h4 style="color: var(--primary-green); margin: 0 0 1rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>📊</span>
+                    <span>Member Financial History (Before Application)</span>
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; flex: 1;">
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e0e0e0;">
+                        <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Total Share Amount</div>
+                        <div style="font-size: 1.15rem; color: var(--primary-green); font-weight: bold;">${formatPaysaAsTaka(memberHistory.totalShareAmount)}</div>
+                    </div>
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e0e0e0;">
+                        <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Total Savings Amount</div>
+                        <div style="font-size: 1.15rem; color: var(--primary-green); font-weight: bold;">${formatPaysaAsTaka(memberHistory.totalSavingsAmount)}</div>
+                    </div>
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e0e0e0;">
+                        <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Previous Investments</div>
+                        <div style="font-size: 1.15rem; color: var(--primary-blue); font-weight: bold;">${formatPaysaAsTaka(memberHistory.totalPreviousInvestment)}</div>
+                    </div>
+                    <div style="background: white; padding: 0.75rem; border-radius: 6px; border: 1px solid #e0e0e0;">
+                        <div style="font-size: 0.85rem; color: #666; margin-bottom: 0.25rem;">Investment Status</div>
+                        <div style="font-size: 0.95rem; margin-top: 0.25rem;">
+                            <span style="color: var(--primary-green); font-weight: bold;">${memberHistory.clearedInvestmentsCount} Cleared</span>
+                            <span style="color: #999; margin: 0 0.25rem;">|</span>
+                            <span style="color: var(--warning-orange); font-weight: bold;">${memberHistory.pendingInvestmentsCount} Pending</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${request.memberProfilePicture ? `
+            <div style="display: flex; align-items: center; justify-content: center; padding: 1rem; background: white; border: 2px solid var(--primary-green); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); min-height: 100%;">
+                <img src="${request.memberProfilePicture}" alt="Profile" style="width: 160px; height: 160px; border-radius: 8px; object-fit: cover; display: block;">
+            </div>
+            ` : ''}
+        </div>
+    ` : '';
+    
     const modalHTML = `
         <div class="modal-overlay" id="investmentDetailsModal" onclick="closeInvestmentModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
-            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3); position: relative;">
                 <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
                     <h3 style="color: var(--primary-green); margin: 0;">Investment Request Details - ${request.requestId}</h3>
                     <button onclick="closeInvestmentModal()" class="modal-close" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 0.5rem; color: var(--text-gray);">&times;</button>
                 </div>
                 <div class="modal-body" style="padding: 1.5rem;">
+                    ${profileAndHistorySection}
+                    
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
                         <div><strong>Member Name:</strong> ${request.memberName}</div>
                         <div><strong>Member ID:</strong> ${request.memberID}</div>
-                        <div><strong>Amount:</strong> ৳${request.amount.toLocaleString()}</div>
+                        <div><strong>Amount:</strong> ${formatPaysaAsTaka(request.amount)}</div>
                         <div><strong>Purpose:</strong> ${request.purpose}</div>
                         <div><strong>Duration:</strong> ${request.duration} Months</div>
-                        <div><strong>Monthly Installment:</strong> ৳${request.monthlyInstallment.toLocaleString()}</div>
                         <div><strong>Application Date:</strong> ${appDate}</div>
                         <div><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${request.status.toUpperCase()}</span></div>
                         ${request.reviewedAt ? `<div><strong>Review Date:</strong> ${reviewDate}</div>` : ''}
                     </div>
                     
                     <div style="margin-bottom: 1rem;">
-                        <strong>Collateral:</strong>
-                        <p style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">${request.collateral}</p>
+                        <strong>Bank Details:</strong>
+                        <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                            <p><strong>Bank Name:</strong> ${request.bankName}</p>
+                            <p><strong>Branch:</strong> ${request.bankBranch}</p>
+                            <p><strong>Account No:</strong> ${request.bankAccountNo}</p>
+                            <p><strong>Account Type:</strong> ${request.bankAccountType}</p>
+                        </div>
                     </div>
                     
                     <div style="margin-bottom: 1rem;">
@@ -1702,8 +1830,8 @@ function showInvestmentDetailsModal(request) {
                 </div>
                 <div class="modal-footer" style="padding: 1.5rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
                     ${request.status === 'pending' ? `
-                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'approve')" class="btn" style="background: var(--primary-green); color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Approve</button>
-                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'reject')" class="btn" style="background: var(--danger-red); color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reject</button>
+                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'approve')" class="btn" style="background: #28a745; color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Approve</button>
+                        <button onclick="closeInvestmentModal(); showApproveRejectModal('${request._id}', 'reject')" class="btn" style="background: #dc3545; color: white; padding: 0.6rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reject</button>
                     ` : ''}
                     <button onclick="closeInvestmentModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Close</button>
                 </div>
@@ -1718,7 +1846,7 @@ function showInvestmentDetailsModal(request) {
 
 function showApproveRejectModal(requestId, action) {
     const actionText = action === 'approve' ? 'Approve' : 'Reject';
-    const actionColor = action === 'approve' ? 'var(--primary-green)' : 'var(--danger-red)';
+    const actionColor = action === 'approve' ? '#28a745' : '#dc3545';
     
     const modalHTML = `
         <div class="modal-overlay" id="approveRejectModal" onclick="closeApproveRejectModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
@@ -1818,6 +1946,33 @@ function showInvestmentError(message) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger-red);">${message}</td></tr>`;
 }
 
+function searchInvestmentRequests() {
+    const searchInput = document.getElementById('investmentSearchInput');
+    const searchTypeSelect = document.getElementById('investmentSearchType');
+    
+    investmentSearchTerm = searchInput.value.trim();
+    investmentSearchType = searchTypeSelect.value;
+    
+    if (!investmentSearchTerm) {
+        dashboard.showNotification('Please enter a search value', 'error');
+        return;
+    }
+    
+    displayInvestmentRequests(currentInvestmentFilter);
+}
+
+function clearInvestmentSearch() {
+    investmentSearchTerm = '';
+    investmentSearchType = '';
+    
+    const searchInput = document.getElementById('investmentSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    displayInvestmentRequests(currentInvestmentFilter);
+}
+
 
 // Create Member Form Handler
 document.addEventListener("DOMContentLoaded", function() {
@@ -1839,6 +1994,7 @@ async function handleCreateMember(e) {
     const phone = document.getElementById("createMemberPhone").value.trim();
     const nid = document.getElementById("createMemberNID").value.trim();
     const address = document.getElementById("createMemberAddress").value.trim();
+    const profilePictureFile = document.getElementById("createMemberProfilePicture").files[0];
     
     // Validate passwords match
     if (password !== confirmPassword) {
@@ -1866,6 +2022,17 @@ async function handleCreateMember(e) {
     }
     
     try {
+        // Convert profile picture to base64 if uploaded
+        let profilePictureBase64 = null;
+        if (profilePictureFile) {
+            profilePictureBase64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(profilePictureFile);
+            });
+        }
+        
         const response = await fetch("http://localhost:5000/auth/create-member", {
             method: "POST",
             headers: {
@@ -1879,7 +2046,8 @@ async function handleCreateMember(e) {
                 numberOfShares,
                 phone,
                 nid,
-                address
+                address,
+                profilePicture: profilePictureBase64
             })
         });
         
@@ -1930,3 +2098,1426 @@ Please provide these credentials to the member.`);
 function resetCreateMemberForm() {
     document.getElementById("createMemberForm").reset();
 }
+
+// ============================================
+// INVESTMENT REPORT FUNCTIONS
+// ============================================
+
+let allInvestmentReportRequests = [];
+let investmentReportSearchTerm = '';
+let investmentReportSearchType = '';
+
+async function loadInvestmentReport() {
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-accounts/approved-requests');
+        const data = await response.json();
+        
+        if (response.ok) {
+            allInvestmentReportRequests = data;
+            investmentReportSearchTerm = '';
+            investmentReportSearchType = '';
+            document.getElementById('investmentReportSearchInput').value = '';
+            displayInvestmentReport(data);
+        } else {
+            showInvestmentReportError('Failed to load approved requests');
+        }
+    } catch (error) {
+        console.error('Error loading investment report:', error);
+        showInvestmentReportError('Error loading investment report');
+    }
+}
+
+function displayInvestmentReport(requests) {
+    const tbody = document.getElementById('investmentReportTableBody');
+    
+    // Filter only requests that don't have investment accounts yet
+    const pendingRequests = requests.filter(req => !req.hasInvestmentAccount);
+    
+    if (pendingRequests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem; color: #666;">No pending approved requests</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pendingRequests.map(request => {
+        const approvedDate = new Date(request.reviewedAt).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        });
+        
+        return `
+            <tr>
+                <td>${request.requestId}</td>
+                <td>${request.memberID}</td>
+                <td>${request.memberName}</td>
+                <td>${formatPaysaAsTaka(request.amount)}</td>
+                <td>${request.duration} months</td>
+                <td>${request.purpose}</td>
+                <td>${approvedDate}</td>
+                <td><span style="color: var(--primary-green); font-weight: bold;">APPROVED</span></td>
+                <td>
+                    <button 
+                        onclick="openCreateInvestmentAccountModal('${request._id}')" 
+                        class="btn btn-primary"
+                        style="padding: 0.5rem 1rem; font-size: 0.9rem;"
+                    >
+                        Create Account
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function searchInvestmentReport() {
+    const searchInput = document.getElementById('investmentReportSearchInput');
+    const searchTypeSelect = document.getElementById('investmentReportSearchType');
+    
+    investmentReportSearchTerm = searchInput.value.trim();
+    investmentReportSearchType = searchTypeSelect.value;
+    
+    if (!investmentReportSearchTerm) {
+        dashboard.showNotification('Please enter a search value', 'error');
+        return;
+    }
+    
+    let filteredRequests = allInvestmentReportRequests;
+    
+    if (investmentReportSearchType === 'memberID') {
+        filteredRequests = filteredRequests.filter(req => 
+            req.memberID.toLowerCase().includes(investmentReportSearchTerm.toLowerCase())
+        );
+    } else if (investmentReportSearchType === 'requestID') {
+        filteredRequests = filteredRequests.filter(req => 
+            req.requestId.toLowerCase().includes(investmentReportSearchTerm.toLowerCase())
+        );
+    }
+    
+    displayInvestmentReport(filteredRequests);
+}
+
+async function openCreateInvestmentAccountModal(requestId) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-requests/${requestId}`);
+        const request = await response.json();
+        
+        if (response.ok) {
+            showCreateInvestmentAccountModal(request);
+        } else {
+            alert('Failed to load request details');
+        }
+    } catch (error) {
+        console.error('Error loading request details:', error);
+        alert('Error loading request details');
+    }
+}
+
+function showCreateInvestmentAccountModal(request) {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="createInvestmentAccountModal" onclick="closeCreateInvestmentAccountModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">Create Investment Account</h3>
+                    <button onclick="closeCreateInvestmentAccountModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <!-- Request Details with Member Picture -->
+                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; background: #f0f9ff; padding: 1rem; border-radius: 8px; border: 2px solid var(--primary-green); margin-bottom: 1.5rem;">
+                        <div>
+                            <h4 style="color: var(--primary-green); margin: 0 0 0.75rem 0;">Request Details</h4>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 0.95rem;">
+                                <div><strong>Request ID:</strong> ${request.requestId}</div>
+                                <div><strong>Member ID:</strong> ${request.memberID}</div>
+                                <div><strong>Member Name:</strong> ${request.memberName}</div>
+                                <div><strong>Amount:</strong> ${formatPaysaAsTaka(request.amount)}</div>
+                                <div><strong>Duration:</strong> ${request.duration} Months</div>
+                                <div><strong>Purpose:</strong> ${request.purpose}</div>
+                            </div>
+                        </div>
+                        ${request.memberProfilePicture ? `
+                        <div style="display: flex; align-items: center; justify-content: center;">
+                            <img src="${request.memberProfilePicture}" alt="Member Photo" style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 2px solid var(--primary-green); box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Profit Calculation Form -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--primary-green); margin: 0 0 1rem 0;">Investment Details</h4>
+                        
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Profit Percentage (%) *</label>
+                            <input 
+                                type="number" 
+                                id="profitPercentageInput" 
+                                placeholder="Enter annual profit percentage (e.g., 10 for 10%)"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                oninput="calculateProfit('${request._id}')"
+                                style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                            />
+                        </div>
+
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Start Date *</label>
+                            <input 
+                                type="date" 
+                                id="startDateInput" 
+                                value="${today}"
+                                max="${today}"
+                                oninput="calculateEndDate('${request.duration}')"
+                                style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                            />
+                            <small style="color: var(--text-gray);">You can select past dates but not future dates</small>
+                        </div>
+
+                        <!-- Calculation Results -->
+                        <div id="profitCalculationResults" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0; display: none;">
+                            <h5 style="margin: 0 0 0.75rem 0; color: var(--primary-green);">Calculation Summary</h5>
+                            <div style="display: grid; gap: 0.5rem;">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Principal Amount:</span>
+                                    <strong>${formatPaysaAsTaka(request.amount)}</strong>
+                                </div>
+                                
+                                <!-- Monthly Profit Section with Calculated, Rounded, and Editable values -->
+                                <div style="background: #fff3cd; padding: 0.75rem; border-radius: 6px; border: 1px solid #ffc107; margin: 0.5rem 0;">
+                                    <div style="margin-bottom: 0.5rem;">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
+                                            <span style="font-size: 0.9rem; color: #856404;">Calculated Monthly Profit:</span>
+                                            <strong id="monthlyProfitRaw" style="color: #856404;">৳0.00</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span style="font-size: 0.9rem; color: #856404;">Rounded Suggestion:</span>
+                                            <strong id="monthlyProfitRounded" style="color: #856404;">৳0</strong>
+                                        </div>
+                                    </div>
+                                    <div style="border-top: 1px solid #ffc107; padding-top: 0.5rem;">
+                                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600; color: #856404;">Final Monthly Profit (Editable):</label>
+                                        <input 
+                                            type="number" 
+                                            id="monthlyProfitInput" 
+                                            step="0.01"
+                                            min="0"
+                                            oninput="recalculateFromMonthlyProfit('${request.duration}')"
+                                            style="width: 100%; padding: 0.5rem; border: 2px solid #ffc107; border-radius: 4px; font-weight: bold; font-size: 1rem;"
+                                            placeholder="Enter final monthly profit"
+                                        />
+                                        <small style="color: #856404; display: block; margin-top: 0.25rem;">Admin can modify this value. This will be used for calculations.</small>
+                                    </div>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: space-between;">
+                                    <span>Total Profit (${request.duration} months):</span>
+                                    <strong id="totalProfitDisplay">৳0</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding-top: 0.5rem; border-top: 2px solid var(--primary-green);">
+                                    <span style="font-weight: bold;">Total Amount:</span>
+                                    <strong style="color: var(--primary-green); font-size: 1.1rem;" id="totalAmountDisplay">৳0</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; background: #fff3cd; padding: 0.5rem; border-radius: 6px;">
+                                    <span style="font-weight: 600; color: #856404;">Per Month Payment:</span>
+                                    <strong style="color: #856404; font-size: 1.05rem;" id="perMonthPaymentDisplay">৳0</strong>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem;">
+                                    <span>End Date:</span>
+                                    <strong id="endDateDisplay">-</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Admin Note/Comment -->
+                        <div style="margin-top: 1.5rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                                Admin Note/Comment <span style="color: var(--text-gray); font-weight: 400; font-size: 0.9rem;">(Optional)</span>
+                            </label>
+                            <textarea 
+                                id="investmentAccountNoteInput" 
+                                rows="4" 
+                                placeholder="Enter any additional notes or comments about this investment account..."
+                                style="width: 100%; 
+                                       padding: 0.75rem; 
+                                       border: 2px solid var(--border-gray); 
+                                       border-radius: 8px; 
+                                       font-family: inherit; 
+                                       font-size: 0.95rem; 
+                                       resize: vertical;
+                                       min-height: 100px;
+                                       transition: border-color 0.2s;"
+                                onfocus="this.style.borderColor='var(--primary-green)'"
+                                onblur="this.style.borderColor='var(--border-gray)'"
+                            ></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1.5rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeCreateInvestmentAccountModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Cancel</button>
+                    <button onclick="createInvestmentAccount('${request._id}')" class="btn btn-primary" id="createAccountBtn" style="padding: 0.6rem 1.5rem;">Create Investment Account</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+}
+
+let calculatedProfitData = null;
+
+async function calculateProfit(requestId) {
+    const profitPercentage = parseFloat(document.getElementById('profitPercentageInput').value);
+    
+    if (!profitPercentage || profitPercentage <= 0) {
+        document.getElementById('profitCalculationResults').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-requests/${requestId}`);
+        const request = await response.json();
+        
+        if (response.ok) {
+            const calcResponse = await fetch('http://localhost:5000/api/investment-accounts/calculate-profit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: request.amount,  // Already in paisa from backend
+                    profitPercentage: profitPercentage,
+                    duration: request.duration
+                })
+            });
+            
+            const calcData = await calcResponse.json();
+            
+            if (calcResponse.ok) {
+                calculatedProfitData = calcData;
+                
+                // Calculate raw monthly profit in taka (with decimals)
+                const monthlyProfitTaka = paysaToTaka(calcData.monthlyProfit);
+                const roundedMonthlyProfitTaka = Math.round(monthlyProfitTaka);
+                
+                // Display calculated value (with decimals)
+                document.getElementById('monthlyProfitRaw').textContent = `৳${monthlyProfitTaka.toFixed(2)}`;
+                
+                // Display rounded suggestion (integer)
+                document.getElementById('monthlyProfitRounded').textContent = `৳${roundedMonthlyProfitTaka}`;
+                
+                // Set editable input to rounded value (admin can modify)
+                document.getElementById('monthlyProfitInput').value = roundedMonthlyProfitTaka.toFixed(2);
+                
+                // Initial calculation with rounded value
+                recalculateFromMonthlyProfit(request.duration);
+                
+                document.getElementById('profitCalculationResults').style.display = 'block';
+                calculateEndDate(request.duration);
+            }
+        }
+    } catch (error) {
+        console.error('Error calculating profit:', error);
+    }
+}
+
+// Recalculate total profit and total amount based on admin's monthly profit input
+function recalculateFromMonthlyProfit(duration) {
+    const monthlyProfitTaka = parseFloat(document.getElementById('monthlyProfitInput').value) || 0;
+    
+    if (!calculatedProfitData) return;
+    
+    // Convert to paisa
+    const monthlyProfitPaisa = takaToPaysa(monthlyProfitTaka);
+    
+    // Calculate total profit
+    const totalProfitPaisa = monthlyProfitPaisa * duration;
+    
+    // Calculate total amount (principal + total profit)
+    const totalAmountPaisa = calculatedProfitData.amount + totalProfitPaisa;
+    
+    // Calculate per month payment (base installment, remainder goes to last month)
+    const baseInstallmentPaisa = Math.floor(totalAmountPaisa / duration);
+    
+    // Update displays
+    document.getElementById('totalProfitDisplay').textContent = formatPaysaAsTaka(totalProfitPaisa, 0);
+    document.getElementById('totalAmountDisplay').textContent = formatPaysaAsTaka(totalAmountPaisa);
+    document.getElementById('perMonthPaymentDisplay').textContent = formatPaysaAsTaka(baseInstallmentPaisa, 0);
+    
+    // Update calculatedProfitData for use in account creation
+    calculatedProfitData.monthlyProfit = monthlyProfitPaisa;
+    calculatedProfitData.totalProfit = totalProfitPaisa;
+    calculatedProfitData.totalAmount = totalAmountPaisa;
+}
+
+function calculateEndDate(duration) {
+    const startDate = document.getElementById('startDateInput').value;
+    
+    if (!startDate) {
+        document.getElementById('endDateDisplay').textContent = '-';
+        return;
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + parseInt(duration));
+    
+    const endDateStr = end.toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    
+    document.getElementById('endDateDisplay').textContent = endDateStr;
+}
+
+async function createInvestmentAccount(requestId) {
+    const profitPercentage = parseFloat(document.getElementById('profitPercentageInput').value);
+    const startDate = document.getElementById('startDateInput').value;
+    const adminNote = document.getElementById('investmentAccountNoteInput').value.trim();
+    const userId = sessionStorage.getItem('userId');
+    
+    if (!profitPercentage || profitPercentage <= 0) {
+        alert('Please enter a valid profit percentage');
+        return;
+    }
+    
+    if (!startDate) {
+        alert('Please select a start date');
+        return;
+    }
+    
+    if (!calculatedProfitData) {
+        alert('Please calculate profit first by entering profit percentage');
+        return;
+    }
+    
+    const createBtn = document.getElementById('createAccountBtn');
+    createBtn.disabled = true;
+    createBtn.textContent = 'Creating...';
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-accounts/create-account', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                investmentRequestId: requestId,
+                profitPercentage: profitPercentage,
+                startDate: startDate,
+                adminNote: adminNote,
+                createdBy: userId,
+                // Send admin's modified profit values (in paisa)
+                customMonthlyProfit: calculatedProfitData.monthlyProfit,
+                customTotalProfit: calculatedProfitData.totalProfit,
+                customTotalAmount: calculatedProfitData.totalAmount
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            closeCreateInvestmentAccountModal();
+            dashboard.showNotification(`Investment Account Created Successfully! Account No: ${data.account.investmentAccountNumber}`, 'success');
+            loadInvestmentReport();
+        } else {
+            alert(data.message || 'Failed to create investment account');
+            createBtn.disabled = false;
+            createBtn.textContent = 'Create Investment Account';
+        }
+    } catch (error) {
+        console.error('Error creating investment account:', error);
+        alert('Error creating investment account');
+        createBtn.disabled = false;
+        createBtn.textContent = 'Create Investment Account';
+    }
+}
+
+function closeCreateInvestmentAccountModal() {
+    const modal = document.getElementById('createInvestmentAccountModal');
+    if (modal) {
+        modal.parentElement.remove();
+    }
+    calculatedProfitData = null;
+}
+
+function showInvestmentReportError(message) {
+    const tbody = document.getElementById('investmentReportTableBody');
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--danger-red); padding: 2rem;">${message}</td></tr>`;
+}
+
+// ============================================
+// INVESTMENT ACCOUNT FUNCTIONS
+// ============================================
+
+let allInvestmentAccounts = [];
+let currentInvestmentAccountFilter = 'all';
+let investmentAccountSearchTerm = '';
+let investmentAccountSearchType = '';
+
+async function loadInvestmentAccounts(filter = 'all') {
+    currentInvestmentAccountFilter = filter;
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-accounts/all');
+        const data = await response.json();
+        
+        if (response.ok) {
+            allInvestmentAccounts = data;
+            investmentAccountSearchTerm = '';
+            investmentAccountSearchType = '';
+            document.getElementById('investmentAccountSearchInput').value = '';
+            displayInvestmentAccounts(filter);
+        } else {
+            showInvestmentAccountError('Failed to load investment accounts');
+        }
+    } catch (error) {
+        console.error('Error loading investment accounts:', error);
+        showInvestmentAccountError('Error loading investment accounts');
+    }
+}
+
+function displayInvestmentAccounts(filter = 'all') {
+    const tbody = document.getElementById('investmentAccountTableBody');
+    
+    let filteredAccounts = allInvestmentAccounts;
+    
+    // Apply status filter
+    if (filter !== 'all') {
+        filteredAccounts = filteredAccounts.filter(acc => acc.status === filter);
+    }
+    
+    // Apply search filter
+    if (investmentAccountSearchTerm && investmentAccountSearchType) {
+        if (investmentAccountSearchType === 'memberID') {
+            filteredAccounts = filteredAccounts.filter(acc => 
+                acc.memberID.toLowerCase().includes(investmentAccountSearchTerm.toLowerCase())
+            );
+        } else if (investmentAccountSearchType === 'accountNumber') {
+            filteredAccounts = filteredAccounts.filter(acc => 
+                acc.investmentAccountNumber.toLowerCase().includes(investmentAccountSearchTerm.toLowerCase())
+            );
+        }
+    }
+    
+    if (filteredAccounts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem;">No investment accounts found</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = filteredAccounts.map(account => {
+        // Calculate paid and pending amounts
+        const paidAmount = account.monthlyPayments.reduce((sum, payment) => {
+            return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
+        }, 0);
+        
+        const pendingAmount = account.totalAmount - paidAmount;
+        
+        const statusColor = account.status === 'active' ? 'var(--primary-green)' : 
+                           account.status === 'completed' ? 'var(--primary-blue)' : 'var(--danger-red)';
+        
+        const createdDate = new Date(account.createdAt).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        });
+        
+        return `
+            <tr>
+                <td>${account.investmentAccountNumber}</td>
+                <td>${account.memberID}</td>
+                <td>${account.memberName}</td>
+                <td>${formatPaysaAsTaka(account.amount)}</td>
+                <td>${account.profitPercentage}%</td>
+                <td>${formatPaysaAsTaka(account.totalProfit)}</td>
+                <td>${formatPaysaAsTaka(paidAmount)}</td>
+                <td>${formatPaysaAsTaka(pendingAmount)}</td>
+                <td><span style="color: ${statusColor}; font-weight: bold;">${account.status.toUpperCase()}</span></td>
+                <td>
+                    <button 
+                        onclick="viewInvestmentAccountDetails('${account._id}')" 
+                        class="btn btn-primary"
+                        style="padding: 0.5rem 1rem; font-size: 0.9rem;"
+                    >
+                        View Details
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterInvestmentAccounts(filter) {
+    currentInvestmentAccountFilter = filter;
+    
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-filter') === filter) {
+            btn.classList.add('active');
+        }
+    });
+    
+    displayInvestmentAccounts(filter);
+}
+
+function searchInvestmentAccounts() {
+    const searchInput = document.getElementById('investmentAccountSearchInput');
+    const searchTypeSelect = document.getElementById('investmentAccountSearchType');
+    
+    investmentAccountSearchTerm = searchInput.value.trim();
+    investmentAccountSearchType = searchTypeSelect.value;
+    
+    if (!investmentAccountSearchTerm) {
+        dashboard.showNotification('Please enter a search value', 'error');
+        return;
+    }
+    
+    displayInvestmentAccounts(currentInvestmentAccountFilter);
+}
+
+async function viewInvestmentAccountDetails(accountId) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-accounts/${accountId}`);
+        const account = await response.json();
+        
+        if (response.ok) {
+            showInvestmentAccountDetailsModal(account);
+        } else {
+            alert('Failed to load account details');
+        }
+    } catch (error) {
+        console.error('Error loading account details:', error);
+        alert('Error loading account details');
+    }
+}
+
+function showInvestmentAccountDetailsModal(account) {
+    const startDate = new Date(account.startDate).toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    const endDate = new Date(account.endDate).toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    const createdDate = new Date(account.createdAt).toLocaleDateString('en-GB', { 
+        day: 'numeric', month: 'short', year: 'numeric' 
+    });
+    
+    const paidAmount = account.monthlyPayments.reduce((sum, payment) => {
+        return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
+    }, 0);
+    
+    const pendingAmount = account.totalAmount - paidAmount;
+    const perMonthPayment = account.totalAmount / account.duration;
+    
+    const statusColor = account.status === 'active' ? 'var(--primary-green)' : 
+                       account.status === 'completed' ? 'var(--primary-blue)' : 'var(--danger-red)';
+    
+    // Member profile picture
+    const memberPicture = account.userId?.profilePicture || '/frontend/logo/default-avatar.png';
+    
+    const modalHTML = `
+        <div class="modal-overlay" id="investmentAccountDetailsModal" onclick="closeInvestmentAccountDetailsModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">Investment Account Details - ${account.investmentAccountNumber}</h3>
+                    <button onclick="closeInvestmentAccountDetailsModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <!-- Member Picture and Account Summary -->
+                    <div style="display: grid; grid-template-columns: auto 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; align-items: start;">
+                        <!-- Member Picture -->
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                            <img src="${memberPicture}" alt="Member" 
+                                 style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 3px solid var(--primary-green);"
+                                 onerror="this.src='/frontend/logo/default-avatar.png'">
+                            <div style="text-align: center; font-size: 0.85rem; color: #666;">
+                                <div style="font-weight: 600;">${account.memberName}</div>
+                                <div>ID: ${account.memberID}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Account Number -->
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary-green);">
+                            <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.25rem;">Account Number</div>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: var(--primary-green);">${account.investmentAccountNumber}</div>
+                        </div>
+                        
+                        <!-- Transaction ID -->
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; border-left: 4px solid var(--primary-blue);">
+                            <div style="font-size: 0.9rem; color: #666; margin-bottom: 0.25rem;">Transaction ID</div>
+                            <div style="font-size: 1.2rem; font-weight: bold; color: var(--primary-blue);">${account.transactionId}</div>
+                        </div>
+                    </div>
+
+                    <!-- Member & Investment Details -->
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div><strong>Invested Amount:</strong> ${formatPaysaAsTaka(account.amount)}</div>
+                        <div><strong>Duration:</strong> ${account.duration} Months</div>
+                        <div><strong>Profit Percentage:</strong> ${account.profitPercentage}%</div>
+                        <div><strong>Monthly Profit:</strong> ${formatPaysaAsTaka(account.monthlyProfit, 0)}</div>
+                        <div><strong>Total Profit:</strong> ${formatPaysaAsTaka(account.totalProfit, 0)}</div>
+                        <div><strong>Total Amount:</strong> ${formatPaysaAsTaka(account.totalAmount)}</div>
+                        <div><strong>Per Month Payment:</strong> ${formatPaysaAsTaka(perMonthPayment)}</div>
+                        <div><strong>Status:</strong> <span style="color: ${statusColor}; font-weight: bold;">${account.status.toUpperCase()}</span></div>
+                        <div><strong>Start Date:</strong> ${startDate}</div>
+                        <div><strong>End Date:</strong> ${endDate}</div>
+                    </div>
+
+                    <!-- Payment Summary -->
+                    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0 0 0.75rem 0; color: #856404;">Payment Summary</h4>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                            <div>
+                                <div style="font-size: 0.9rem; color: #666;">Paid Amount</div>
+                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--primary-green);">${formatPaysaAsTaka(paidAmount)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; color: #666;">Pending Amount</div>
+                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--warning-orange);">${formatPaysaAsTaka(pendingAmount)}</div>
+                            </div>
+                            <div>
+                                <div style="font-size: 0.9rem; color: #666;">Progress</div>
+                                <div style="font-size: 1.3rem; font-weight: bold; color: var(--primary-blue);">${Math.round((paidAmount / account.totalAmount) * 100)}%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Purpose & Bank Details -->
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong>Purpose:</strong>
+                        <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                            ${account.purpose}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong>Bank Details:</strong>
+                        <div style="background: var(--light-gray); padding: 1rem; border-radius: 8px; margin-top: 0.5rem;">
+                            <p><strong>Bank:</strong> ${account.bankDetails.bankName}</p>
+                            <p><strong>Branch:</strong> ${account.bankDetails.bankBranch}</p>
+                            <p><strong>Account No:</strong> ${account.bankDetails.bankAccountNo}</p>
+                            <p><strong>Account Type:</strong> ${account.bankDetails.bankAccountType}</p>
+                        </div>
+                    </div>
+
+                    ${account.adminNote ? `
+                    <div style="margin-bottom: 1.5rem;">
+                        <strong>Admin Note:</strong>
+                        <div style="background: #f0f9ff; padding: 1rem; border-radius: 8px; margin-top: 0.5rem; border-left: 4px solid var(--primary-green);">
+                            ${account.adminNote}
+                        </div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Monthly Payment Schedule -->
+                    <div>
+                        <h4 style="color: var(--primary-green); margin-bottom: 1rem;">Monthly Payment Schedule</h4>
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: var(--light-gray);">
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Month</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Due Date</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Amount Due</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Paid Date</th>
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${account.monthlyPayments.map(payment => {
+                                        const dueDate = new Date(payment.dueDate).toLocaleDateString('en-GB', { 
+                                            day: 'numeric', month: 'short', year: 'numeric' 
+                                        });
+                                        const paidDate = payment.paidDate ? new Date(payment.paidDate).toLocaleDateString('en-GB', { 
+                                            day: 'numeric', month: 'short', year: 'numeric' 
+                                        }) : '-';
+                                        
+                                        const statusColor = payment.status === 'paid' ? 'var(--primary-green)' : 
+                                                          payment.status === 'overdue' ? 'var(--danger-red)' : 'var(--warning-orange)';
+                                        
+                                        return `
+                                            <tr>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">Month ${payment.month}</td>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${dueDate}</td>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">৳${perMonthPayment.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${paidDate}</td>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">
+                                                    <span style="color: ${statusColor}; font-weight: bold;">${payment.status.toUpperCase()}</span>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.5rem; padding: 1rem; background: var(--light-gray); border-radius: 8px;">
+                        <small><strong>Created on:</strong> ${createdDate} by ${account.createdBy?.fullName || 'Admin'}</small>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 1.5rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                    <button onclick="closeInvestmentAccountDetailsModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+}
+
+function closeInvestmentAccountDetailsModal() {
+    const modal = document.getElementById('investmentAccountDetailsModal');
+    if (modal) {
+        modal.parentElement.remove();
+    }
+}
+
+function showInvestmentAccountError(message) {
+    const tbody = document.getElementById('investmentAccountTableBody');
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align: center; color: var(--danger-red); padding: 2rem;">${message}</td></tr>`;
+}
+
+// ============================================
+// INVESTMENT RECOVERY ENTRY FUNCTIONS
+// ============================================
+
+let currentInvestmentForRecovery = null;
+let pendingRecoveryAccounts = [];
+
+// Load accounts with pending recovery
+async function loadPendingRecoveryAccounts() {
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-recovery/pending-accounts');
+        const accounts = await response.json();
+        
+        if (response.ok) {
+            pendingRecoveryAccounts = accounts;
+            populatePendingAccountsDropdown(accounts);
+        } else {
+            dashboard.showNotification('Error loading pending accounts', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading pending accounts:', error);
+        dashboard.showNotification('Error loading pending accounts', 'error');
+    }
+}
+
+// Populate dropdown with pending accounts
+function populatePendingAccountsDropdown(accounts) {
+    const dropdown = document.getElementById('pendingAccountsDropdown');
+    
+    // Clear existing options except the first one
+    dropdown.innerHTML = '<option value="">-- Select an account --</option>';
+    
+    if (accounts.length === 0) {
+        dropdown.innerHTML += '<option value="" disabled>No accounts with pending recovery</option>';
+        return;
+    }
+    
+    accounts.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.investmentAccountNumber;
+        // Convert paisa to taka for display
+        option.textContent = `${account.investmentAccountNumber} - ${account.memberName} (${account.memberID}) - Pending: ${formatPaysaAsTaka(account.pendingAmount)} [${account.pendingMonths}/${account.duration} months]`;
+        dropdown.appendChild(option);
+    });
+}
+
+// Load selected account from dropdown
+async function loadSelectedInvestmentAccount() {
+    const dropdown = document.getElementById('pendingAccountsDropdown');
+    const accountNumber = dropdown.value;
+    
+    if (!accountNumber) {
+        document.getElementById('investmentRecoveryDetails').style.display = 'none';
+        document.getElementById('recoveryFormContainer').style.display = 'none';
+        return;
+    }
+    
+    // Clear manual search input
+    document.getElementById('recoveryInvestmentIdInput').value = accountNumber;
+    
+    // Search for the account
+    await searchInvestmentForRecovery();
+}
+
+async function searchInvestmentForRecovery() {
+    const accountNumber = document.getElementById('recoveryInvestmentIdInput').value.trim();
+    
+    if (!accountNumber) {
+        dashboard.showNotification('Please enter an investment account number', 'error');
+        return;
+    }
+    
+    try {
+        // Search by account number
+        const response = await fetch(`http://localhost:5000/api/investment-accounts/all`);
+        const accounts = await response.json();
+        
+        if (response.ok) {
+            const account = accounts.find(acc => 
+                acc.investmentAccountNumber.toLowerCase() === accountNumber.toLowerCase()
+            );
+            
+            if (!account) {
+                dashboard.showNotification('Investment account not found', 'error');
+                document.getElementById('investmentRecoveryDetails').style.display = 'none';
+                document.getElementById('recoveryFormContainer').style.display = 'none';
+                return;
+            }
+            
+            currentInvestmentForRecovery = account;
+            displayInvestmentForRecovery(account);
+        } else {
+            dashboard.showNotification('Error searching investment account', 'error');
+        }
+    } catch (error) {
+        console.error('Error searching investment:', error);
+        dashboard.showNotification('Error searching investment account', 'error');
+    }
+}
+
+function displayInvestmentForRecovery(account) {
+    // All amounts from backend are in paisa (integer)
+    const paidAmountPaisa = account.monthlyPayments.reduce((sum, payment) => {
+        return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
+    }, 0);
+    
+    const pendingAmountPaisa = account.totalAmount - paidAmountPaisa;
+    
+    // Calculate per month payment considering remainder in last installment
+    const baseInstallmentPaisa = Math.floor(account.totalAmount / account.duration);
+    const remainderPaisa = account.totalAmount - (baseInstallmentPaisa * account.duration);
+    
+    // For display, we'll show the base amount (the last month will have +remainder)
+    const perMonthPaymentPaisa = baseInstallmentPaisa;
+    
+    // Get profile picture or create default avatar with initials
+    const getProfilePictureHTML = () => {
+        if (account.userId?.profilePicture) {
+            return `<img 
+                src="${account.userId.profilePicture}" 
+                alt="${account.memberName}" 
+                style="width: 100%; height: 100%; object-fit: cover;"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+            />
+            <div style="display: none; width: 100%; height: 100%; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); align-items: center; justify-content: center; font-size: 3.5rem; font-weight: bold; color: white;">
+                ${account.memberName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+            </div>`;
+        } else {
+            // Create default avatar with initials
+            const initials = account.memberName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+            return `<div style="width: 100%; height: 100%; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-weight: bold; color: white;">
+                ${initials}
+            </div>`;
+        }
+    };
+    
+    // Payment schedule table
+    const paymentScheduleHTML = account.monthlyPayments.map((payment, index) => {
+        const dueDate = new Date(payment.dueDate).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        });
+        const paidDate = payment.paidDate ? new Date(payment.paidDate).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        }) : '-';
+        
+        const statusColor = payment.status === 'paid' ? 'var(--primary-green)' : 
+                          payment.status === 'overdue' ? 'var(--danger-red)' : 'var(--warning-orange)';
+        
+        const statusIcon = payment.status === 'paid' ? '✓' : 
+                          payment.status === 'overdue' ? '✗' : '◷';
+        
+        // Calculate expected amount for this month (last month gets remainder)
+        const isLastMonth = (index === account.monthlyPayments.length - 1);
+        const expectedAmountPaisa = isLastMonth ? (baseInstallmentPaisa + remainderPaisa) : baseInstallmentPaisa;
+        
+        return `
+            <tr style="background: ${payment.status === 'paid' ? '#e8f5e9' : payment.status === 'overdue' ? '#ffebee' : '#fff'};">
+                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">
+                    <span style="font-weight: bold;">${statusIcon}</span> Month ${payment.month}
+                </td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${dueDate}</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${formatPaysaAsTaka(expectedAmountPaisa)}</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${paidDate}</td>
+                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">
+                    <span style="color: ${statusColor}; font-weight: bold;">${payment.status.toUpperCase()}</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    const detailsHTML = `
+        <div style="background: #f0f9ff; padding: 1.5rem; border-radius: 8px; border: 2px solid var(--primary-green); margin-bottom: 1.5rem; display: flex; gap: 1.5rem;">
+            <!-- Profile Picture Section -->
+            <div style="flex-shrink: 0;">
+                <div style="width: 150px; height: 150px; border-radius: 8px; overflow: hidden; border: 3px solid var(--primary-green); box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    ${getProfilePictureHTML()}
+                </div>
+                <div style="text-align: center; margin-top: 0.5rem; font-weight: bold; color: var(--primary-green);">
+                    ${account.memberName}
+                </div>
+                <div style="text-align: center; font-size: 0.9rem; color: #666;">
+                    ${account.memberID}
+                </div>
+            </div>
+            
+            <!-- Account Details Section -->
+            <div style="flex: 1;">
+                <h4 style="color: var(--primary-green); margin: 0 0 1rem 0;">Investment Account Details</h4>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; font-size: 0.95rem;">
+                    <div><strong>Account No:</strong> ${account.investmentAccountNumber}</div>
+                    <div><strong>Member ID:</strong> ${account.memberID}</div>
+                    <div><strong>Member Name:</strong> ${account.memberName}</div>
+                    <div><strong>Invested Amount:</strong> ${formatPaysaAsTaka(account.amount)}</div>
+                    <div><strong>Duration:</strong> ${account.duration} Months</div>
+                    <div><strong>Profit %:</strong> ${account.profitPercentage}%</div>
+                    <div><strong>Monthly Profit:</strong> ${formatPaysaAsTaka(account.monthlyProfit, 0)}</div>
+                    <div><strong>Total Amount:</strong> ${formatPaysaAsTaka(account.totalAmount)}</div>
+                    <div><strong>Per Month Payment:</strong> ${formatPaysaAsTaka(perMonthPaymentPaisa)}</div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem; padding-top: 1rem; border-top: 2px solid var(--primary-green);">
+                    <div style="background: white; padding: 1rem; border-radius: 6px;">
+                        <div style="font-size: 0.9rem; color: #666;">Paid Amount</div>
+                        <div style="font-size: 1.3rem; font-weight: bold; color: var(--primary-green);">${formatPaysaAsTaka(paidAmountPaisa)}</div>
+                    </div>
+                    <div style="background: white; padding: 1rem; border-radius: 6px;">
+                        <div style="font-size: 0.9rem; color: #666;">Pending Amount</div>
+                        <div style="font-size: 1.3rem; font-weight: bold; color: var(--warning-orange);">${formatPaysaAsTaka(pendingAmountPaisa)}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+            <h4 style="color: var(--primary-green); margin-bottom: 1rem;">Payment Schedule</h4>
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-gray); border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead style="position: sticky; top: 0; background: var(--light-gray); z-index: 1;">
+                        <tr>
+                            <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Month</th>
+                            <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Due Date</th>
+                            <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Amount Due</th>
+                            <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Paid Date</th>
+                            <th style="padding: 0.75rem; text-align: left; border: 1px solid var(--border-gray);">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paymentScheduleHTML}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('investmentRecoveryDetails').innerHTML = detailsHTML;
+    document.getElementById('investmentRecoveryDetails').style.display = 'block';
+    
+    // Show recovery form
+    showRecoveryForm(account, perMonthPaymentPaisa);
+}
+
+function showRecoveryForm(account, perMonthPaymentPaisa) {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Find next unpaid month
+    const nextUnpaidMonth = account.monthlyPayments.find(p => p.status !== 'paid');
+    const nextMonthNumber = nextUnpaidMonth ? nextUnpaidMonth.month : 1;
+    
+    // Calculate expected amount for default display
+    const baseInstallmentPaisa = Math.floor(account.totalAmount / account.duration);
+    const remainderPaisa = account.totalAmount - (baseInstallmentPaisa * account.duration);
+    
+    // If next unpaid month is the last month, add remainder
+    const isLastMonth = nextMonthNumber === account.duration;
+    const defaultInstallmentPaisa = isLastMonth ? (baseInstallmentPaisa + remainderPaisa) : baseInstallmentPaisa;
+    
+    // Convert to taka for display in input field (rounded to integer)
+    const defaultInstallmentTaka = Math.round(paysaToTaka(defaultInstallmentPaisa));
+    
+    // Calculate pending amount for "Pay for All Months" option
+    const paidAmountPaisa = account.monthlyPayments.reduce((sum, payment) => {
+        return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
+    }, 0);
+    const pendingAmountPaisa = account.totalAmount - paidAmountPaisa;
+    const pendingAmountTaka = Math.round(paysaToTaka(pendingAmountPaisa));
+    
+    const formHTML = `
+        <div style="background: #fff3cd; padding: 1.5rem; border-radius: 8px; border: 2px solid #856404;">
+            <h4 style="color: #856404; margin: 0 0 1rem 0;">Record Recovery Entry</h4>
+            
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Month Number *</label>
+                    <select 
+                        id="recoveryMonthNumber" 
+                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                        onchange="handleMonthSelectionChange()"
+                    >
+                        <option value="all" style="font-weight: bold; color: var(--primary-green);">
+                            💰 Pay for All Months (Pending: ${formatPaysaAsTaka(pendingAmountPaisa, 0)})
+                        </option>
+                        ${account.monthlyPayments.filter(p => p.status !== 'paid').map(p => 
+                            `<option value="${p.month}" ${p.month === nextMonthNumber ? 'selected' : ''}>
+                                Month ${p.month} - ${new Date(p.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </option>`
+                        ).join('')}
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Recovery Date *</label>
+                    <input 
+                        type="date" 
+                        id="recoveryDate" 
+                        value="${today}"
+                        max="${today}"
+                        style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                    />
+                </div>
+            </div>
+
+            <div style="background: white; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; border: 1px solid #e0e0e0;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: #666;">Profit/Interest (Per Month)</label>
+                        <div style="font-size: 1.1rem; font-weight: bold; color: var(--primary-green);">${formatPaysaAsTaka(account.monthlyProfit, 0)}</div>
+                        <small style="color: #666;">This is auto-calculated and will be recorded</small>
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Installment Amount (৳) *</label>
+                        <input 
+                            type="number" 
+                            id="recoveryInstallmentAmount" 
+                            value="${defaultInstallmentTaka}"
+                            step="0.01"
+                            min="0"
+                            style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
+                        />
+                        <small style="color: #666;">Default per month payment, you can modify</small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Remarks (Optional)</label>
+                <textarea 
+                    id="recoveryRemarks" 
+                    rows="3" 
+                    placeholder="Enter any additional notes..."
+                    style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-family: inherit; resize: vertical;"
+                ></textarea>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button onclick="clearRecoveryForm()" class="btn btn-secondary" style="padding: 0.75rem 1.5rem;">Clear</button>
+                <button onclick="submitRecoveryEntry()" class="btn btn-primary" style="padding: 0.75rem 2rem;">Submit for Authorization</button>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('recoveryFormContainer').innerHTML = formHTML;
+    document.getElementById('recoveryFormContainer').style.display = 'block';
+    
+    // Store account data for month selection change handler
+    window.currentRecoveryFormData = {
+        account: account,
+        baseInstallmentPaisa: baseInstallmentPaisa,
+        remainderPaisa: remainderPaisa,
+        pendingAmountPaisa: pendingAmountPaisa
+    };
+}
+
+function handleMonthSelectionChange() {
+    const monthSelect = document.getElementById('recoveryMonthNumber');
+    const installmentInput = document.getElementById('recoveryInstallmentAmount');
+    const selectedValue = monthSelect.value;
+    
+    if (!window.currentRecoveryFormData) return;
+    
+    const { account, baseInstallmentPaisa, remainderPaisa, pendingAmountPaisa } = window.currentRecoveryFormData;
+    
+    if (selectedValue === 'all') {
+        // Set to total pending amount
+        installmentInput.value = Math.round(paysaToTaka(pendingAmountPaisa));
+    } else {
+        // Calculate amount for selected month
+        const monthNumber = parseInt(selectedValue);
+        const isLastMonth = monthNumber === account.duration;
+        const monthInstallmentPaisa = isLastMonth ? (baseInstallmentPaisa + remainderPaisa) : baseInstallmentPaisa;
+        installmentInput.value = Math.round(paysaToTaka(monthInstallmentPaisa));
+    }
+}
+
+async function submitRecoveryEntry() {
+    if (!currentInvestmentForRecovery) {
+        dashboard.showNotification('Please search for an investment account first', 'error');
+        return;
+    }
+    
+    const monthNumberValue = document.getElementById('recoveryMonthNumber').value;
+    const recoveryDate = document.getElementById('recoveryDate').value;
+    const installmentAmountInput = document.getElementById('recoveryInstallmentAmount').value;
+    const installmentAmount = takaToPaysa(installmentAmountInput);  // Convert taka → paisa
+    const remarks = document.getElementById('recoveryRemarks').value.trim();
+    const userId = sessionStorage.getItem('userId');
+    
+    // Handle 'all' months or specific month
+    const isPayAll = monthNumberValue === 'all';
+    const monthNumber = isPayAll ? 'all' : parseInt(monthNumberValue);
+    
+    if (!monthNumberValue || !recoveryDate || !installmentAmountInput) {
+        dashboard.showNotification('Please fill all required fields', 'error');
+        return;
+    }
+    
+    if (installmentAmount <= 0) {
+        dashboard.showNotification('Installment amount must be greater than 0', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-recovery/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                investmentAccountId: currentInvestmentForRecovery._id,
+                installmentAmount,  // In paisa
+                monthNumber,
+                recoveryDate,
+                remarks,
+                enteredBy: userId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            dashboard.showNotification(`Recovery entry created successfully! Recovery ID: ${data.recovery.recoveryId}\nGo to "Authorize/Delete Data" section to authorize this entry.`, 'success');
+            clearRecoveryForm();
+            loadRecentRecoveries();
+            // Reload pending accounts dropdown
+            loadPendingRecoveryAccounts();
+        } else {
+            dashboard.showNotification(data.message || 'Failed to create recovery entry', 'error');
+        }
+    } catch (error) {
+        console.error('Error submitting recovery:', error);
+        dashboard.showNotification('Error submitting recovery entry', 'error');
+    }
+}
+
+function clearRecoveryForm() {
+    document.getElementById('recoveryInvestmentIdInput').value = '';
+    document.getElementById('investmentRecoveryDetails').style.display = 'none';
+    document.getElementById('recoveryFormContainer').style.display = 'none';
+    currentInvestmentForRecovery = null;
+}
+
+async function loadRecentRecoveries() {
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-recovery/all?status=pending');
+        const recoveries = await response.json();
+        
+        if (response.ok) {
+            displayRecentRecoveries(recoveries);
+        }
+    } catch (error) {
+        console.error('Error loading recent recoveries:', error);
+    }
+}
+
+function displayRecentRecoveries(recoveries) {
+    const tbody = document.getElementById('recentRecoveryTableBody');
+    
+    if (recoveries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No recent entries</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = recoveries.slice(0, 10).map(recovery => {
+        const recoveryDate = new Date(recovery.recoveryDate).toLocaleDateString('en-GB', { 
+            day: 'numeric', month: 'short', year: 'numeric' 
+        });
+        
+        const statusColor = recovery.status === 'authorized' ? 'var(--primary-green)' : 
+                           recovery.status === 'rejected' ? 'var(--danger-red)' : 'var(--warning-orange)';
+        
+        return `
+            <tr>
+                <td>${recovery.recoveryId}</td>
+                <td>${recovery.investmentAccountNumber}</td>
+                <td>${recovery.memberID}</td>
+                <td>${formatPaysaAsTaka(recovery.installmentAmount)}</td>
+                <td>${formatPaysaAsTaka(recovery.profitInterest)}</td>
+                <td>${recoveryDate}</td>
+                <td><span style="color: ${statusColor}; font-weight: bold;">${recovery.status.toUpperCase()}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+  // =========================
+  // Authorize/Delete Data Functions (Recovery Entries)
+  // =========================
+
+  // Load pending recovery entries
+  async function loadPendingRecoveryEntries() {
+    try {
+      const response = await fetch('http://localhost:5000/api/investment-recovery/all?status=pending', {
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to load pending entries");
+
+      const entries = await response.json();
+      displayPendingRecoveryEntries(entries);
+    } catch (error) {
+      console.error("Error loading pending entries:", error);
+      alert("Failed to load pending recovery entries");
+    }
+  }
+
+  // Display pending recovery entries in table
+  function displayPendingRecoveryEntries(entries) {
+    const tbody = document.getElementById("pendingEntriesTableBody");
+    if (!entries || entries.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">
+            No pending recovery entries
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = entries
+      .map(
+        (entry) => `
+      <tr>
+        <td style="padding:12px;">${entry.recoveryId}</td>
+        <td style="padding:12px;">${entry.investmentAccountId?.investmentAccountNumber || "N/A"}</td>
+        <td style="padding:12px;">${entry.memberID}</td>
+        <td style="padding:12px;">${entry.memberName}</td>
+        <td style="padding:12px;">Month ${entry.monthNumber}</td>
+        <td style="padding:12px;">৳${entry.installmentAmount.toFixed(2)}</td>
+        <td style="padding:12px;">${new Date(entry.recoveryDate).toLocaleDateString("en-GB")}</td>
+        <td style="padding:12px;">${entry.enteredBy?.name || "Admin"}</td>
+        <td style="padding:12px;">
+          <button class="btn btn-success btn-sm" onclick="authorizeRecoveryEntry('${entry._id}')" 
+                  style="margin-right: 0.5rem;">
+            Authorize
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="rejectRecoveryEntry('${entry._id}')">
+            Reject
+          </button>
+        </td>
+      </tr>
+    `
+      )
+      .join("");
+  }
+
+  // Authorize recovery entry
+  async function authorizeRecoveryEntry(entryId) {
+    if (!confirm("Are you sure you want to authorize this recovery entry? This will update the investment account.")) {
+      return;
+    }
+
+    try {
+      const userId = sessionStorage.getItem("userId");
+      const response = await fetch(`http://localhost:5000/api/investment-recovery/${entryId}/authorize`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
+        },
+        body: JSON.stringify({ authorizedBy: userId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to authorize entry");
+      }
+
+      const result = await response.json();
+      alert("Recovery entry authorized successfully!\nInvestment account has been updated.");
+      loadPendingRecoveryEntries(); // Refresh the list
+      // Also reload pending accounts in case account is fully paid
+      if (typeof loadPendingRecoveryAccounts === 'function') {
+        loadPendingRecoveryAccounts();
+      }
+    } catch (error) {
+      console.error("Error authorizing entry:", error);
+      alert(error.message || "Failed to authorize recovery entry");
+    }
+  }
+
+  // Reject recovery entry
+  async function rejectRecoveryEntry(entryId) {
+    const reason = prompt("Enter reason for rejection:");
+    if (!reason || reason.trim() === "") {
+      alert("Rejection reason is required");
+      return;
+    }
+
+    try {
+      const userId = sessionStorage.getItem("userId");
+      const response = await fetch(`http://localhost:5000/api/investment-recovery/${entryId}/reject`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
+        },
+        body: JSON.stringify({ 
+          rejectedBy: userId,
+          rejectionReason: reason 
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to reject entry");
+      }
+
+      alert("Recovery entry rejected successfully");
+      loadPendingRecoveryEntries(); // Refresh the list
+      // Also reload pending accounts in case this affects the dropdown
+      if (typeof loadPendingRecoveryAccounts === 'function') {
+        loadPendingRecoveryAccounts();
+      }
+    } catch (error) {
+      console.error("Error rejecting entry:", error);
+      alert(error.message || "Failed to reject recovery entry");
+    }
+  }
+
+  // Delete rejected recovery entry
+  async function deleteRecoveryEntry(entryId) {
+    if (!confirm("Are you sure you want to delete this rejected entry? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/investment-recovery/${entryId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete entry");
+
+      alert("Recovery entry deleted successfully");
+      loadPendingRecoveryEntries(); // Refresh the list
+    } catch (error) {
+      console.error("Error deleting entry:", error);
+      alert("Failed to delete recovery entry");
+    }
+  }
+
+  // Make functions globally accessible
+  window.loadPendingRecoveryEntries = loadPendingRecoveryEntries;
+  window.authorizeRecoveryEntry = authorizeRecoveryEntry;
+  window.rejectRecoveryEntry = rejectRecoveryEntry;
+  window.deleteRecoveryEntry = deleteRecoveryEntry;

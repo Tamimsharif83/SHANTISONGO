@@ -23,6 +23,18 @@ router.get('/pending', async (req, res) => {
     }
 });
 
+// Get all members with share information
+router.get('/all-members', async (req, res) => {
+    try {
+        const members = await User.find({ role: 'member' })
+            .select('memberID fullName numberOfShares profilePicture email')
+            .sort({ memberID: 1 });
+        res.json(members);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // Validate member ID and get member info
 router.get('/validate-member/:memberId', async (req, res) => {
     try {
@@ -33,7 +45,9 @@ router.get('/validate-member/:memberId', async (req, res) => {
         res.json({
             memberID: user.memberID,
             fullName: user.fullName,
-            email: user.email
+            email: user.email,
+            numberOfShares: user.numberOfShares,
+            profilePicture: user.profilePicture
         });
     } catch (error) {
         res.status(500).json({ message: error.message });

@@ -151,7 +151,7 @@ router.get("/user-profile/:userId", async (req, res) => {
 
 // CREATE MEMBER DIRECTLY (Admin only)
 router.post("/create-member", async (req, res) => {
-  const { fullName, memberID, email, password, numberOfShares, phone, nid, address } = req.body;
+  const { fullName, memberID, email, password, numberOfShares, phone, nid, address, profilePicture } = req.body;
 
   // Validation
   if (!fullName || !memberID || !email || !password) {
@@ -184,7 +184,8 @@ router.post("/create-member", async (req, res) => {
       password: hashedPassword,
       role: "member",
       firstLogin: true,
-      numberOfShares: numberOfShares || 0
+      numberOfShares: numberOfShares || 0,
+      profilePicture: profilePicture || null
     });
 
     await newUser.save();

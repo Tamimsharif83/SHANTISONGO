@@ -32,7 +32,7 @@ const investmentRecoverySchema = new mongoose.Schema({
         required: true
     },
     monthNumber: {
-        type: Number,
+        type: mongoose.Schema.Types.Mixed,  // Can be Number or String ('all')
         required: true
     },
     recoveryDate: {

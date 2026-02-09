@@ -137,28 +137,51 @@ investmentAccountSchema.statics.generateTransactionId = async function() {
     return `TXN${timestamp}${random}`;
 };
 
-// Calculate monthly profit
+// Calculate monthly profit (all in paisa - integer)
 investmentAccountSchema.methods.calculateMonthlyProfit = function() {
-    const annualProfit = this.amount * (this.profitPercentage / 100);
-    this.monthlyProfit = annualProfit / 12;
-    this.totalProfit = (annualProfit / 12) * this.duration;
+    // amount is already in paisa (integer)
+    // annualProfit = amount * profitPercentage / 100
+    const annualProfitPaisa = Math.round((this.amount * this.profitPercentage) / 100);
+    
+    // monthlyProfit = annualProfit / 12 (round: .5+ → ceiling, <.5 → floor)
+    const monthlyProfitPaisa = Math.round(annualProfitPaisa / 12);
+    
+    // Calculate total profit and handle remainder
+    const totalProfitWithoutRemainder = monthlyProfitPaisa * this.duration;
+    const remainder = annualProfitPaisa - (monthlyProfitPaisa * 12);
+    const totalProfitPaisa = totalProfitWithoutRemainder + Math.min(remainder, this.duration);
+    
+    this.monthlyProfit = monthlyProfitPaisa;
+    this.totalProfit = totalProfitPaisa;
     this.totalAmount = this.amount + this.totalProfit;
     return this.monthlyProfit;
 };
 
-// Generate monthly payment schedule
+// Generate monthly payment schedule (distribute totalAmount with remainder in last installment)
 investmentAccountSchema.methods.generatePaymentSchedule = function() {
     const payments = [];
     const startDate = new Date(this.startDate);
+    
+    // Calculate base installment per month (in paisa)
+    const baseInstallmentPaisa = Math.floor(this.totalAmount / this.duration);
+    
+    // Calculate remainder to add to last installment
+    const remainderPaisa = this.totalAmount - (baseInstallmentPaisa * this.duration);
     
     for (let i = 1; i <= this.duration; i++) {
         const dueDate = new Date(startDate);
         dueDate.setMonth(dueDate.getMonth() + i);
         
+        // Add remainder to the last installment
+        const installmentAmount = (i === this.duration) 
+            ? baseInstallmentPaisa + remainderPaisa 
+            : baseInstallmentPaisa;
+        
         payments.push({
             month: i,
             dueDate: dueDate,
             amountPaid: 0,
+            expectedAmount: installmentAmount,  // Store expected amount
             status: 'pending'
         });
     }
