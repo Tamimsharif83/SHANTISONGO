@@ -86,6 +86,7 @@ const investmentAccountSchema = new mongoose.Schema({
         dueDate: Date,
         paidDate: Date,
         amountPaid: Number,
+        expectedAmount: Number,  // Expected installment amount in paisa
         status: {
             type: String,
             enum: ['pending', 'paid', 'overdue'],
@@ -97,8 +98,7 @@ const investmentAccountSchema = new mongoose.Schema({
         default: ''
     },
     createdBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        type: String,
         required: true
     },
     createdAt: {
@@ -182,6 +182,39 @@ investmentAccountSchema.methods.generatePaymentSchedule = function() {
             dueDate: dueDate,
             amountPaid: 0,
             expectedAmount: installmentAmount,  // Store expected amount
+            status: 'pending'
+        });
+    }
+    
+    this.monthlyPayments = payments;
+};
+
+// Generate payment schedule with custom monthly installment
+investmentAccountSchema.methods.generatePaymentScheduleWithCustomInstallment = function(customInstallmentPaisa) {
+    const payments = [];
+    const startDate = new Date(this.startDate);
+    
+    // Use custom installment for all months except last
+    const baseInstallmentPaisa = customInstallmentPaisa;
+    
+    // Calculate what the last installment should be to reach totalAmount
+    const totalOfRegularInstallments = baseInstallmentPaisa * (this.duration - 1);
+    const lastInstallmentPaisa = this.totalAmount - totalOfRegularInstallments;
+    
+    for (let i = 1; i <= this.duration; i++) {
+        const dueDate = new Date(startDate);
+        dueDate.setMonth(dueDate.getMonth() + i);
+        
+        // Use custom installment for all months except last
+        const installmentAmount = (i === this.duration) 
+            ? lastInstallmentPaisa 
+            : baseInstallmentPaisa;
+        
+        payments.push({
+            month: i,
+            dueDate: dueDate,
+            amountPaid: 0,
+            expectedAmount: installmentAmount,
             status: 'pending'
         });
     }

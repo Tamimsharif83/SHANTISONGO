@@ -2554,7 +2554,8 @@ async function loadInvestmentAccounts(filter = 'all') {
     currentInvestmentAccountFilter = filter;
     
     try {
-        const response = await fetch('http://localhost:5000/api/investment-accounts/all');
+        // Load approved requests
+        const response = await fetch('http://localhost:5000/api/investment-accounts/approved-requests');
         const data = await response.json();
         
         if (response.ok) {
@@ -2577,11 +2578,6 @@ function displayInvestmentAccounts(filter = 'all') {
     
     let filteredAccounts = allInvestmentAccounts;
     
-    // Apply status filter
-    if (filter !== 'all') {
-        filteredAccounts = filteredAccounts.filter(acc => acc.status === filter);
-    }
-    
     // Apply search filter
     if (investmentAccountSearchTerm && investmentAccountSearchType) {
         if (investmentAccountSearchType === 'memberID') {
@@ -2590,53 +2586,89 @@ function displayInvestmentAccounts(filter = 'all') {
             );
         } else if (investmentAccountSearchType === 'accountNumber') {
             filteredAccounts = filteredAccounts.filter(acc => 
-                acc.investmentAccountNumber.toLowerCase().includes(investmentAccountSearchTerm.toLowerCase())
+                (acc.investmentAccountNumber || acc.requestId || '').toLowerCase().includes(investmentAccountSearchTerm.toLowerCase())
             );
         }
     }
     
     if (filteredAccounts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem;">No investment accounts found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 2rem;">No approved investment requests found</td></tr>';
         return;
     }
     
-    tbody.innerHTML = filteredAccounts.map(account => {
-        // Calculate paid and pending amounts
-        const paidAmount = account.monthlyPayments.reduce((sum, payment) => {
-            return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
-        }, 0);
-        
-        const pendingAmount = account.totalAmount - paidAmount;
-        
-        const statusColor = account.status === 'active' ? 'var(--primary-green)' : 
-                           account.status === 'completed' ? 'var(--primary-blue)' : 'var(--danger-red)';
-        
-        const createdDate = new Date(account.createdAt).toLocaleDateString('en-GB', { 
+    tbody.innerHTML = filteredAccounts.map(request => {
+        const hasAccount = request.hasInvestmentAccount;
+        const appDate = new Date(request.reviewedAt || request.applicationDate).toLocaleDateString('en-GB', { 
             day: 'numeric', month: 'short', year: 'numeric' 
         });
         
-        return `
-            <tr>
-                <td>${account.investmentAccountNumber}</td>
-                <td>${account.memberID}</td>
-                <td>${account.memberName}</td>
-                <td>${formatPaysaAsTaka(account.amount)}</td>
-                <td>${account.profitPercentage}%</td>
-                <td>${formatPaysaAsTaka(account.totalProfit)}</td>
-                <td>${formatPaysaAsTaka(paidAmount)}</td>
-                <td>${formatPaysaAsTaka(pendingAmount)}</td>
-                <td><span style="color: ${statusColor}; font-weight: bold;">${account.status.toUpperCase()}</span></td>
-                <td>
-                    <button 
-                        onclick="viewInvestmentAccountDetails('${account._id}')" 
-                        class="btn btn-primary"
-                        style="padding: 0.5rem 1rem; font-size: 0.9rem;"
-                    >
-                        View Details
-                    </button>
-                </td>
-            </tr>
-        `;
+        if (hasAccount) {
+            // Show account details if account exists
+            const requestIdStr = String(request._id || request.id || '');
+            
+            // Calculate paid and pending amounts from account data if available
+            let paidAmount = 0;
+            let pendingAmount = 0;
+            
+            if (request.accountData) {
+                paidAmount = request.accountData.monthlyPayments?.reduce((sum, payment) => {
+                    return sum + (payment.status === 'paid' ? payment.amountPaid : 0);
+                }, 0) || 0;
+                pendingAmount = (request.accountData.totalAmount || 0) - paidAmount;
+            }
+            
+            const profitPercentage = request.accountData?.profitPercentage || '-';
+            const totalProfit = request.accountData?.totalProfit ? formatPaysaAsTaka(request.accountData.totalProfit) : '-';
+            const paidAmountFormatted = paidAmount > 0 ? formatPaysaAsTaka(paidAmount) : '-';
+            const pendingAmountFormatted = pendingAmount > 0 ? formatPaysaAsTaka(pendingAmount) : '-';
+            
+            return `
+                <tr>
+                    <td>${request.investmentAccountNumber || 'N/A'}</td>
+                    <td>${request.memberID}</td>
+                    <td>${request.memberName}</td>
+                    <td>${formatPaysaAsTaka(request.amount)}</td>
+                    <td>${profitPercentage}${profitPercentage !== '-' ? '%' : ''}</td>
+                    <td>${totalProfit}</td>
+                    <td>${paidAmountFormatted}</td>
+                    <td>${pendingAmountFormatted}</td>
+                    <td><span style="color: var(--primary-green); font-weight: bold;">CREATED</span></td>
+                    <td>
+                        <button 
+                            onclick="viewInvestmentAccountByRequestId('${requestIdStr}')" 
+                            class="btn btn-primary"
+                            style="padding: 0.5rem 1rem; font-size: 0.9rem;"
+                        >
+                            View Details
+                        </button>
+                    </td>
+                </tr>
+            `;
+        } else {
+            // Show create account button if no account yet
+            const requestIdStr = String(request._id || request.id || '');
+            return `
+                <tr>
+                    <td>${request.requestId}</td>
+                    <td>${request.memberID}</td>
+                    <td>${request.memberName}</td>
+                    <td>${formatPaysaAsTaka(request.amount)}</td>
+                    <td>${request.duration} Months</td>
+                    <td>${request.purpose}</td>
+                    <td colspan="2">Approved on ${appDate}</td>
+                    <td><span style="color: var(--warning-orange); font-weight: bold;">PENDING</span></td>
+                    <td>
+                        <button 
+                            onclick="showCreateInvestmentAccountModal('${requestIdStr}')" 
+                            class="btn btn-primary"
+                            style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--primary-green);"
+                        >
+                            Create Account
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
     }).join('');
 }
 
@@ -2833,7 +2865,7 @@ function showInvestmentAccountDetailsModal(account) {
                                             <tr>
                                                 <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">Month ${payment.month}</td>
                                                 <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${dueDate}</td>
-                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">৳${perMonthPayment.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                                                <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${formatPaysaAsTaka(payment.expectedAmount)}</td>
                                                 <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">${paidDate}</td>
                                                 <td style="padding: 0.75rem; border: 1px solid var(--border-gray);">
                                                     <span style="color: ${statusColor}; font-weight: bold;">${payment.status.toUpperCase()}</span>
@@ -2866,6 +2898,283 @@ function closeInvestmentAccountDetailsModal() {
     const modal = document.getElementById('investmentAccountDetailsModal');
     if (modal) {
         modal.parentElement.remove();
+    }
+}
+
+// Show Create Investment Account Modal
+async function showCreateInvestmentAccountModal(requestId) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/investment-requests/${requestId}`);
+        const request = await response.json();
+        
+        if (!response.ok) {
+            alert('Failed to load request details');
+            return;
+        }
+        
+        const memberPicture = request.memberProfilePicture || '/frontend/logo/default-avatar.png';
+        const today = new Date().toISOString().split('T')[0];
+        
+        const modalHTML = `
+            <div class="modal-overlay" id="createAccountModal" onclick="closeCreateAccountModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+                <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                    <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="color: var(--primary-green); margin: 0;">Create Investment Account</h3>
+                        <button onclick="closeCreateAccountModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding: 1.5rem;">
+                        <form id="createAccountForm" style="display: grid; gap: 1.5rem;">
+                            <!-- Request Details -->
+                            <div>
+                                <h4 style="color: var(--primary-green); margin-bottom: 1rem; border-bottom: 2px solid var(--border-gray); padding-bottom: 0.5rem;">Request Details</h4>
+                                <div style="display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start;">
+                                    <img src="${memberPicture}" alt="Member" 
+                                         style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid var(--primary-green);"
+                                         onerror="this.src='/frontend/logo/default-avatar.png'">
+                                    <div style="display: grid; gap: 0.5rem;">
+                                        <div><strong>Request ID:</strong> ${request.requestId}</div>
+                                        <div><strong>Member ID:</strong> ${request.memberID}</div>
+                                        <div><strong>Member Name:</strong> ${request.memberName}</div>
+                                        <div><strong>Amount:</strong> ${formatPaysaAsTaka(request.amount)}</div>
+                                        <div><strong>Duration:</strong> ${request.duration} Months</div>
+                                        <div><strong>Purpose:</strong> ${request.purpose}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Investment Details Form -->
+                            <div>
+                                <h4 style="color: var(--primary-green); margin-bottom: 1rem; border-bottom: 2px solid var(--border-gray); padding-bottom: 0.5rem;">Investment Details</h4>
+                                
+                                <div class="form-group" style="margin-bottom: 1rem;">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Profit Percentage (%) *</label>
+                                    <input type="number" id="profitPercentage" step="0.1" min="0" max="100" required
+                                           placeholder="Enter annual profit percentage (e.g., 10 for 10%)"
+                                           oninput="calculateInvestmentPreview(${request.amount}, ${request.duration})"
+                                           style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;">
+                                </div>
+                                
+                                <!-- Calculation Preview -->
+                                <div id="calculationPreview" style="background: #f0f8f5; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; display: none;">
+                                    <h5 style="color: var(--primary-green); margin: 0 0 0.75rem 0; font-size: 0.95rem;">📊 Calculation Preview</h5>
+                                    <div style="display: grid; gap: 0.75rem; font-size: 0.9rem;">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Principal Amount:</span>
+                                            <strong id="previewPrincipal">৳0.00</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Monthly Profit:</span>
+                                            <strong id="previewMonthlyProfit" style="color: var(--primary-green);">৳0.00</strong>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Total Profit (${request.duration} months):</span>
+                                            <strong id="previewTotalProfit" style="color: var(--primary-green);">৳0.00</strong>
+                                        </div>
+                                        
+                                        <!-- Editable Total Payable Amount -->
+                                        <div style="padding-top: 0.5rem; border-top: 2px solid #c8e6d7;">
+                                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--primary-green);">Total Payable Amount (Editable):</label>
+                                            <input type="number" id="customTotalAmount" step="0.01" min="0"
+                                                   placeholder="Auto-calculated (you can modify)"
+                                                   oninput="updateMonthlyFromTotal(${request.duration})"
+                                                   style="width: 100%; padding: 0.6rem; border: 2px solid var(--primary-green); border-radius: 6px; font-size: 1rem; font-weight: 600;">
+                                            <small style="color: #666; display: block; margin-top: 0.25rem;">💡 Modify this if you want a custom total amount</small>
+                                        </div>
+                                        
+                                        <!-- Editable Monthly Installment -->
+                                        <div>
+                                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2c5f2d;">Monthly Installment (Editable):</label>
+                                            <input type="number" id="customMonthlyInstallment" step="0.01" min="0"
+                                                   placeholder="Auto-calculated (you can modify)"
+                                                   oninput="updateTotalFromMonthly(${request.duration})"
+                                                   style="width: 100%; padding: 0.6rem; border: 2px solid #2c5f2d; border-radius: 6px; font-size: 1rem; font-weight: 600;">
+                                            <small style="color: #666; display: block; margin-top: 0.25rem;">💡 Modify this if you want a custom monthly installment</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group" style="margin-bottom: 1rem;">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Start Date *</label>
+                                    <input type="date" id="startDate" max="${today}" required value="${today}"
+                                           style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;">
+                                    <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 0.25rem;">⚠️ You can select past dates but not future dates</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Admin Note/Comment (Optional)</label>
+                                    <textarea id="adminNote" rows="4"
+                                              placeholder="Enter any additional notes or comments about this investment account..."
+                                              style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer" style="padding: 1.5rem; border-top: 2px solid var(--border-gray); display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button onclick="closeCreateAccountModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Cancel</button>
+                        <button onclick="createInvestmentAccount('${requestId}')" class="btn btn-primary" style="padding: 0.6rem 1.5rem; background: var(--primary-green);">Create Account</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHTML;
+        document.body.appendChild(modalContainer);
+        
+    } catch (error) {
+        console.error('Error loading request:', error);
+        alert('Error loading request details');
+    }
+}
+
+function calculateInvestmentPreview(amountPaisa, duration) {
+    const profitPercentage = parseFloat(document.getElementById('profitPercentage').value);
+    const previewDiv = document.getElementById('calculationPreview');
+    
+    if (!profitPercentage || profitPercentage <= 0) {
+        previewDiv.style.display = 'none';
+        return;
+    }
+    
+    // Show preview
+    previewDiv.style.display = 'block';
+    
+    // Calculate (all amounts in paisa)
+    const annualProfitPaisa = Math.round((amountPaisa * profitPercentage) / 100);
+    const monthlyProfitPaisa = Math.round(annualProfitPaisa / 12);
+    
+    // Calculate total profit with remainder distribution
+    const totalProfitWithoutRemainder = monthlyProfitPaisa * duration;
+    const remainder = annualProfitPaisa - (monthlyProfitPaisa * 12);
+    const totalProfitPaisa = totalProfitWithoutRemainder + Math.min(remainder, duration);
+    
+    const totalAmountPaisa = amountPaisa + totalProfitPaisa;
+    const monthlyInstallmentPaisa = Math.floor(totalAmountPaisa / duration);
+    
+    // Convert paisa to taka for display
+    const totalAmountTaka = (totalAmountPaisa / 100).toFixed(2);
+    const monthlyInstallmentTaka = (monthlyInstallmentPaisa / 100).toFixed(2);
+    
+    // Update display (read-only fields)
+    document.getElementById('previewPrincipal').textContent = formatPaysaAsTaka(amountPaisa);
+    document.getElementById('previewMonthlyProfit').textContent = formatPaysaAsTaka(monthlyProfitPaisa);
+    document.getElementById('previewTotalProfit').textContent = formatPaysaAsTaka(totalProfitPaisa);
+    
+    // Update editable input fields with calculated values
+    document.getElementById('customTotalAmount').value = totalAmountTaka;
+    document.getElementById('customMonthlyInstallment').value = monthlyInstallmentTaka;
+}
+
+// Update total amount when monthly installment is changed
+function updateTotalFromMonthly(duration) {
+    const monthlyInstallment = parseFloat(document.getElementById('customMonthlyInstallment').value);
+    if (monthlyInstallment && monthlyInstallment > 0) {
+        // Calculate approximate total (monthly * duration)
+        const approximateTotal = (monthlyInstallment * duration).toFixed(2);
+        document.getElementById('customTotalAmount').value = approximateTotal;
+    }
+}
+
+// Update monthly installment when total amount is changed
+function updateMonthlyFromTotal(duration) {
+    const totalAmount = parseFloat(document.getElementById('customTotalAmount').value);
+    if (totalAmount && totalAmount > 0) {
+        // Calculate monthly installment (total / duration)
+        const monthlyInstallment = (totalAmount / duration).toFixed(2);
+        document.getElementById('customMonthlyInstallment').value = monthlyInstallment;
+    }
+}
+
+function closeCreateAccountModal() {
+    const modal = document.getElementById('createAccountModal');
+    if (modal) {
+        modal.parentElement.remove();
+    }
+}
+
+async function createInvestmentAccount(requestId) {
+    const profitPercentage = document.getElementById('profitPercentage').value;
+    const startDate = document.getElementById('startDate').value;
+    const adminNote = document.getElementById('adminNote').value;
+    const customTotalAmount = document.getElementById('customTotalAmount').value;
+    const customMonthlyInstallment = document.getElementById('customMonthlyInstallment').value;
+    
+    if (!profitPercentage || !startDate) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const userId = sessionStorage.getItem('userId');
+    const adminName = sessionStorage.getItem('fullName') || 'Admin';
+    
+    // Prepare request body
+    const requestBody = {
+        investmentRequestId: requestId,
+        profitPercentage: parseFloat(profitPercentage),
+        startDate: startDate,
+        createdBy: adminName,
+        adminNote: adminNote
+    };
+    
+    // Add custom values if provided (convert taka to paisa)
+    if (customTotalAmount) {
+        requestBody.customTotalAmount = Math.round(parseFloat(customTotalAmount) * 100);
+    }
+    if (customMonthlyInstallment) {
+        requestBody.customMonthlyInstallment = Math.round(parseFloat(customMonthlyInstallment) * 100);
+    }
+    
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-accounts/create-account', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            dashboard.showNotification('Investment account created successfully!', 'success');
+            closeCreateAccountModal();
+            loadInvestmentAccounts(); // Reload the list
+        } else {
+            alert(data.message || 'Failed to create investment account');
+        }
+    } catch (error) {
+        console.error('Error creating account:', error);
+        alert('Error creating investment account');
+    }
+}
+
+async function viewInvestmentAccountByRequestId(requestId) {
+    try {
+        const response = await fetch('http://localhost:5000/api/investment-accounts/approved-requests');
+        const requests = await response.json();
+        
+        if (response.ok) {
+            const request = requests.find(r => r._id === requestId);
+            if (request && request.investmentAccountNumber) {
+                // Fetch the actual account details
+                const accountsResponse = await fetch('http://localhost:5000/api/investment-accounts/all');
+                const accounts = await accountsResponse.json();
+                
+                const account = accounts.find(a => a.investmentAccountNumber === request.investmentAccountNumber);
+                if (account) {
+                    showInvestmentAccountDetailsModal(account);
+                } else {
+                    alert('Account details not found');
+                }
+            } else {
+                alert('Account not found');
+            }
+        } else {
+            alert('Failed to load account');
+        }
+    } catch (error) {
+        console.error('Error loading account:', error);
+        alert('Error loading account details');
     }
 }
 

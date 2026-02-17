@@ -23,7 +23,13 @@ router.get('/approved-requests', async (req, res) => {
                 return {
                     ...request.toObject(),
                     hasInvestmentAccount: !!existingAccount,
-                    investmentAccountNumber: existingAccount?.investmentAccountNumber
+                    investmentAccountNumber: existingAccount?.investmentAccountNumber,
+                    accountData: existingAccount ? {
+                        profitPercentage: existingAccount.profitPercentage,
+                        totalProfit: existingAccount.totalProfit,
+                        totalAmount: existingAccount.totalAmount,
+                        monthlyPayments: existingAccount.monthlyPayments
+                    } : null
                 };
             })
         );
@@ -44,9 +50,8 @@ router.post('/create-account', async (req, res) => {
             startDate,
             createdBy,
             adminNote,
-            customMonthlyProfit,  // Optional: Admin-modified monthly profit in paisa
-            customTotalProfit,    // Optional: Admin-modified total profit in paisa
-            customTotalAmount     // Optional: Admin-modified total amount in paisa
+            customTotalAmount,         // Optional: Admin-modified total amount in paisa
+            customMonthlyInstallment   // Optional: Admin-modified monthly installment in paisa
         } = req.body;
 
         // Validate inputs
@@ -81,7 +86,27 @@ router.post('/create-account', async (req, res) => {
         const accountNumber = await InvestmentAccount.generateAccountNumber();
         const transactionId = await InvestmentAccount.generateTransactionId();
 
-        // Create investment account
+        // Calculate profits first (before creating the document)
+        let monthlyProfit, totalProfit, totalAmount;
+        
+        if (customTotalAmount) {
+            // If admin provided custom total amount, use it
+            totalAmount = customTotalAmount;
+            totalProfit = customTotalAmount - investmentRequest.amount;
+            monthlyProfit = Math.round(totalProfit / 12);
+        } else {
+            // Auto-calculate profits using the same logic as the model method
+            const annualProfitPaisa = Math.round((investmentRequest.amount * profitPercentage) / 100);
+            monthlyProfit = Math.round(annualProfitPaisa / 12);
+            
+            const totalProfitWithoutRemainder = monthlyProfit * investmentRequest.duration;
+            const remainder = annualProfitPaisa - (monthlyProfit * 12);
+            totalProfit = totalProfitWithoutRemainder + Math.min(remainder, investmentRequest.duration);
+            
+            totalAmount = investmentRequest.amount + totalProfit;
+        }
+
+        // Create investment account with all required fields
         const investmentAccount = new InvestmentAccount({
             investmentAccountNumber: accountNumber,
             investmentRequestId: investmentRequest._id,
@@ -92,6 +117,9 @@ router.post('/create-account', async (req, res) => {
             amount: investmentRequest.amount,
             duration: investmentRequest.duration,
             profitPercentage: profitPercentage,
+            monthlyProfit: monthlyProfit,
+            totalProfit: totalProfit,
+            totalAmount: totalAmount,
             startDate: new Date(startDate),
             purpose: investmentRequest.purpose,
             bankDetails: {
@@ -105,31 +133,25 @@ router.post('/create-account', async (req, res) => {
             createdBy: createdBy
         });
 
-        // Calculate profits (or use custom values if provided by admin)
-        if (customMonthlyProfit && customTotalProfit && customTotalAmount) {
-            // Use admin's custom values (already in paisa)
-            investmentAccount.monthlyProfit = customMonthlyProfit;
-            investmentAccount.totalProfit = customTotalProfit;
-            investmentAccount.totalAmount = customTotalAmount;
-        } else {
-            // Auto-calculate profits
-            investmentAccount.calculateMonthlyProfit();
-        }
-
         // Calculate end date
         const endDate = new Date(startDate);
         endDate.setMonth(endDate.getMonth() + investmentRequest.duration);
         investmentAccount.endDate = endDate;
 
-        // Generate payment schedule
-        investmentAccount.generatePaymentSchedule();
+        // Generate payment schedule with custom monthly installment if provided
+        if (customMonthlyInstallment) {
+            // Use custom monthly installment for payment schedule
+            investmentAccount.generatePaymentScheduleWithCustomInstallment(customMonthlyInstallment);
+        } else {
+            // Generate standard payment schedule
+            investmentAccount.generatePaymentSchedule();
+        }
 
         await investmentAccount.save();
 
-        // Populate the response
+        // Populate the response (don't populate createdBy since it's just a string)
         const populatedAccount = await InvestmentAccount.findById(investmentAccount._id)
-            .populate('userId', 'fullName email memberID')
-            .populate('createdBy', 'fullName');
+            .populate('userId', 'fullName email memberID');
 
         res.status(201).json({
             message: 'Investment account created successfully',
@@ -149,7 +171,6 @@ router.get('/all', async (req, res) => {
 
         const accounts = await InvestmentAccount.find(filter)
             .populate('userId', 'fullName email memberID profilePicture')
-            .populate('createdBy', 'fullName')
             .sort({ createdAt: -1 });
 
         res.json(accounts);
@@ -164,8 +185,7 @@ router.get('/:id', async (req, res) => {
     try {
         const account = await InvestmentAccount.findById(req.params.id)
             .populate('userId', 'fullName email memberID profilePicture')
-            .populate('investmentRequestId')
-            .populate('createdBy', 'fullName');
+            .populate('investmentRequestId');
 
         if (!account) {
             return res.status(404).json({ message: 'Investment account not found' });

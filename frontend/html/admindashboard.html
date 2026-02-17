@@ -1978,61 +1978,6 @@
         <section id="investment-report" class="content-section">
           <div class="section-header">
             <h2>Investment Report</h2>
-            <p style="color: var(--text-gray); margin-top: 0.5rem;">Approved investment requests ready to be converted into investment accounts</p>
-          </div>
-
-          <!-- Search and Filter -->
-          <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
-            <input 
-              type="text" 
-              id="investmentReportSearchInput" 
-              placeholder="Enter Member ID or Request ID..." 
-              style="flex: 1; min-width: 250px; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px;"
-            />
-            <select 
-              id="investmentReportSearchType" 
-              style="padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; min-width: 150px;"
-            >
-              <option value="memberID">Member ID</option>
-              <option value="requestID">Request ID</option>
-            </select>
-            <button 
-              onclick="searchInvestmentReport()" 
-              class="btn btn-primary"
-              style="padding: 0.75rem 1.5rem;"
-            >
-              Search
-            </button>
-            <button 
-              onclick="loadInvestmentReport()" 
-              class="btn btn-secondary"
-              style="padding: 0.75rem 1.5rem;"
-            >
-              Clear
-            </button>
-          </div>
-
-          <div class="data-table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Request ID</th>
-                  <th>Member ID</th>
-                  <th>Member Name</th>
-                  <th>Amount</th>
-                  <th>Duration</th>
-                  <th>Purpose</th>
-                  <th>Approved Date</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="investmentReportTableBody">
-                <tr>
-                  <td colspan="9" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </section>
 
