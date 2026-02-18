@@ -227,6 +227,14 @@
               <div class="submenu-item" data-section="financial-reports" onclick="showSection('financial-reports')">Financial Reports</div>
             </div>
 
+            <!-- Interest Rate Management -->
+            <div class="menu-item" data-section="interest-rate-management" onclick="showSection('interest-rate-management')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+              </svg>
+              Interest Rate Settings
+            </div>
+
             <!-- Circulars -->
             <div class="menu-item has-submenu" onclick="toggleSubmenu(this)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -1698,6 +1706,41 @@
               <tbody id="investmentAccountTableBody">
                 <tr>
                   <td colspan="10" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Interest Rate Management Section -->
+        <section id="interest-rate-management" class="content-section">
+          <div class="section-header">
+            <h2>Interest Rate Settings</h2>
+            <div class="header-actions">
+              <button class="btn btn-primary" onclick="showAddInterestRateModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Add Interest Rate
+              </button>
+            </div>
+          </div>
+
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Duration (Months)</th>
+                  <th>Interest Rate (%)</th>
+                  <th>Created By</th>
+                  <th>Last Updated</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="interestRateTableBody">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
                 </tr>
               </tbody>
             </table>

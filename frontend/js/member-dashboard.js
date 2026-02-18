@@ -571,7 +571,9 @@ class MemberDashboard {
                             </div>
                             <div class="form-group">
                                 <label>Duration (Months)</label>
-                                <input type="number" id="investmentDuration" name="duration" min="6" max="60" required>
+                                <select id="investmentDuration" name="duration" required>
+                                    <option value="">Loading durations...</option>
+                                </select>
                             </div>
                             <div class="form-group">
                                 <label>Bank Name</label>
@@ -616,6 +618,41 @@ class MemberDashboard {
             </div>
         `;
         this.showModal(modalHTML);
+        
+        // Load interest rates and populate duration dropdown
+        this.loadInterestRatesForDropdown();
+    }
+
+    async loadInterestRatesForDropdown() {
+        try {
+            const response = await fetch('http://localhost:5000/api/interest-rates/all');
+            const data = await response.json();
+            
+            const durationDropdown = document.getElementById('investmentDuration');
+            
+            if (response.ok && data.success && data.interestRates.length > 0) {
+                // Clear loading message
+                durationDropdown.innerHTML = '<option value="">Select Duration</option>';
+                
+                // Add options for each interest rate
+                data.interestRates.forEach(rate => {
+                    const option = document.createElement('option');
+                    option.value = rate.duration;
+                    option.setAttribute('data-interest-rate', rate.interestRate);
+                    option.textContent = `${rate.duration} Months (${rate.interestRate}%)`;
+                    durationDropdown.appendChild(option);
+                });
+            } else {
+                // If no interest rates configured, show error
+                durationDropdown.innerHTML = '<option value="">No durations configured by admin</option>';
+                this.showError('No investment durations have been configured. Please contact administrator.');
+            }
+        } catch (error) {
+            console.error('Error loading interest rates:', error);
+            const durationDropdown = document.getElementById('investmentDuration');
+            durationDropdown.innerHTML = '<option value="">Error loading durations</option>';
+            this.showError('Failed to load duration options. Please try again.');
+        }
     }
 
     async viewInvestment(investmentId) {

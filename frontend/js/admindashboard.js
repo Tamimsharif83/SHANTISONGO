@@ -218,6 +218,11 @@ class AdminDashboard {
         if (sectionId === 'authorize-delete-data') {
             loadPendingRecoveryEntries();
         }
+
+        // Load interest rates when interest-rate-management section is shown
+        if (sectionId === 'interest-rate-management') {
+            loadInterestRates();
+        }
         
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
@@ -3021,9 +3026,32 @@ async function showCreateInvestmentAccountModal(requestId) {
         modalContainer.innerHTML = modalHTML;
         document.body.appendChild(modalContainer);
         
+        // Auto-fill profit percentage based on member's selected duration
+        fetchAndFillInterestRate(request.duration);
+        
     } catch (error) {
         console.error('Error loading request:', error);
         alert('Error loading request details');
+    }
+}
+
+async function fetchAndFillInterestRate(duration) {
+    try {
+        const response = await fetch(`http://localhost:5000/api/interest-rates/duration/${duration}`);
+        const data = await response.json();
+        
+        if (response.ok && data.success && data.interestRate) {
+            // Auto-fill the profit percentage field
+            const profitPercentageInput = document.getElementById('profitPercentage');
+            if (profitPercentageInput) {
+                profitPercentageInput.value = data.interestRate.interestRate;
+                // Trigger the calculation preview
+                profitPercentageInput.dispatchEvent(new Event('input'));
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching interest rate for duration:', error);
+        // Don't show error to user, just let them enter manually
     }
 }
 
@@ -3830,3 +3858,238 @@ function displayRecentRecoveries(recoveries) {
   window.authorizeRecoveryEntry = authorizeRecoveryEntry;
   window.rejectRecoveryEntry = rejectRecoveryEntry;
   window.deleteRecoveryEntry = deleteRecoveryEntry;
+
+// ============================================
+// INTEREST RATE MANAGEMENT FUNCTIONS
+// ============================================
+
+// Load all interest rates
+async function loadInterestRates() {
+    try {
+        const response = await fetch('http://localhost:5000/api/interest-rates/all');
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            displayInterestRates(data.interestRates);
+        } else {
+            displayInterestRates([]);
+        }
+    } catch (error) {
+        console.error('Error loading interest rates:', error);
+        showInterestRateError('Failed to load interest rates');
+    }
+}
+
+// Display interest rates in table
+function displayInterestRates(rates) {
+    const tbody = document.getElementById('interestRateTableBody');
+    if (!tbody) return;
+
+    if (!rates || rates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 2rem; color: #666;">No interest rates configured yet. Click "Add Interest Rate" to create one.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = rates.map(rate => {
+        const updatedDate = new Date(rate.updatedAt).toLocaleDateString('en-GB', {
+            day: 'numeric', month: 'short', year: 'numeric'
+        });
+        return `
+            <tr>
+                <td style="font-weight: 600;">${rate.duration} Months</td>
+                <td style="color: var(--primary-green); font-weight: 600;">${rate.interestRate}%</td>
+                <td>${rate.createdBy}</td>
+                <td>${updatedDate}</td>
+                <td>
+                    <button class="action-btn edit" onclick="editInterestRate('${rate._id}', ${rate.duration}, ${rate.interestRate})" title="Edit">✏️</button>
+                    <button class="action-btn delete" onclick="deleteInterestRate('${rate._id}', ${rate.duration})" title="Delete">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Show add interest rate modal
+function showAddInterestRateModal() {
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = `
+        <div class="modal-overlay" id="addInterestRateModal" onclick="closeAddInterestRateModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">Add Interest Rate</h3>
+                    <button onclick="closeAddInterestRateModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+                </div>
+                <form id="addInterestRateForm" style="padding: 1.5rem;">
+                    <div class="form-group" style="margin-bottom: 1rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Duration (Months) *</label>
+                        <input type="number" id="irDuration" step="1" min="1" required
+                               placeholder="e.g., 12, 24, 36"
+                               style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Interest Rate (%) *</label>
+                        <input type="number" id="irRate" step="0.1" min="0" max="100" required
+                               placeholder="e.g., 6.5, 11.5"
+                               style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; box-sizing: border-box;">
+                    </div>
+                    <div id="irCreateError" style="color: #e53e3e; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: #fff5f5; border-radius: 6px; display: none;"></div>
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button type="button" onclick="closeAddInterestRateModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Cancel</button>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.5rem; background: var(--primary-green);">Add Rate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalContainer);
+    document.getElementById('addInterestRateForm').addEventListener('submit', createInterestRate);
+}
+
+function closeAddInterestRateModal() {
+    const modal = document.getElementById('addInterestRateModal');
+    if (modal) modal.parentElement.remove();
+}
+
+// Create interest rate
+async function createInterestRate(event) {
+    event.preventDefault();
+    const duration = parseInt(document.getElementById('irDuration').value);
+    const interestRate = parseFloat(document.getElementById('irRate').value);
+    const createdBy = sessionStorage.getItem('fullName') || 'Admin';
+
+    const submitBtn = event.target.querySelector('[type="submit"]');
+    const errorDiv = document.getElementById('irCreateError');
+    if (submitBtn) submitBtn.disabled = true;
+    if (errorDiv) errorDiv.style.display = 'none';
+
+    try {
+        const response = await fetch('http://localhost:5000/api/interest-rates/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ duration, interestRate, createdBy })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            closeAddInterestRateModal();
+            loadInterestRates();
+        } else {
+            if (errorDiv) {
+                errorDiv.textContent = data.message || 'Failed to add interest rate';
+                errorDiv.style.display = 'block';
+            } else {
+                alert(data.message || 'Failed to add interest rate');
+            }
+        }
+    } catch (error) {
+        console.error('Error creating interest rate:', error);
+        if (errorDiv) {
+            errorDiv.textContent = 'Network error. Please try again.';
+            errorDiv.style.display = 'block';
+        }
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+}
+
+// Edit interest rate — proper modal instead of prompt
+function editInterestRate(id, duration, currentRate) {
+    const existing = document.getElementById('editInterestRateModal');
+    if (existing) existing.parentElement.remove();
+
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = `
+        <div class="modal-overlay" id="editInterestRateModal" onclick="closeEditInterestRateModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+            <div class="modal-content" onclick="event.stopPropagation()" style="background: var(--white); border-radius: 12px; max-width: 420px; width: 90%; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid var(--border-gray); display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="color: var(--primary-green); margin: 0;">Edit Interest Rate</h3>
+                    <button onclick="closeEditInterestRateModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-gray);">&times;</button>
+                </div>
+                <div style="padding: 1.5rem;">
+                    <p style="margin: 0 0 1rem; color: var(--text-gray);">Duration: <strong>${duration} Months</strong></p>
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">New Interest Rate (%) *</label>
+                        <input type="number" id="irEditRate" step="0.1" min="0" max="100" value="${currentRate}" required
+                               style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-gray); border-radius: 8px; box-sizing: border-box; font-size: 1rem;">
+                    </div>
+                    <div id="irEditError" style="color: #e53e3e; margin-bottom: 0.75rem; display: none;"></div>
+                    <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
+                        <button type="button" onclick="closeEditInterestRateModal()" class="btn btn-secondary" style="padding: 0.6rem 1.5rem;">Cancel</button>
+                        <button type="button" onclick="submitEditInterestRate('${id}', ${duration})" class="btn btn-primary" style="padding: 0.6rem 1.5rem; background: var(--primary-green);">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modalContainer);
+    setTimeout(() => document.getElementById('irEditRate').focus(), 50);
+}
+
+function closeEditInterestRateModal() {
+    const modal = document.getElementById('editInterestRateModal');
+    if (modal) modal.parentElement.remove();
+}
+
+async function submitEditInterestRate(id, duration) {
+    const input = document.getElementById('irEditRate');
+    const errorDiv = document.getElementById('irEditError');
+    const parsedRate = parseFloat(input.value);
+    if (isNaN(parsedRate) || parsedRate < 0 || parsedRate > 100) {
+        errorDiv.textContent = 'Please enter a valid rate between 0 and 100.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    errorDiv.style.display = 'none';
+    try {
+        const response = await fetch('http://localhost:5000/api/interest-rates/update/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interestRate: parsedRate })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+            closeEditInterestRateModal();
+            loadInterestRates();
+        } else {
+            errorDiv.textContent = data.message || 'Failed to update interest rate';
+            errorDiv.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error updating interest rate:', error);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.style.display = 'block';
+    }
+}
+
+// Delete interest rate
+async function deleteInterestRate(id, duration) {
+    if (!confirm('Are you sure you want to delete the interest rate for ' + duration + ' months?')) return;
+    try {
+        const response = await fetch('http://localhost:5000/api/interest-rates/delete/' + id, {
+            method: 'DELETE'
+        });
+        const data = await response.json();
+        if (response.ok) {
+            alert('Interest rate deleted successfully!');
+            loadInterestRates();
+        } else {
+            alert(data.message || 'Failed to delete interest rate');
+        }
+    } catch (error) {
+        console.error('Error deleting interest rate:', error);
+        alert('Error deleting interest rate');
+    }
+}
+
+function showInterestRateError(message) {
+    const tbody = document.getElementById('interestRateTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--danger-red); padding: 2rem;">' + message + '</td></tr>';
+}
+
+// Make functions globally accessible
+window.loadInterestRates = loadInterestRates;
+window.showAddInterestRateModal = showAddInterestRateModal;
+window.closeAddInterestRateModal = closeAddInterestRateModal;
+window.editInterestRate = editInterestRate;
+window.closeEditInterestRateModal = closeEditInterestRateModal;
+window.submitEditInterestRate = submitEditInterestRate;
+window.deleteInterestRate = deleteInterestRate;
