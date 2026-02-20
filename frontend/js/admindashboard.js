@@ -224,6 +224,11 @@ class AdminDashboard {
         if (sectionId === 'interest-rate-management') {
             loadInterestRates();
         }
+
+        // Load expenditure data when expenditure-entry section is shown
+        if (sectionId === 'expenditure-entry') {
+            initExpenditureSection();
+        }
         
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
@@ -3995,6 +4000,392 @@ async function deleteMonthlyShareEntry(entryId) {
 window.loadPendingMonthlyShareEntries = loadPendingMonthlyShareEntries;
 window.authorizeMonthlyShareEntry = authorizeMonthlyShareEntry;
 window.deleteMonthlyShareEntry = deleteMonthlyShareEntry;
+
+// ============================================================
+// GENERAL EXPENDITURE ENTRY FUNCTIONS
+// ============================================================
+
+let expenditureHeadsCache = []; // In-memory cache of all heads
+
+// Called once when section becomes visible
+async function initExpenditureSection() {
+    setExpDateToToday();
+    await loadExpenditureHeads();
+    filterExpenses();
+    loadMonthlyStats();
+}
+
+function setExpDateToToday() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const today = `${y}-${m}-${d}`;
+    const el = document.getElementById('expDate');
+    if (el) { el.value = today; el.max = today; }
+}
+
+// ─── HEADS ────────────────────────────────────────────────────
+async function loadExpenditureHeads() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/heads`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        expenditureHeadsCache = data.heads;
+        renderHeadsList();
+        populateAllHeadDropdowns();
+    } catch (err) {
+        console.error('Error loading expenditure heads:', err);
+    }
+}
+
+function renderHeadsList() {
+    const container = document.getElementById('headsListContainer');
+    if (!container) return;
+    if (expenditureHeadsCache.length === 0) {
+        container.innerHTML = '<p style="color:#999; text-align:center; margin:0;">No heads created yet.</p>';
+        return;
+    }
+    container.innerHTML = expenditureHeadsCache.map(head => `
+        <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; margin-bottom:0.75rem; padding:0.75rem 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
+                <strong style="color: var(--primary-green);">${head.name}</strong>
+                <button class="btn btn-danger btn-sm" style="padding:0.25rem 0.7rem; font-size:0.8rem;"
+                    onclick="deleteExpenditureHead('${head._id}', '${head.name}')">✕ Delete Head</button>
+            </div>
+            ${head.subHeads.length > 0
+                ? `<div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                    ${head.subHeads.map(sub =>
+                        `<span style="background:#f0f8f5; border:1px solid #c8e6d7; border-radius:20px; padding:0.2rem 0.7rem; font-size:0.85rem; display:inline-flex; align-items:center; gap:0.4rem;">
+                            ${sub.name}
+                            <button onclick="deleteExpenditureSubHead('${head._id}','${sub._id}','${sub.name}')"
+                                style="background:none; border:none; color:#c00; cursor:pointer; font-size:0.9rem; padding:0; line-height:1;">✕</button>
+                        </span>`
+                    ).join('')}
+                   </div>`
+                : '<span style="color:#999; font-size:0.85rem;">No sub-heads</span>'
+            }
+        </div>
+    `).join('');
+}
+
+function populateAllHeadDropdowns() {
+    const ids = ['headForSubHead', 'expHead', 'filterExpHead'];
+    ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const firstOption = el.options[0].outerHTML; // keep the first placeholder
+        el.innerHTML = firstOption + expenditureHeadsCache.map(h =>
+            `<option value="${h.name}">${h.name}</option>`
+        ).join('');
+    });
+    // Also reset sub-head dropdowns
+    ['expSubHead', 'filterExpSubHead'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = el.options[0].outerHTML;
+    });
+}
+
+function populateExpSubHeadDropdown() {
+    const headName = document.getElementById('expHead').value;
+    const el = document.getElementById('expSubHead');
+    el.innerHTML = '<option value="">-- Select Sub-Head (optional) --</option>';
+    if (!headName) return;
+    const head = expenditureHeadsCache.find(h => h.name === headName);
+    if (head && head.subHeads.length > 0) {
+        head.subHeads.forEach(sub => {
+            el.innerHTML += `<option value="${sub.name}">${sub.name}</option>`;
+        });
+    }
+}
+
+function populateFilterSubHeadDropdown() {
+    const headName = document.getElementById('filterExpHead').value;
+    const el = document.getElementById('filterExpSubHead');
+    el.innerHTML = '<option value="">All Sub-Heads</option>';
+    if (!headName) return;
+    const head = expenditureHeadsCache.find(h => h.name === headName);
+    if (head && head.subHeads.length > 0) {
+        head.subHeads.forEach(sub => {
+            el.innerHTML += `<option value="${sub.name}">${sub.name}</option>`;
+        });
+    }
+}
+
+function toggleManageHeadsPanel() {
+    const panel = document.getElementById('manageHeadsPanel');
+    if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+async function addExpenditureHead() {
+    const input = document.getElementById('newHeadInput');
+    const errDiv = document.getElementById('addHeadError');
+    errDiv.style.display = 'none';
+    const name = input.value.trim();
+    if (!name) { errDiv.textContent = 'Head name cannot be empty.'; errDiv.style.display = 'block'; return; }
+    const adminName = sessionStorage.getItem('fullName') || 'Admin';
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/heads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, createdBy: adminName })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        input.value = '';
+        await loadExpenditureHeads();
+        dashboard.showNotification(`Head "${name}" created successfully!`, 'success');
+    } catch (err) {
+        errDiv.textContent = 'Error adding head. Try again.'; errDiv.style.display = 'block';
+    }
+}
+
+async function addExpenditureSubHead() {
+    const headSelect = document.getElementById('headForSubHead');
+    const input = document.getElementById('newSubHeadInput');
+    const errDiv = document.getElementById('addSubHeadError');
+    errDiv.style.display = 'none';
+    const headId = expenditureHeadsCache.find(h => h.name === headSelect.value)?._id;
+    if (!headId) { errDiv.textContent = 'Please select a head first.'; errDiv.style.display = 'block'; return; }
+    const name = input.value.trim();
+    if (!name) { errDiv.textContent = 'Sub-head name cannot be empty.'; errDiv.style.display = 'block'; return; }
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/heads/${headId}/subheads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        input.value = '';
+        await loadExpenditureHeads();
+        dashboard.showNotification(`Sub-head "${name}" added!`, 'success');
+    } catch (err) {
+        errDiv.textContent = 'Error adding sub-head. Try again.'; errDiv.style.display = 'block';
+    }
+}
+
+async function deleteExpenditureHead(headId, headName) {
+    if (!confirm(`Delete head "${headName}" and all its sub-heads?`)) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/heads/${headId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        await loadExpenditureHeads();
+        dashboard.showNotification(`Head "${headName}" deleted.`, 'success');
+    } catch (err) { alert('Error deleting head.'); }
+}
+
+async function deleteExpenditureSubHead(headId, subHeadId, subHeadName) {
+    if (!confirm(`Delete sub-head "${subHeadName}"?`)) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/heads/${headId}/subheads/${subHeadId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        await loadExpenditureHeads();
+        dashboard.showNotification(`Sub-head "${subHeadName}" deleted.`, 'success');
+    } catch (err) { alert('Error deleting sub-head.'); }
+}
+
+// ─── RECORD EXPENSE ───────────────────────────────────────────
+async function recordExpenditure() {
+    const errDiv = document.getElementById('expFormError');
+    errDiv.style.display = 'none';
+    const voucherNo = document.getElementById('expVoucherNo').value.trim();
+    const date = document.getElementById('expDate').value;
+    const head = document.getElementById('expHead').value;
+    const subHead = document.getElementById('expSubHead').value;
+    const amountTaka = parseFloat(document.getElementById('expAmount').value);
+    const comment = document.getElementById('expComment').value.trim();
+    const enteredBy = sessionStorage.getItem('fullName') || 'Admin';
+
+    if (!voucherNo) { errDiv.textContent = 'Voucher No is required.'; errDiv.style.display = 'block'; return; }
+    if (!date) { errDiv.textContent = 'Date is required.'; errDiv.style.display = 'block'; return; }
+    if (!head) { errDiv.textContent = 'Expense Head is required.'; errDiv.style.display = 'block'; return; }
+    if (!amountTaka || amountTaka <= 0) { errDiv.textContent = 'Amount must be greater than 0.'; errDiv.style.display = 'block'; return; }
+
+    // Convert payslip image to base64 (optional)
+    let payslipImage = null;
+    const payslipFile = document.getElementById('expPayslipImage')?.files[0];
+    if (payslipFile) {
+        payslipImage = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(payslipFile);
+        });
+    }
+
+    const amountPaisa = takaToPaysa(amountTaka);
+    const btn = document.getElementById('recordExpenseBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ voucherNo, head, subHead, amount: amountPaisa, date, comment, enteredBy, payslipImage })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        // Clear form
+        document.getElementById('expVoucherNo').value = '';
+        document.getElementById('expAmount').value = '';
+        document.getElementById('expComment').value = '';
+        document.getElementById('expHead').value = '';
+        document.getElementById('expSubHead').innerHTML = '<option value="">-- Select Sub-Head (optional) --</option>';
+        clearExpPayslipImage();
+        setExpDateToToday();
+        dashboard.showNotification('Expense recorded successfully!', 'success');
+        filterExpenses();
+        loadMonthlyStats();
+    } catch (err) {
+        errDiv.textContent = 'Error saving expense. Try again.';
+        errDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false; btn.textContent = '💾 Record Expense';
+    }
+}
+
+// ─── TABLE + FILTERS ─────────────────────────────────────────
+async function filterExpenses() {
+    // Also update filter sub-head dropdown when head changes
+    populateFilterSubHeadDropdown();
+    const head = document.getElementById('filterExpHead')?.value || '';
+    const subHead = document.getElementById('filterExpSubHead')?.value || '';
+    const month = document.getElementById('filterExpMonth')?.value || '';
+    const sort = document.getElementById('sortExpAmount')?.value || 'desc';
+    const params = new URLSearchParams();
+    if (head) params.set('head', head);
+    if (subHead) params.set('subHead', subHead);
+    if (month) params.set('month', month);
+    params.set('sort', sort);
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure?${params.toString()}`);
+        const data = await res.json();
+        renderExpenseTable(data.success ? data.entries : []);
+    } catch (err) {
+        console.error('Error filtering expenses:', err);
+        renderExpenseTable([]);
+    }
+}
+
+function renderExpenseTable(entries) {
+    const tbody = document.getElementById('expenseTableBody');
+    if (!tbody) return;
+    if (!entries || entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:2rem; color:#999;">No expense entries found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = entries.map(e => `
+        <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px;">${e.voucherNo}</td>
+            <td style="padding:10px;">${e.head}</td>
+            <td style="padding:10px;">${e.subHead || '<span style="color:#aaa;">—</span>'}</td>
+            <td style="padding:10px; font-weight:600; color:#c0392b;">${formatPaysaAsTaka(e.amount)}</td>
+            <td style="padding:10px;">${new Date(e.date).toLocaleDateString('en-GB')}</td>
+            <td style="padding:10px; color:#666; font-size:0.9rem;">${e.comment || '—'}</td>
+            <td style="padding:10px;">${e.enteredBy}</td>
+            <td style="padding:10px;">
+                <button class="btn btn-danger btn-sm" style="padding:0.25rem 0.6rem; font-size:0.8rem;"
+                    onclick="deleteExpenditureEntry('${e._id}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function clearExpenseFilters() {
+    ['filterExpHead','filterExpSubHead','filterExpMonth'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const sortEl = document.getElementById('sortExpAmount');
+    if (sortEl) sortEl.value = 'desc';
+    populateFilterSubHeadDropdown();
+    filterExpenses();
+}
+
+async function deleteExpenditureEntry(entryId) {
+    if (!confirm('Delete this expense entry? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/${entryId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Expense deleted.', 'success');
+        filterExpenses();
+        loadMonthlyStats();
+    } catch (err) { alert('Error deleting entry.'); }
+}
+
+// ─── MONTHLY STATS SIDEBAR ────────────────────────────────────
+async function loadMonthlyStats() {
+    const container = document.getElementById('monthlyStatsContainer');
+    if (!container) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/stats/monthly`);
+        const data = await res.json();
+        if (!data.success || data.stats.length === 0) {
+            container.innerHTML = '<p style="color:#999; text-align:center;">No data yet.</p>';
+            return;
+        }
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        // Find max for bar scaling
+        const maxTotal = Math.max(...data.stats.map(s => s.total));
+        container.innerHTML = data.stats.map(s => {
+            const pct = maxTotal > 0 ? Math.round((s.total / maxTotal) * 100) : 0;
+            const label = `${monthNames[s._id.month - 1]} ${s._id.year}`;
+            return `
+            <div style="margin-bottom:1rem;">
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.25rem;">
+                    <span style="font-weight:600;">${label}</span>
+                    <span style="color:#c0392b; font-weight:700;">${formatPaysaAsTaka(s.total)}</span>
+                </div>
+                <div style="background:#eee; border-radius:20px; height:8px; overflow:hidden;">
+                    <div style="background: var(--primary-green); width:${pct}%; height:100%; border-radius:20px; transition:width 0.4s;"></div>
+                </div>
+                <div style="font-size:0.78rem; color:#888; margin-top:0.2rem;">${s.count} entr${s.count === 1 ? 'y' : 'ies'}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        console.error('Error loading monthly stats:', err);
+        container.innerHTML = '<p style="color:#c00; text-align:center;">Failed to load stats.</p>';
+    }
+}
+
+// Export globals
+window.toggleManageHeadsPanel = toggleManageHeadsPanel;
+window.addExpenditureHead = addExpenditureHead;
+window.addExpenditureSubHead = addExpenditureSubHead;
+window.deleteExpenditureHead = deleteExpenditureHead;
+window.deleteExpenditureSubHead = deleteExpenditureSubHead;
+window.populateExpSubHeadDropdown = populateExpSubHeadDropdown;
+window.recordExpenditure = recordExpenditure;
+window.filterExpenses = filterExpenses;
+window.clearExpenseFilters = clearExpenseFilters;
+window.deleteExpenditureEntry = deleteExpenditureEntry;
+
+function previewExpPayslipImage() {
+    const file = document.getElementById('expPayslipImage')?.files[0];
+    const preview = document.getElementById('expPayslipPreview');
+    const img = document.getElementById('expPayslipImg');
+    if (file && preview && img) {
+        const reader = new FileReader();
+        reader.onload = e => { img.src = e.target.result; preview.style.display = 'block'; };
+        reader.readAsDataURL(file);
+    }
+}
+
+function clearExpPayslipImage() {
+    const input = document.getElementById('expPayslipImage');
+    const preview = document.getElementById('expPayslipPreview');
+    const img = document.getElementById('expPayslipImg');
+    if (input) input.value = '';
+    if (img) img.src = '';
+    if (preview) preview.style.display = 'none';
+}
+
+window.previewExpPayslipImage = previewExpPayslipImage;
+window.clearExpPayslipImage = clearExpPayslipImage;
 
 // ============================================
 // INTEREST RATE MANAGEMENT FUNCTIONS
