@@ -214,9 +214,10 @@ class AdminDashboard {
             loadRecentRecoveries();
         }
         
-        // Load pending recovery entries when authorize-delete-data section is shown
+        // Load pending entries when authorize-delete-data section is shown
         if (sectionId === 'authorize-delete-data') {
             loadPendingRecoveryEntries();
+            loadPendingMonthlyShareEntries();
         }
 
         // Load interest rates when interest-rate-management section is shown
@@ -2370,6 +2371,7 @@ function showCreateInvestmentAccountModal(request) {
 }
 
 let calculatedProfitData = null;
+let previewPrincipalPaisa = 0;
 
 async function calculateProfit(requestId) {
     const profitPercentage = parseFloat(document.getElementById('profitPercentageInput').value);
@@ -3067,6 +3069,9 @@ function calculateInvestmentPreview(amountPaisa, duration) {
     // Show preview
     previewDiv.style.display = 'block';
     
+    // Store principal for editable preview recalculation
+    previewPrincipalPaisa = amountPaisa;
+    
     // Calculate (all amounts in paisa)
     const annualProfitPaisa = Math.round((amountPaisa * profitPercentage) / 100);
     const monthlyProfitPaisa = Math.round(annualProfitPaisa / 12);
@@ -3097,9 +3102,16 @@ function calculateInvestmentPreview(amountPaisa, duration) {
 function updateTotalFromMonthly(duration) {
     const monthlyInstallment = parseFloat(document.getElementById('customMonthlyInstallment').value);
     if (monthlyInstallment && monthlyInstallment > 0) {
-        // Calculate approximate total (monthly * duration)
-        const approximateTotal = (monthlyInstallment * duration).toFixed(2);
-        document.getElementById('customTotalAmount').value = approximateTotal;
+        const approximateTotalTaka = parseFloat((monthlyInstallment * duration).toFixed(2));
+        document.getElementById('customTotalAmount').value = approximateTotalTaka.toFixed(2);
+        
+        // Recalculate and update profit previews
+        const principalTaka = previewPrincipalPaisa / 100;
+        const totalProfitTaka = approximateTotalTaka - principalTaka;
+        const monthlyProfitTaka = monthlyInstallment - (principalTaka / duration);
+        
+        document.getElementById('previewTotalProfit').textContent = formatPaysaAsTaka(Math.round(Math.max(0, totalProfitTaka) * 100));
+        document.getElementById('previewMonthlyProfit').textContent = formatPaysaAsTaka(Math.round(Math.max(0, monthlyProfitTaka) * 100));
     }
 }
 
@@ -3107,9 +3119,16 @@ function updateTotalFromMonthly(duration) {
 function updateMonthlyFromTotal(duration) {
     const totalAmount = parseFloat(document.getElementById('customTotalAmount').value);
     if (totalAmount && totalAmount > 0) {
-        // Calculate monthly installment (total / duration)
-        const monthlyInstallment = (totalAmount / duration).toFixed(2);
-        document.getElementById('customMonthlyInstallment').value = monthlyInstallment;
+        const monthlyInstallmentTaka = parseFloat((totalAmount / duration).toFixed(2));
+        document.getElementById('customMonthlyInstallment').value = monthlyInstallmentTaka.toFixed(2);
+        
+        // Recalculate and update profit previews
+        const principalTaka = previewPrincipalPaisa / 100;
+        const totalProfitTaka = totalAmount - principalTaka;
+        const monthlyProfitTaka = monthlyInstallmentTaka - (principalTaka / duration);
+        
+        document.getElementById('previewTotalProfit').textContent = formatPaysaAsTaka(Math.round(Math.max(0, totalProfitTaka) * 100));
+        document.getElementById('previewMonthlyProfit').textContent = formatPaysaAsTaka(Math.round(Math.max(0, monthlyProfitTaka) * 100));
     }
 }
 
@@ -3858,6 +3877,124 @@ function displayRecentRecoveries(recoveries) {
   window.authorizeRecoveryEntry = authorizeRecoveryEntry;
   window.rejectRecoveryEntry = rejectRecoveryEntry;
   window.deleteRecoveryEntry = deleteRecoveryEntry;
+
+// ============================================
+// AUTHORIZE TAB SWITCHER
+// ============================================
+function switchAuthorizeTab(tab) {
+    const recoverySection = document.getElementById('subsection-recovery');
+    const shareSection = document.getElementById('subsection-monthly-share');
+    const recoveryTab = document.getElementById('tab-recovery');
+    const shareTab = document.getElementById('tab-monthly-share');
+
+    if (tab === 'recovery') {
+        recoverySection.style.display = 'block';
+        shareSection.style.display = 'none';
+        recoveryTab.style.background = 'var(--primary-green)';
+        recoveryTab.style.color = '#fff';
+        shareTab.style.background = '#e0e0e0';
+        shareTab.style.color = '#333';
+    } else {
+        recoverySection.style.display = 'none';
+        shareSection.style.display = 'block';
+        shareTab.style.background = 'var(--primary-green)';
+        shareTab.style.color = '#fff';
+        recoveryTab.style.background = '#e0e0e0';
+        recoveryTab.style.color = '#333';
+    }
+}
+window.switchAuthorizeTab = switchAuthorizeTab;
+
+// ============================================
+// AUTHORIZE/DELETE — MONTHLY SHARE DEPOSIT
+// ============================================
+async function loadPendingMonthlyShareEntries() {
+    try {
+        const response = await fetch('http://localhost:5000/api/monthlyshare/pending', {
+            headers: { Authorization: `Bearer ${sessionStorage.getItem('userToken')}` }
+        });
+        if (!response.ok) throw new Error('Failed to load pending monthly share entries');
+        const entries = await response.json();
+        displayPendingMonthlyShareEntries(entries);
+    } catch (error) {
+        console.error('Error loading pending monthly share entries:', error);
+        const tbody = document.getElementById('pendingShareEntriesTableBody');
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#c00;">Failed to load entries</td></tr>`;
+    }
+}
+
+function displayPendingMonthlyShareEntries(entries) {
+    const tbody = document.getElementById('pendingShareEntriesTableBody');
+    if (!tbody) return;
+
+    if (!entries || entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#666;">No pending monthly share deposit entries</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = entries.map(entry => `
+        <tr>
+            <td style="padding:12px;">${entry.memberId}</td>
+            <td style="padding:12px;">${entry.memberName}</td>
+            <td style="padding:12px;">${entry.month}</td>
+            <td style="padding:12px;">${formatPaysaAsTaka(entry.amount)}</td>
+            <td style="padding:12px;">${new Date(entry.date).toLocaleDateString('en-GB')}</td>
+            <td style="padding:12px;">${entry.entryBy || 'Admin'}</td>
+            <td style="padding:12px;">
+                <button class="btn btn-success btn-sm" onclick="authorizeMonthlyShareEntry('${entry._id}')" style="margin-right:0.5rem;">
+                    Authorize
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteMonthlyShareEntry('${entry._id}')">
+                    Delete
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function authorizeMonthlyShareEntry(entryId) {
+    if (!confirm('Are you sure you want to authorize this monthly share deposit entry?')) return;
+    try {
+        const adminName = sessionStorage.getItem('fullName') || 'Admin';
+        const response = await fetch(`http://localhost:5000/api/monthlyshare/${entryId}/authorize`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${sessionStorage.getItem('userToken')}`
+            },
+            body: JSON.stringify({ authorizedBy: adminName })
+        });
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.message || 'Failed to authorize entry');
+        }
+        dashboard.showNotification('Monthly share deposit entry authorized successfully!', 'success');
+        loadPendingMonthlyShareEntries();
+    } catch (error) {
+        console.error('Error authorizing monthly share entry:', error);
+        alert(error.message || 'Failed to authorize entry');
+    }
+}
+
+async function deleteMonthlyShareEntry(entryId) {
+    if (!confirm('Are you sure you want to delete this pending monthly share deposit entry? This cannot be undone.')) return;
+    try {
+        const response = await fetch(`http://localhost:5000/api/monthlyshare/${entryId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${sessionStorage.getItem('userToken')}` }
+        });
+        if (!response.ok) throw new Error('Failed to delete entry');
+        dashboard.showNotification('Monthly share deposit entry deleted.', 'success');
+        loadPendingMonthlyShareEntries();
+    } catch (error) {
+        console.error('Error deleting monthly share entry:', error);
+        alert('Failed to delete entry');
+    }
+}
+
+window.loadPendingMonthlyShareEntries = loadPendingMonthlyShareEntries;
+window.authorizeMonthlyShareEntry = authorizeMonthlyShareEntry;
+window.deleteMonthlyShareEntry = deleteMonthlyShareEntry;
 
 // ============================================
 // INTEREST RATE MANAGEMENT FUNCTIONS

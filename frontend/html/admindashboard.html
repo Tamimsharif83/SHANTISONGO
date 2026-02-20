@@ -2412,11 +2412,26 @@
         <section id="authorize-delete-data" class="content-section">
             <div class="section-header">
               <h2>Authorize Data Entries</h2>
-              <p style="color: var(--text-gray); margin-top: 0.5rem;">Review and authorize pending investment recovery entries</p>
+              <p style="color: var(--text-gray); margin-top: 0.5rem;">Review and authorize pending entries</p>
             </div>
-            <div class="card">
+
+            <!-- Sub-section Tabs -->
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-gray); padding-bottom: 0;">
+              <button id="tab-recovery" onclick="switchAuthorizeTab('recovery')"
+                style="padding: 0.6rem 1.4rem; border: none; background: var(--primary-green); color: #fff; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
+                Investment Recovery
+              </button>
+              <button id="tab-monthly-share" onclick="switchAuthorizeTab('monthly-share')"
+                style="padding: 0.6rem 1.4rem; border: none; background: #e0e0e0; color: #333; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
+                Monthly Share Deposit
+              </button>
+            </div>
+
+            <!-- Investment Recovery Sub-section -->
+            <div id="subsection-recovery">
+              <div class="card">
                 <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
-                    <button class="btn btn-primary" onclick="loadPendingRecoveryEntries()">Refresh</button>
+                    <button class="btn btn-primary" onclick="loadPendingRecoveryEntries()">&#x21bb; Refresh</button>
                 </div>
                 <table class="data-table" style="width: 100%; border-collapse: collapse;">
                    <thead style="background: #e3f2fd;">
@@ -2438,7 +2453,36 @@
                        </tr>
                    </tbody>
                </table>
+              </div>
             </div>
+
+            <!-- Monthly Share Deposit Sub-section -->
+            <div id="subsection-monthly-share" style="display: none;">
+              <div class="card">
+                <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <button class="btn btn-primary" onclick="loadPendingMonthlyShareEntries()">&#x21bb; Refresh</button>
+                </div>
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                   <thead style="background: #e8f5e9;">
+                       <tr>
+                           <th style="padding:12px;">Member ID</th>
+                           <th style="padding:12px;">Member Name</th>
+                           <th style="padding:12px;">Month</th>
+                           <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Deposit Date</th>
+                           <th style="padding:12px;">Entry By</th>
+                           <th style="padding:12px;">Actions</th>
+                       </tr>
+                   </thead>
+                   <tbody id="pendingShareEntriesTableBody">
+                       <tr>
+                         <td colspan="7" style="text-align: center; padding: 2rem;">Loading...</td>
+                       </tr>
+                   </tbody>
+               </table>
+              </div>
+            </div>
+
         </section>
 
         <!-- 10. Delete/Reverse Authorized Data -->
