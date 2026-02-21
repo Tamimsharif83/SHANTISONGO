@@ -85,6 +85,26 @@ router.delete('/heads/:headId/subheads/:subHeadId', async (req, res) => {
 // EXPENDITURE ENTRIES
 // ============================================================
 
+// GET next voucher number — format: V-{YEAR}-{6-digit-serial}
+router.get('/next-voucher', async (req, res) => {
+    try {
+        const year = new Date().getFullYear();
+        const prefix = `V-${year}-`;
+        const latest = await Expenditure.findOne({
+            voucherNo: new RegExp(`^${prefix.replace('-', '\\-')}`, 'i')
+        }).sort({ voucherNo: -1 });
+        let seq = 1;
+        if (latest) {
+            const lastNum = parseInt(latest.voucherNo.substring(prefix.length));
+            if (!isNaN(lastNum)) seq = lastNum + 1;
+        }
+        const voucherNo = `${prefix}${seq.toString().padStart(6, '0')}`;
+        res.json({ success: true, voucherNo });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // GET all expenditure entries (with optional filters)
 // Query params: head, subHead, month (YYYY-MM), sort (asc | desc)
 router.get('/', async (req, res) => {

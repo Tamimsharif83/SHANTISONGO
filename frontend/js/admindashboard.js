@@ -229,6 +229,11 @@ class AdminDashboard {
         if (sectionId === 'expenditure-entry') {
             initExpenditureSection();
         }
+
+        // Load income data when income-entry section is shown
+        if (sectionId === 'income-entry') {
+            initIncomeSection();
+        }
         
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
@@ -4011,8 +4016,20 @@ let expenditureHeadsCache = []; // In-memory cache of all heads
 async function initExpenditureSection() {
     setExpDateToToday();
     await loadExpenditureHeads();
+    await fetchAndShowNextVoucherNo();
     filterExpenses();
     loadMonthlyStats();
+}
+
+async function fetchAndShowNextVoucherNo() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/next-voucher`);
+        const data = await res.json();
+        const el = document.getElementById('expVoucherNo');
+        if (el && data.success) el.value = data.voucherNo;
+    } catch (err) {
+        console.error('Error fetching next voucher number:', err);
+    }
 }
 
 function setExpDateToToday() {
@@ -4199,7 +4216,6 @@ async function recordExpenditure() {
     const comment = document.getElementById('expComment').value.trim();
     const enteredBy = sessionStorage.getItem('fullName') || 'Admin';
 
-    if (!voucherNo) { errDiv.textContent = 'Voucher No is required.'; errDiv.style.display = 'block'; return; }
     if (!date) { errDiv.textContent = 'Date is required.'; errDiv.style.display = 'block'; return; }
     if (!head) { errDiv.textContent = 'Expense Head is required.'; errDiv.style.display = 'block'; return; }
     if (!amountTaka || amountTaka <= 0) { errDiv.textContent = 'Amount must be greater than 0.'; errDiv.style.display = 'block'; return; }
@@ -4228,8 +4244,8 @@ async function recordExpenditure() {
         });
         const data = await res.json();
         if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
-        // Clear form
-        document.getElementById('expVoucherNo').value = '';
+        // Clear form & refresh voucher number
+        await fetchAndShowNextVoucherNo();
         document.getElementById('expAmount').value = '';
         document.getElementById('expComment').value = '';
         document.getElementById('expHead').value = '';
@@ -4263,7 +4279,13 @@ async function filterExpenses() {
     try {
         const res = await fetch(`${API_BASE_URL}/api/expenditure?${params.toString()}`);
         const data = await res.json();
-        renderExpenseTable(data.success ? data.entries : []);
+        const entries = data.success ? data.entries : [];
+        const total = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalEl = document.getElementById('expTotalDisplay');
+        const countEl = document.getElementById('expTotalCount');
+        if (totalEl) totalEl.textContent = formatPaysaAsTaka(total);
+        if (countEl) countEl.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`;
+        renderExpenseTable(entries);
     } catch (err) {
         console.error('Error filtering expenses:', err);
         renderExpenseTable([]);
@@ -4386,6 +4408,190 @@ function clearExpPayslipImage() {
 
 window.previewExpPayslipImage = previewExpPayslipImage;
 window.clearExpPayslipImage = clearExpPayslipImage;
+
+// ============================================================
+// INCOME ENTRY FUNCTIONS
+// ============================================================
+
+async function initIncomeSection() {
+    setIncomeDateToToday();
+    await fetchAndShowNextIncomeId();
+    filterIncomeEntries();
+    loadIncomeMonthlyStats();
+}
+
+function setIncomeDateToToday() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const today = `${y}-${m}-${d}`;
+    const el = document.getElementById('incomeDate');
+    if (el) { el.value = today; el.max = today; }
+}
+
+async function fetchAndShowNextIncomeId() {
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income/next-id`);
+        const data = await res.json();
+        const el = document.getElementById('incomeIdDisplay');
+        if (el && data.success) el.value = data.incomeId;
+    } catch (err) {
+        console.error('Error fetching next income ID:', err);
+    }
+}
+
+async function recordIncome() {
+    const errDiv = document.getElementById('incomeFormError');
+    errDiv.style.display = 'none';
+
+    const source = document.getElementById('incomeSource').value.trim();
+    const amountTaka = parseFloat(document.getElementById('incomeAmount').value);
+    const date = document.getElementById('incomeDate').value;
+    const enteredBy = sessionStorage.getItem('fullName') || 'Admin';
+
+    if (!source) { errDiv.textContent = 'Source of income is required.'; errDiv.style.display = 'block'; return; }
+    if (!amountTaka || amountTaka <= 0) { errDiv.textContent = 'Amount must be greater than 0.'; errDiv.style.display = 'block'; return; }
+    if (!date) { errDiv.textContent = 'Date is required.'; errDiv.style.display = 'block'; return; }
+
+    const amountPaisa = takaToPaysa(amountTaka);
+    const btn = document.getElementById('recordIncomeBtn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source, amount: amountPaisa, date, enteredBy })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+
+        // Clear form & refresh
+        document.getElementById('incomeSource').value = '';
+        document.getElementById('incomeAmount').value = '';
+        setIncomeDateToToday();
+        await fetchAndShowNextIncomeId(); // show next ID
+        dashboard.showNotification(`Income recorded! ID: ${data.entry.incomeId}`, 'success');
+        filterIncomeEntries();
+        loadIncomeMonthlyStats();
+    } catch (err) {
+        errDiv.textContent = 'Error saving income. Try again.';
+        errDiv.style.display = 'block';
+    } finally {
+        btn.disabled = false; btn.textContent = '💰 Save Income';
+    }
+}
+
+async function filterIncomeEntries() {
+    const search = document.getElementById('searchIncomeId')?.value.trim() || '';
+    const fromDate = document.getElementById('filterIncomeFrom')?.value || '';
+    const toDate = document.getElementById('filterIncomeTo')?.value || '';
+    const sort = document.getElementById('sortIncomeAmount')?.value || 'desc';
+
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (fromDate) params.set('fromDate', fromDate);
+    if (toDate) params.set('toDate', toDate);
+    params.set('sort', sort);
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income?${params.toString()}`);
+        const data = await res.json();
+        const entries = data.success ? data.entries : [];
+        const total = entries.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalEl = document.getElementById('incomeTotalDisplay');
+        const countEl = document.getElementById('incomeTotalCount');
+        if (totalEl) totalEl.textContent = formatPaysaAsTaka(total);
+        if (countEl) countEl.textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`;
+        renderIncomeTable(entries);
+    } catch (err) {
+        console.error('Error loading income entries:', err);
+        renderIncomeTable([]);
+    }
+}
+
+function renderIncomeTable(entries) {
+    const tbody = document.getElementById('incomeTableBody');
+    if (!tbody) return;
+    if (!entries || entries.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; color:#999;">No income entries found.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = entries.map(e => `
+        <tr style="border-bottom:1px solid #f0f0f0;">
+            <td style="padding:10px; font-family:monospace; color:var(--primary-green); font-weight:600;">${e.incomeId}</td>
+            <td style="padding:10px;">${e.source}</td>
+            <td style="padding:10px; font-weight:600; color:#2e7d32;">${formatPaysaAsTaka(e.amount)}</td>
+            <td style="padding:10px;">${new Date(e.date).toLocaleDateString('en-GB')}</td>
+            <td style="padding:10px;">${e.enteredBy}</td>
+            <td style="padding:10px;">
+                <button class="btn btn-danger btn-sm" style="padding:0.25rem 0.6rem; font-size:0.8rem;"
+                    onclick="deleteIncomeEntry('${e._id}')">✕ Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function clearIncomeFilters() {
+    ['searchIncomeId', 'filterIncomeFrom', 'filterIncomeTo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const sort = document.getElementById('sortIncomeAmount');
+    if (sort) sort.value = 'desc';
+    filterIncomeEntries();
+}
+
+async function deleteIncomeEntry(id) {
+    if (!confirm('Delete this income entry? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Income entry deleted.', 'success');
+        filterIncomeEntries();
+        loadIncomeMonthlyStats();
+        fetchAndShowNextIncomeId();
+    } catch (err) { alert('Error deleting income entry.'); }
+}
+
+async function loadIncomeMonthlyStats() {
+    const container = document.getElementById('incomeMonthlyStatsContainer');
+    if (!container) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income/stats/monthly`);
+        const data = await res.json();
+        if (!data.success || data.stats.length === 0) {
+            container.innerHTML = '<p style="color:#999; text-align:center;">No data yet.</p>';
+            return;
+        }
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const maxTotal = Math.max(...data.stats.map(s => s.total));
+        container.innerHTML = data.stats.map(s => {
+            const pct = maxTotal > 0 ? Math.round((s.total / maxTotal) * 100) : 0;
+            const label = `${monthNames[s._id.month - 1]} ${s._id.year}`;
+            return `
+            <div style="margin-bottom:1rem;">
+                <div style="display:flex; justify-content:space-between; font-size:0.85rem; margin-bottom:0.25rem;">
+                    <span style="font-weight:600;">${label}</span>
+                    <span style="color:#2e7d32; font-weight:700;">${formatPaysaAsTaka(s.total)}</span>
+                </div>
+                <div style="background:#eee; border-radius:20px; height:8px; overflow:hidden;">
+                    <div style="background:#2e7d32; width:${pct}%; height:100%; border-radius:20px; transition:width 0.4s;"></div>
+                </div>
+                <div style="font-size:0.78rem; color:#888; margin-top:0.2rem;">${s.count} entr${s.count === 1 ? 'y' : 'ies'}</div>
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="color:#c00; text-align:center;">Failed to load stats.</p>';
+    }
+}
+
+window.recordIncome = recordIncome;
+window.filterIncomeEntries = filterIncomeEntries;
+window.clearIncomeFilters = clearIncomeFilters;
+window.deleteIncomeEntry = deleteIncomeEntry;
 
 // ============================================
 // INTEREST RATE MANAGEMENT FUNCTIONS
