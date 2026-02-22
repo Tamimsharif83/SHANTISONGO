@@ -27,6 +27,19 @@ const incomeSchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true
+    },
+    status: {
+        type: String,
+        enum: ['pending', 'authorized'],
+        default: 'pending'
+    },
+    authorizedBy: {
+        type: String,
+        default: null
+    },
+    authorizedAt: {
+        type: Date,
+        default: null
     }
 }, { timestamps: true, collection: 'Income' });
 

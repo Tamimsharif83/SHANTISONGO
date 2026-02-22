@@ -36,7 +36,7 @@ router.get('/stats/monthly', async (req, res) => {
 // Query params: search (income ID partial), fromDate (YYYY-MM-DD), toDate (YYYY-MM-DD), sort (asc | desc)
 router.get('/', async (req, res) => {
     try {
-        const filter = {};
+        const filter = { status: 'authorized' };
 
         if (req.query.search) {
             filter.incomeId = new RegExp(req.query.search, 'i');
@@ -55,6 +55,32 @@ router.get('/', async (req, res) => {
         const sortOrder = req.query.sort === 'asc' ? 1 : -1;
         const entries = await Income.find(filter).sort({ amount: sortOrder, createdAt: -1 });
         res.json({ success: true, entries });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// GET pending income entries (awaiting authorization)
+router.get('/pending', async (req, res) => {
+    try {
+        const entries = await Income.find({ status: 'pending' }).sort({ createdAt: -1 });
+        res.json({ success: true, entries });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// PATCH authorize an income entry
+router.patch('/:id/authorize', async (req, res) => {
+    try {
+        const { authorizedBy } = req.body;
+        const entry = await Income.findByIdAndUpdate(
+            req.params.id,
+            { status: 'authorized', authorizedBy: authorizedBy || 'Admin', authorizedAt: new Date() },
+            { new: true }
+        );
+        if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
+        res.json({ success: true, entry });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

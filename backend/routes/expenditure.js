@@ -109,7 +109,7 @@ router.get('/next-voucher', async (req, res) => {
 // Query params: head, subHead, month (YYYY-MM), sort (asc | desc)
 router.get('/', async (req, res) => {
     try {
-        const filter = {};
+        const filter = { status: 'authorized' };
         if (req.query.head) filter.head = req.query.head;
         if (req.query.subHead) filter.subHead = req.query.subHead;
         if (req.query.month) {
@@ -146,6 +146,32 @@ router.get('/stats/monthly', async (req, res) => {
             { $limit: 12 }
         ]);
         res.json({ success: true, stats });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// GET pending expenditure entries (awaiting authorization)
+router.get('/pending', async (req, res) => {
+    try {
+        const entries = await Expenditure.find({ status: 'pending' }).sort({ createdAt: -1 });
+        res.json({ success: true, entries });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// PATCH authorize an expenditure entry
+router.patch('/:id/authorize', async (req, res) => {
+    try {
+        const { authorizedBy } = req.body;
+        const entry = await Expenditure.findByIdAndUpdate(
+            req.params.id,
+            { status: 'authorized', authorizedBy: authorizedBy || 'Admin', authorizedAt: new Date() },
+            { new: true }
+        );
+        if (!entry) return res.status(404).json({ success: false, message: 'Entry not found' });
+        res.json({ success: true, entry });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }

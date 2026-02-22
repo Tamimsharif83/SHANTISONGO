@@ -2662,7 +2662,7 @@
             </div>
 
             <!-- Sub-section Tabs -->
-            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-gray); padding-bottom: 0;">
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-gray); padding-bottom: 0; flex-wrap:wrap;">
               <button id="tab-recovery" onclick="switchAuthorizeTab('recovery')"
                 style="padding: 0.6rem 1.4rem; border: none; background: var(--primary-green); color: #fff; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
                 Investment Recovery
@@ -2670,6 +2670,14 @@
               <button id="tab-monthly-share" onclick="switchAuthorizeTab('monthly-share')"
                 style="padding: 0.6rem 1.4rem; border: none; background: #e0e0e0; color: #333; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
                 Monthly Share Deposit
+              </button>
+              <button id="tab-expenditure" onclick="switchAuthorizeTab('expenditure')"
+                style="padding: 0.6rem 1.4rem; border: none; background: #e0e0e0; color: #333; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
+                Expenditure
+              </button>
+              <button id="tab-income" onclick="switchAuthorizeTab('income')"
+                style="padding: 0.6rem 1.4rem; border: none; background: #e0e0e0; color: #333; border-radius: 6px 6px 0 0; font-weight: 600; cursor: pointer;">
+                Income
               </button>
             </div>
 
@@ -2729,9 +2737,57 @@
               </div>
             </div>
 
-        </section>
+            <!-- Expenditure Sub-section -->
+            <div id="subsection-expenditure" style="display: none;">
+              <div class="card">
+                <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <button class="btn btn-primary" onclick="loadPendingExpenditureEntries()">&#x21bb; Refresh</button>
+                </div>
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                   <thead style="background: #fff3e0;">
+                       <tr>
+                           <th style="padding:12px;">Voucher No</th>
+                           <th style="padding:12px;">Head</th>
+                           <th style="padding:12px;">Sub-Head</th>
+                           <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Date</th>
+                           <th style="padding:12px;">Comment</th>
+                           <th style="padding:12px;">Entered By</th>
+                           <th style="padding:12px;">Actions</th>
+                       </tr>
+                   </thead>
+                   <tbody id="pendingExpenditureTableBody">
+                       <tr><td colspan="8" style="text-align: center; padding: 2rem;">Loading...</td></tr>
+                   </tbody>
+               </table>
+              </div>
+            </div>
 
-        <!-- 10. Delete/Reverse Authorized Data -->
+            <!-- Income Sub-section -->
+            <div id="subsection-income" style="display: none;">
+              <div class="card">
+                <div class="filters" style="display:flex; gap:1rem; margin-bottom:1rem;">
+                    <button class="btn btn-primary" onclick="loadPendingIncomeEntries()">&#x21bb; Refresh</button>
+                </div>
+                <table class="data-table" style="width: 100%; border-collapse: collapse;">
+                   <thead style="background: #e8f5e9;">
+                       <tr>
+                           <th style="padding:12px;">Income ID</th>
+                           <th style="padding:12px;">Source</th>
+                           <th style="padding:12px;">Amount</th>
+                           <th style="padding:12px;">Date</th>
+                           <th style="padding:12px;">Entered By</th>
+                           <th style="padding:12px;">Actions</th>
+                       </tr>
+                   </thead>
+                   <tbody id="pendingIncomeTableBody">
+                       <tr><td colspan="6" style="text-align: center; padding: 2rem;">Loading...</td></tr>
+                   </tbody>
+               </table>
+              </div>
+            </div>
+
+        </section>
         <section id="delete-reverse-authorized-data" class="content-section">
             <div class="section-header"><h2>Reverse Authorized Transactions</h2></div>
             <div class="card">

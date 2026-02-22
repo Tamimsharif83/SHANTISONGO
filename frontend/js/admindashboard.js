@@ -218,6 +218,8 @@ class AdminDashboard {
         if (sectionId === 'authorize-delete-data') {
             loadPendingRecoveryEntries();
             loadPendingMonthlyShareEntries();
+            loadPendingExpenditureEntries();
+            loadPendingIncomeEntries();
         }
 
         // Load interest rates when interest-rate-management section is shown
@@ -3892,26 +3894,21 @@ function displayRecentRecoveries(recoveries) {
 // AUTHORIZE TAB SWITCHER
 // ============================================
 function switchAuthorizeTab(tab) {
-    const recoverySection = document.getElementById('subsection-recovery');
-    const shareSection = document.getElementById('subsection-monthly-share');
-    const recoveryTab = document.getElementById('tab-recovery');
-    const shareTab = document.getElementById('tab-monthly-share');
-
-    if (tab === 'recovery') {
-        recoverySection.style.display = 'block';
-        shareSection.style.display = 'none';
-        recoveryTab.style.background = 'var(--primary-green)';
-        recoveryTab.style.color = '#fff';
-        shareTab.style.background = '#e0e0e0';
-        shareTab.style.color = '#333';
-    } else {
-        recoverySection.style.display = 'none';
-        shareSection.style.display = 'block';
-        shareTab.style.background = 'var(--primary-green)';
-        shareTab.style.color = '#fff';
-        recoveryTab.style.background = '#e0e0e0';
-        recoveryTab.style.color = '#333';
-    }
+    const tabs = ['recovery', 'monthly-share', 'expenditure', 'income'];
+    tabs.forEach(t => {
+        const sec = document.getElementById(`subsection-${t}`);
+        const btn = document.getElementById(`tab-${t}`);
+        if (sec) sec.style.display = (t === tab) ? 'block' : 'none';
+        if (btn) {
+            btn.style.background = (t === tab) ? 'var(--primary-green)' : '#e0e0e0';
+            btn.style.color = (t === tab) ? '#fff' : '#333';
+        }
+    });
+    // Lazy-load data for the activated tab
+    if (tab === 'recovery') loadPendingRecoveryEntries();
+    if (tab === 'monthly-share') loadPendingMonthlyShareEntries();
+    if (tab === 'expenditure') loadPendingExpenditureEntries();
+    if (tab === 'income') loadPendingIncomeEntries();
 }
 window.switchAuthorizeTab = switchAuthorizeTab;
 
@@ -4007,7 +4004,140 @@ window.authorizeMonthlyShareEntry = authorizeMonthlyShareEntry;
 window.deleteMonthlyShareEntry = deleteMonthlyShareEntry;
 
 // ============================================================
-// GENERAL EXPENDITURE ENTRY FUNCTIONS
+// AUTHORIZE/DELETE — EXPENDITURE
+// ============================================================
+async function loadPendingExpenditureEntries() {
+    const tbody = document.getElementById('pendingExpenditureTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;">Loading...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/pending`);
+        const data = await res.json();
+        const entries = data.success ? data.entries : [];
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#999;">No pending expenditure entries</td></tr>';
+            return;
+        }
+        tbody.innerHTML = entries.map(e => `
+            <tr>
+                <td style="padding:12px; font-family:monospace; font-weight:600;">${e.voucherNo}</td>
+                <td style="padding:12px;">${e.head}</td>
+                <td style="padding:12px;">${e.subHead || '—'}</td>
+                <td style="padding:12px; font-weight:600; color:#c0392b;">${formatPaysaAsTaka(e.amount)}</td>
+                <td style="padding:12px;">${new Date(e.date).toLocaleDateString('en-GB')}</td>
+                <td style="padding:12px; color:#666; font-size:0.9rem;">${e.comment || '—'}</td>
+                <td style="padding:12px;">${e.enteredBy}</td>
+                <td style="padding:12px;">
+                    <button class="btn btn-success btn-sm" style="margin-right:0.4rem;"
+                        onclick="authorizePendingExpenditure('${e._id}')">✔ Authorize</button>
+                    <button class="btn btn-danger btn-sm"
+                        onclick="deletePendingExpenditure('${e._id}')">✕ Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#c00;">Failed to load entries</td></tr>';
+    }
+}
+
+async function authorizePendingExpenditure(id) {
+    if (!confirm('Authorize this expenditure entry? It will appear in the Expenditure section.')) return;
+    try {
+        const adminName = sessionStorage.getItem('fullName') || 'Admin';
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/${id}/authorize`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ authorizedBy: adminName })
+        });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Expenditure entry authorized successfully!', 'success');
+        loadPendingExpenditureEntries();
+    } catch (err) { alert('Error authorizing entry.'); }
+}
+
+async function deletePendingExpenditure(id) {
+    if (!confirm('Delete this pending expenditure entry? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/expenditure/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Pending expenditure entry deleted.', 'success');
+        loadPendingExpenditureEntries();
+        fetchAndShowNextVoucherNo();
+    } catch (err) { alert('Error deleting entry.'); }
+}
+
+window.loadPendingExpenditureEntries = loadPendingExpenditureEntries;
+window.authorizePendingExpenditure = authorizePendingExpenditure;
+window.deletePendingExpenditure = deletePendingExpenditure;
+
+// ============================================================
+// AUTHORIZE/DELETE — INCOME
+// ============================================================
+async function loadPendingIncomeEntries() {
+    const tbody = document.getElementById('pendingIncomeTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">Loading...</td></tr>';
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income/pending`);
+        const data = await res.json();
+        const entries = data.success ? data.entries : [];
+        if (entries.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#999;">No pending income entries</td></tr>';
+            return;
+        }
+        tbody.innerHTML = entries.map(e => `
+            <tr>
+                <td style="padding:12px; font-family:monospace; font-weight:600; color:var(--primary-green);">${e.incomeId}</td>
+                <td style="padding:12px;">${e.source}</td>
+                <td style="padding:12px; font-weight:600; color:#2e7d32;">${formatPaysaAsTaka(e.amount)}</td>
+                <td style="padding:12px;">${new Date(e.date).toLocaleDateString('en-GB')}</td>
+                <td style="padding:12px;">${e.enteredBy}</td>
+                <td style="padding:12px;">
+                    <button class="btn btn-success btn-sm" style="margin-right:0.4rem;"
+                        onclick="authorizePendingIncome('${e._id}')">✔ Authorize</button>
+                    <button class="btn btn-danger btn-sm"
+                        onclick="deletePendingIncome('${e._id}')">✕ Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:#c00;">Failed to load entries</td></tr>';
+    }
+}
+
+async function authorizePendingIncome(id) {
+    if (!confirm('Authorize this income entry? It will appear in the Income section.')) return;
+    try {
+        const adminName = sessionStorage.getItem('fullName') || 'Admin';
+        const res = await fetch(`${API_BASE_URL}/api/income/${id}/authorize`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ authorizedBy: adminName })
+        });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Income entry authorized successfully!', 'success');
+        loadPendingIncomeEntries();
+    } catch (err) { alert('Error authorizing entry.'); }
+}
+
+async function deletePendingIncome(id) {
+    if (!confirm('Delete this pending income entry? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/income/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) { alert(data.message); return; }
+        dashboard.showNotification('Pending income entry deleted.', 'success');
+        loadPendingIncomeEntries();
+        fetchAndShowNextIncomeId();
+    } catch (err) { alert('Error deleting entry.'); }
+}
+
+window.loadPendingIncomeEntries = loadPendingIncomeEntries;
+window.authorizePendingIncome = authorizePendingIncome;
+window.deletePendingIncome = deletePendingIncome;
 // ============================================================
 
 let expenditureHeadsCache = []; // In-memory cache of all heads
@@ -4252,7 +4382,24 @@ async function recordExpenditure() {
         document.getElementById('expSubHead').innerHTML = '<option value="">-- Select Sub-Head (optional) --</option>';
         clearExpPayslipImage();
         setExpDateToToday();
-        dashboard.showNotification('Expense recorded successfully!', 'success');
+        dashboard.showNotification('Expense entry submitted for authorization!', 'success');
+        // Show inline info banner
+        errDiv.style.display = 'block';
+        errDiv.style.background = '#e3f2fd';
+        errDiv.style.color = '#0d47a1';
+        errDiv.style.border = '1px solid #90caf9';
+        errDiv.style.borderRadius = '8px';
+        errDiv.style.padding = '0.75rem 1rem';
+        errDiv.innerHTML = `✅ Expense entry saved and sent for authorization. 
+            <button onclick="showSection('authorize-delete-data')" 
+                style="margin-left:0.75rem; padding:0.3rem 0.9rem; background:#1565c0; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+                Go to Authorize/Delete Data →
+            </button>`;
+        setTimeout(() => {
+            errDiv.style.display = 'none';
+            errDiv.style.cssText = '';
+            errDiv.innerHTML = '';
+        }, 8000);
         filterExpenses();
         loadMonthlyStats();
     } catch (err) {
@@ -4472,7 +4619,24 @@ async function recordIncome() {
         document.getElementById('incomeAmount').value = '';
         setIncomeDateToToday();
         await fetchAndShowNextIncomeId(); // show next ID
-        dashboard.showNotification(`Income recorded! ID: ${data.entry.incomeId}`, 'success');
+        dashboard.showNotification('Income entry submitted for authorization!', 'success');
+        // Show inline info banner
+        errDiv.style.display = 'block';
+        errDiv.style.background = '#e8f5e9';
+        errDiv.style.color = '#1b5e20';
+        errDiv.style.border = '1px solid #a5d6a7';
+        errDiv.style.borderRadius = '8px';
+        errDiv.style.padding = '0.75rem 1rem';
+        errDiv.innerHTML = `✅ Income entry (ID: <strong>${data.entry.incomeId}</strong>) saved and sent for authorization.
+            <button onclick="showSection('authorize-delete-data')" 
+                style="margin-left:0.75rem; padding:0.3rem 0.9rem; background:#2e7d32; color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600;">
+                Go to Authorize/Delete Data →
+            </button>`;
+        setTimeout(() => {
+            errDiv.style.display = 'none';
+            errDiv.style.cssText = '';
+            errDiv.innerHTML = '';
+        }, 8000);
         filterIncomeEntries();
         loadIncomeMonthlyStats();
     } catch (err) {
