@@ -273,6 +273,7 @@ async function submitShareDeposit(event) {
             showShareNotification('Share deposit entry created successfully! Status: Pending', 'success');
             clearShareForm();
             loadMonthlyShareEntries();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
         } else {
             const error = await response.json();
             showShareNotification('Failed to save entry: ' + error.message, 'error');

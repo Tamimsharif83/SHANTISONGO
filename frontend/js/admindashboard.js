@@ -237,6 +237,9 @@ class AdminDashboard {
             initIncomeSection();
         }
         
+        // Clear navbar badge for this section when it's opened
+        clearNavBadge(sectionId);
+
         // Close mobile menu on section change
         if (window.innerWidth <= 1024) {
             this.toggleMobileMenu();
@@ -1936,6 +1939,7 @@ async function processInvestmentRequest(requestId, action) {
             closeApproveRejectModal();
             dashboard.showNotification(data.message, 'success');
             loadInvestmentRequests(currentInvestmentFilter);
+            updateNavBadges();
         } else {
             alert(data.message || 'Failed to process request');
         }
@@ -2534,6 +2538,7 @@ async function createInvestmentAccount(requestId) {
             closeCreateInvestmentAccountModal();
             dashboard.showNotification(`Investment Account Created Successfully! Account No: ${data.account.investmentAccountNumber}`, 'success');
             loadInvestmentReport();
+            updateNavBadges();
         } else {
             alert(data.message || 'Failed to create investment account');
             createBtn.disabled = false;
@@ -3198,6 +3203,7 @@ async function createInvestmentAccount(requestId) {
             dashboard.showNotification('Investment account created successfully!', 'success');
             closeCreateAccountModal();
             loadInvestmentAccounts(); // Reload the list
+            updateNavBadges();
         } else {
             alert(data.message || 'Failed to create investment account');
         }
@@ -3664,6 +3670,7 @@ async function submitRecoveryEntry() {
             loadRecentRecoveries();
             // Reload pending accounts dropdown
             loadPendingRecoveryAccounts();
+            updateNavBadges();
         } else {
             dashboard.showNotification(data.message || 'Failed to create recovery entry', 'error');
         }
@@ -3811,6 +3818,7 @@ function displayRecentRecoveries(recoveries) {
       const result = await response.json();
       alert("Recovery entry authorized successfully!\nInvestment account has been updated.");
       loadPendingRecoveryEntries(); // Refresh the list
+      updateNavBadges();
       // Also reload pending accounts in case account is fully paid
       if (typeof loadPendingRecoveryAccounts === 'function') {
         loadPendingRecoveryAccounts();
@@ -3977,6 +3985,7 @@ async function authorizeMonthlyShareEntry(entryId) {
         }
         dashboard.showNotification('Monthly share deposit entry authorized successfully!', 'success');
         loadPendingMonthlyShareEntries();
+        updateNavBadges();
     } catch (error) {
         console.error('Error authorizing monthly share entry:', error);
         alert(error.message || 'Failed to authorize entry');
@@ -3993,6 +4002,7 @@ async function deleteMonthlyShareEntry(entryId) {
         if (!response.ok) throw new Error('Failed to delete entry');
         dashboard.showNotification('Monthly share deposit entry deleted.', 'success');
         loadPendingMonthlyShareEntries();
+        updateNavBadges();
     } catch (error) {
         console.error('Error deleting monthly share entry:', error);
         alert('Failed to delete entry');
@@ -4053,6 +4063,7 @@ async function authorizePendingExpenditure(id) {
         if (!data.success) { alert(data.message); return; }
         dashboard.showNotification('Expenditure entry authorized successfully!', 'success');
         loadPendingExpenditureEntries();
+        updateNavBadges();
     } catch (err) { alert('Error authorizing entry.'); }
 }
 
@@ -4065,6 +4076,7 @@ async function deletePendingExpenditure(id) {
         dashboard.showNotification('Pending expenditure entry deleted.', 'success');
         loadPendingExpenditureEntries();
         fetchAndShowNextVoucherNo();
+        updateNavBadges();
     } catch (err) { alert('Error deleting entry.'); }
 }
 
@@ -4120,6 +4132,7 @@ async function authorizePendingIncome(id) {
         if (!data.success) { alert(data.message); return; }
         dashboard.showNotification('Income entry authorized successfully!', 'success');
         loadPendingIncomeEntries();
+        updateNavBadges();
     } catch (err) { alert('Error authorizing entry.'); }
 }
 
@@ -4132,6 +4145,7 @@ async function deletePendingIncome(id) {
         dashboard.showNotification('Pending income entry deleted.', 'success');
         loadPendingIncomeEntries();
         fetchAndShowNextIncomeId();
+        updateNavBadges();
     } catch (err) { alert('Error deleting entry.'); }
 }
 
@@ -4400,6 +4414,7 @@ async function recordExpenditure() {
             errDiv.style.cssText = '';
             errDiv.innerHTML = '';
         }, 8000);
+        updateNavBadges();
         filterExpenses();
         loadMonthlyStats();
     } catch (err) {
@@ -4637,6 +4652,7 @@ async function recordIncome() {
             errDiv.style.cssText = '';
             errDiv.innerHTML = '';
         }, 8000);
+        updateNavBadges();
         filterIncomeEntries();
         loadIncomeMonthlyStats();
     } catch (err) {
@@ -4991,3 +5007,127 @@ window.editInterestRate = editInterestRate;
 window.closeEditInterestRateModal = closeEditInterestRateModal;
 window.submitEditInterestRate = submitEditInterestRate;
 window.deleteInterestRate = deleteInterestRate;
+
+// ================================================================
+// NAVBAR BADGE SYSTEM
+// Red dot on sidebar nav items when pending data exists.
+// ================================================================
+async function updateNavBadges() {
+    const counts = {
+        'authorize-delete-data': 0,
+        'membership-applications': 0,
+        'monthly-share-deposit': 0,
+        'investment-recovery-entry': 0,
+        'investment-monitoring': 0,
+        'investment-account': 0
+    };
+
+    // Expenditure pending
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/expenditure/pending`);
+        const d = await r.json();
+        if (d.success && Array.isArray(d.entries)) counts['authorize-delete-data'] += d.entries.length;
+    } catch(e) {}
+
+    // Income pending
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/income/pending`);
+        const d = await r.json();
+        if (d.success && Array.isArray(d.entries)) counts['authorize-delete-data'] += d.entries.length;
+    } catch(e) {}
+
+    // Monthly share pending
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/monthlyshare/pending`);
+        const d = await r.json();
+        if (Array.isArray(d)) {
+            counts['authorize-delete-data'] += d.length;
+            counts['monthly-share-deposit'] += d.length;
+        }
+    } catch(e) {}
+
+    // Investment recovery pending
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/investment-recovery/all?status=pending`);
+        const d = await r.json();
+        if (Array.isArray(d)) {
+            counts['authorize-delete-data'] += d.length;
+            counts['investment-recovery-entry'] += d.length;
+        }
+    } catch(e) {}
+
+    // Membership applications pending
+    try {
+        const r = await fetch(`${API_BASE_URL}/applications/all`);
+        const d = await r.json();
+        if (Array.isArray(d)) {
+            const pending = d.filter(a => a.status === 'pending').length;
+            counts['membership-applications'] += pending;
+        }
+    } catch(e) {}
+
+    // Investment requests pending (new applications from members)
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/investment-requests/admin/statistics`);
+        const d = await r.json();
+        if (typeof d.pendingCount === 'number') counts['investment-monitoring'] += d.pendingCount;
+    } catch(e) {}
+
+    // Approved investment requests that don't yet have an account created
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/investment-accounts/approved-requests`);
+        const d = await r.json();
+        if (Array.isArray(d)) {
+            counts['investment-account'] += d.filter(req => !req.hasInvestmentAccount).length;
+        }
+    } catch(e) {}
+
+    // Apply child badge visibility
+    Object.entries(counts).forEach(([section, count]) => {
+        const badge = document.getElementById(`badge-${section}`);
+        if (badge) badge.style.display = count > 0 ? 'block' : 'none';
+    });
+
+    // Sync parent menu badges based on their children
+    const parentChildMap = {
+        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
+        'badge-parent-members':     ['membership-applications'],
+        'badge-parent-monitoring':  ['investment-monitoring'],
+        'badge-parent-accounts':    ['investment-account']
+    };
+    Object.entries(parentChildMap).forEach(([parentId, children]) => {
+        const hasActive = children.some(c => (counts[c] || 0) > 0);
+        const el = document.getElementById(parentId);
+        if (el) el.style.display = hasActive ? 'block' : 'none';
+    });
+}
+
+function clearNavBadge(sectionId) {
+    const badge = document.getElementById(`badge-${sectionId}`);
+    if (badge) badge.style.display = 'none';
+
+    // Also clear parent badge if no other child sections still have a badge
+    const parentChildMap = {
+        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
+        'badge-parent-members':     ['membership-applications'],
+        'badge-parent-monitoring':  ['investment-monitoring'],
+        'badge-parent-accounts':    ['investment-account']
+    };
+    Object.entries(parentChildMap).forEach(([parentId, children]) => {
+        if (!children.includes(sectionId)) return;
+        const anyActive = children.some(c => {
+            if (c === sectionId) return false; // this one just cleared
+            const b = document.getElementById(`badge-${c}`);
+            return b && b.style.display !== 'none';
+        });
+        const parentEl = document.getElementById(parentId);
+        if (parentEl && !anyActive) parentEl.style.display = 'none';
+    });
+}
+
+window.updateNavBadges = updateNavBadges;
+window.clearNavBadge = clearNavBadge;
+
+// Initial load + poll every 60 seconds
+updateNavBadges();
+setInterval(updateNavBadges, 60000);
