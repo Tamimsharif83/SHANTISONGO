@@ -185,6 +185,17 @@
             </div>
             <div
               class="menu-item"
+              data-section="fixed-deposit"
+              onclick="showSection('fixed-deposit')"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+              Fixed Deposit
+            </div>
+            <div
+              class="menu-item"
               data-section="chat"
               onclick="showSection('chat')"
             >
@@ -787,6 +798,52 @@
             </div>
           </div>
         </section>
+
+        <!-- Fixed Deposit Section -->
+        <section id="fixed-deposit" class="content-section">
+          <div class="section-header">
+            <h2>Fixed Deposit</h2>
+          </div>
+
+          <!-- New Request Form -->
+          <div style="background:var(--white);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 8px var(--shadow);">
+            <h3 style="margin-bottom:1rem;color:var(--primary-green);">Submit a Fixed Deposit Request</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;" class="fd-form-grid">
+              <div class="form-group">
+                <label>Proposed Duration <span style="color:red;">*</span></label>
+                <select id="fdProposedDuration" onchange="updateFDPreview()" style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;">
+                  <option value="">-- Select Duration --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Amount (৳) <span style="color:red;">*</span></label>
+                <input type="number" id="fdAmount" min="1" placeholder="e.g. 5000" oninput="updateFDPreview()" style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;" />
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label>Comment (optional)</label>
+                <textarea id="fdMemberComment" rows="3" placeholder="Any additional information..." style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;resize:vertical;"></textarea>
+              </div>
+            </div>
+            <!-- Interest Preview -->
+            <div id="fdInterestPreview" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:10px;">
+              <span style="color:#15803d;font-weight:600;">💰 Estimated Interest:</span>
+              <span id="fdPreviewInterest" style="font-weight:700;color:#15803d;"></span>
+              &nbsp;|&nbsp;
+              <span style="color:#374151;">Total Return: </span>
+              <span id="fdPreviewTotal" style="font-weight:700;"></span>
+              <span id="fdPreviewMeta" style="display:block;font-size:0.8rem;color:#6b7280;margin-top:2px;"></span>
+            </div>
+            <div id="fdFormError" style="display:none;color:red;margin:0.5rem 0;"></div>
+            <button class="btn btn-primary" onclick="submitFDRequest()" style="margin-top:0.5rem;">📤 Submit Request</button>
+          </div>
+
+          <!-- My Requests List -->
+          <h3 style="margin-bottom:1rem;">My Fixed Deposit Requests</h3>
+          <div id="fdMyRequestsList">
+            <p style="color:#999;">Loading...</p>
+          </div>
+        </section>
+
       </main>
     </div>
 

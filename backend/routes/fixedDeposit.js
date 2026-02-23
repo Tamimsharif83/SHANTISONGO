@@ -1,0 +1,156 @@
+const express = require('express');
+const router = express.Router();
+const FixedDepositRequest = require('../models/FixedDepositRequest');
+const User = require('../models/User');
+
+// ─── MEMBER: Submit new fixed deposit request ─────────────────
+router.post('/', async (req, res) => {
+    try {
+        const { userId, proposedDuration, amount, memberComment } = req.body;
+        if (!userId || !proposedDuration || !amount) {
+            return res.status(400).json({ success: false, message: 'userId, proposedDuration and amount are required.' });
+        }
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+        const request = await FixedDepositRequest.create({
+            userId,
+            memberID: user.memberID,
+            memberName: user.fullName,
+            proposedDuration: parseInt(proposedDuration),
+            amount: Math.round(parseFloat(amount)),
+            memberComment: memberComment || ''
+        });
+
+        res.status(201).json({ success: true, request });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── MEMBER: Get own requests ─────────────────────────────────
+router.get('/member/:userId', async (req, res) => {
+    try {
+        const requests = await FixedDepositRequest.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        res.json({ success: true, requests });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Get all requests ──────────────────────────────────
+router.get('/all', async (req, res) => {
+    try {
+        const { status } = req.query;
+        const filter = status ? { status } : {};
+        const requests = await FixedDepositRequest.find(filter)
+            .populate('userId', 'fullName memberID profilePicture email phone address nid')
+            .sort({ createdAt: -1 });
+        res.json({ success: true, requests });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Get single request with full user details ─────────
+router.get('/:id', async (req, res) => {
+    try {
+        const request = await FixedDepositRequest.findById(req.params.id)
+            .populate('userId', 'fullName memberID profilePicture email phone address nid numberOfShares');
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Acknowledge (approve with terms) ──────────────────
+router.patch('/:id/acknowledge', async (req, res) => {
+    try {
+        const { acknowledgedDuration, interestRate, adminComment, acknowledgedBy } = req.body;
+        if (!acknowledgedDuration || !interestRate) {
+            return res.status(400).json({ success: false, message: 'Duration and interest rate are required.' });
+        }
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'acknowledged',
+            acknowledgedDuration: parseInt(acknowledgedDuration),
+            interestRate: parseFloat(interestRate),
+            adminComment: adminComment || '',
+            acknowledgedBy: acknowledgedBy || 'Admin',
+            acknowledgedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Reject ────────────────────────────────────────────
+router.patch('/:id/reject', async (req, res) => {
+    try {
+        const { rejectionReason, rejectedBy } = req.body;
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'rejected',
+            rejectionReason: rejectionReason || '',
+            rejectedBy: rejectedBy || 'Admin',
+            rejectedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── MEMBER: Submit payment details ──────────────────────────
+router.patch('/:id/payment', async (req, res) => {
+    try {
+        const { paymentMethod, transactionId, paymentComment, paymentDocument } = req.body;
+        if (!paymentMethod || !paymentDocument) {
+            return res.status(400).json({ success: false, message: 'Payment method and document are required.' });
+        }
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'payment_submitted',
+            paymentMethod,
+            transactionId: transactionId || '',
+            paymentComment: paymentComment || '',
+            paymentDocument,
+            paymentSubmittedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Complete (move to Deposit Account) ───────────────
+router.patch('/:id/complete', async (req, res) => {
+    try {
+        const { completedBy } = req.body;
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'completed',
+            completedBy: completedBy || 'Admin',
+            completedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Pending count (for badge) ────────────────────────
+router.get('/stats/pending-count', async (req, res) => {
+    try {
+        const pendingCount = await FixedDepositRequest.countDocuments({ status: 'pending' });
+        const paymentCount = await FixedDepositRequest.countDocuments({ status: 'payment_submitted' });
+        res.json({ success: true, pendingCount, paymentCount, total: pendingCount + paymentCount });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+module.exports = router;

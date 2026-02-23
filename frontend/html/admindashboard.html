@@ -270,7 +270,7 @@
               <div class="submenu-item" data-section="operation-monitoring" onclick="showSection('operation-monitoring')">Operation Monitoring</div>
               <div class="submenu-item" data-section="unauthorized-items" onclick="showSection('unauthorized-items')">Today's Unauthorised Items</div>
               <div class="submenu-item" data-section="investment-monitoring" onclick="showSection('investment-monitoring')">Investment Monitoring<span id="badge-investment-monitoring" class="nav-badge"></span></div>
-              <div class="submenu-item" data-section="application-enquiries" onclick="showSection('application-enquiries')">Application Enquiries</div>
+              <div class="submenu-item" data-section="application-enquiries" onclick="showSection('application-enquiries')">Fixed Deposit Application Enquiries<span id="badge-application-enquiries" class="nav-badge"></span></div>
               <div class="submenu-item" data-section="authorize-application" onclick="showSection('authorize-application')">Authorize/Delete Application</div>
               <div class="submenu-item" data-section="profit-calculation" onclick="showSection('profit-calculation')">Profit Calculation</div>
             </div>
@@ -1720,34 +1720,60 @@
         <section id="interest-rate-management" class="content-section">
           <div class="section-header">
             <h2>Interest Rate Settings</h2>
-            <div class="header-actions">
+          </div>
+
+          <!-- Sub-tabs -->
+          <div style="display:flex;gap:0;margin-bottom:1.5rem;border-bottom:2px solid var(--border-gray);">
+            <button id="ir-tab-investment" onclick="showIRTab('investment')"
+              style="padding:10px 22px;border:none;background:none;cursor:pointer;font-weight:600;color:var(--primary-green);border-bottom:3px solid var(--primary-green);margin-bottom:-2px;">
+              Investment Interest Rates
+            </button>
+            <button id="ir-tab-fdr" onclick="showIRTab('fdr')"
+              style="padding:10px 22px;border:none;background:none;cursor:pointer;font-weight:600;color:#6b7280;border-bottom:3px solid transparent;margin-bottom:-2px;">
+              FDR Interest Rates
+            </button>
+          </div>
+
+          <!-- Investment tab -->
+          <div id="ir-panel-investment">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
               <button class="btn btn-primary" onclick="showAddInterestRateModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Add Interest Rate
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right:6px;">
+                  <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>Add Investment Rate
               </button>
+            </div>
+            <div class="data-table-container">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Duration (Months)</th><th>Interest Rate (%)</th><th>Created By</th><th>Last Updated</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="interestRateTableBody">
+                  <tr><td colspan="5" style="text-align:center;padding:2rem;color:#666;">Loading...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div class="data-table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Duration (Months)</th>
-                  <th>Interest Rate (%)</th>
-                  <th>Created By</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="interestRateTableBody">
-                <tr>
-                  <td colspan="5" style="text-align: center; padding: 2rem; color: #666;">Loading...</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- FDR tab -->
+          <div id="ir-panel-fdr" style="display:none;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:1rem;">
+              <button class="btn btn-primary" onclick="showAddFDRRateModal()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="margin-right:6px;">
+                  <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>Add FDR Rate
+              </button>
+            </div>
+            <div class="data-table-container">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Duration (Months)</th><th>Interest Rate (%)</th><th>Created By</th><th>Last Updated</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="fdrRateTableBody">
+                  <tr><td colspan="5" style="text-align:center;padding:2rem;color:#666;">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -3005,6 +3031,56 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         FIXED DEPOSIT APPLICATION ENQUIRIES SECTION (ADMIN)
+    ═══════════════════════════════════════════════════════════════ -->
+    <script>
+    // inject section before scripts run
+    document.addEventListener('DOMContentLoaded', () => {
+        const main = document.querySelector('.main-content');
+        if (main && !document.getElementById('application-enquiries')) {
+            const sec = document.createElement('section');
+            sec.id = 'application-enquiries';
+            sec.className = 'content-section';
+            sec.innerHTML = `
+              <div class="section-header">
+                <h2>Fixed Deposit Application Enquiries</h2>
+                <button class="btn btn-secondary btn-sm" onclick="loadFDRequests()">⟳ Refresh</button>
+              </div>
+              <!-- Filter tabs -->
+              <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+                <button id="fd-tab-all"      class="btn btn-primary btn-sm"   onclick="loadFDRequests('all')">All</button>
+                <button id="fd-tab-pending"  class="btn btn-secondary btn-sm" onclick="loadFDRequests('pending')">Pending</button>
+                <button id="fd-tab-ack"      class="btn btn-secondary btn-sm" onclick="loadFDRequests('acknowledged')">Acknowledged</button>
+                <button id="fd-tab-payment"  class="btn btn-secondary btn-sm" onclick="loadFDRequests('payment_submitted')">Payment Submitted</button>
+                <button id="fd-tab-rejected" class="btn btn-secondary btn-sm" onclick="loadFDRequests('rejected')">Rejected</button>
+                <button id="fd-tab-completed"class="btn btn-secondary btn-sm" onclick="loadFDRequests('completed')">Completed</button>
+              </div>
+              <!-- Table -->
+              <div style="overflow-x:auto;">
+                <table class="admin-table" style="width:100%;border-collapse:collapse;">
+                  <thead>
+                    <tr style="background:var(--light-blue);">
+                      <th style="padding:12px;text-align:left;">Request ID</th>
+                      <th style="padding:12px;text-align:left;">Member</th>
+                      <th style="padding:12px;text-align:left;">Amount</th>
+                      <th style="padding:12px;text-align:left;">Duration</th>
+                      <th style="padding:12px;text-align:left;">Status</th>
+                      <th style="padding:12px;text-align:left;">Date</th>
+                      <th style="padding:12px;text-align:left;">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fdRequestsTableBody">
+                    <tr><td colspan="7" style="text-align:center;padding:2rem;color:#999;">Loading...</td></tr>
+                  </tbody>
+                </table>
+              </div>`;
+            main.appendChild(sec);
+        }
+    });
+    </script>
+
     <script src="/frontend/js/admindashboard.js"></script>
     <script src="/frontend/js/charts.js"></script>
     <script src="/frontend/js/monthlyShare.js"></script>

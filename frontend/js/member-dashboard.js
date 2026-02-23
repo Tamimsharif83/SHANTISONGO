@@ -429,7 +429,12 @@ class MemberDashboard {
         });
 
         this.currentSection = sectionName;
-        
+
+        if (sectionName === 'fixed-deposit') {
+            loadFDRatesForMember();
+            loadMyFDRequests();
+        }
+
         if (window.innerWidth <= 1024) {
             this.toggleMobileMenu();
         }
@@ -1345,3 +1350,250 @@ document.addEventListener('keydown', (e) => {
 function logoRefresh() {
     window.location.href = 'index.html';
 }
+
+// ================================================================
+// FIXED DEPOSIT — MEMBER SIDE
+// ================================================================
+const FD_API = 'http://localhost:5000/api/fixed-deposit';
+const FDR_RATES_API = 'http://localhost:5000/api/fdr-rates';
+let _fdrRatesCache = [];
+
+async function loadFDRatesForMember() {
+    const sel = document.getElementById('fdProposedDuration');
+    if (!sel) return;
+    try {
+        const res  = await fetch(FDR_RATES_API);
+        const data = await res.json();
+        _fdrRatesCache = data.success ? data.rates : [];
+    } catch(e) {
+        _fdrRatesCache = [];
+    }
+    const currentVal = sel.value;
+    if (_fdrRatesCache.length === 0) {
+        sel.innerHTML = '<option value="">-- No durations configured yet --</option>';
+    } else {
+        sel.innerHTML = '<option value="">-- Select Duration --</option>' +
+            _fdrRatesCache.map(r => `<option value="${r.months}" data-rate="${r.rate}">${r.months} Months (${r.rate}% p.a.)</option>`).join('');
+        if (currentVal) sel.value = currentVal;
+    }
+    updateFDPreview();
+}
+
+function updateFDPreview() {
+    const sel     = document.getElementById('fdProposedDuration');
+    const amtInp  = document.getElementById('fdAmount');
+    const preview = document.getElementById('fdInterestPreview');
+    if (!sel || !amtInp || !preview) return;
+
+    const months  = parseInt(sel.value);
+    const amount  = parseFloat(amtInp.value);
+    const opt     = sel.options[sel.selectedIndex];
+    const rate    = opt ? parseFloat(opt.getAttribute('data-rate')) : NaN;
+
+    if (!months || !amount || amount <= 0 || isNaN(rate)) {
+        preview.style.display = 'none';
+        return;
+    }
+
+    const interest = amount * (rate / 100) * (months / 12);
+    const total    = amount + interest;
+    const fmt = n => '৳' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    document.getElementById('fdPreviewInterest').textContent = fmt(interest);
+    document.getElementById('fdPreviewTotal').textContent    = fmt(total);
+    document.getElementById('fdPreviewMeta').textContent     = `Based on ${rate}% p.a. for ${months} months (simple interest)`;
+    preview.style.display = 'block';
+}
+
+window.updateFDPreview = updateFDPreview;
+
+function fdStatusBadge(status) {
+    const map = {
+        pending:           { label: 'Pending',           color: '#f59e0b', bg: '#fef3c7' },
+        acknowledged:      { label: 'Acknowledged',      color: '#2563eb', bg: '#dbeafe' },
+        rejected:          { label: 'Rejected',          color: '#dc2626', bg: '#fee2e2' },
+        payment_submitted: { label: 'Payment Submitted', color: '#7c3aed', bg: '#ede9fe' },
+        completed:         { label: 'Completed',         color: '#16a34a', bg: '#dcfce7' },
+    };
+    const s = map[status] || { label: status, color: '#6b7280', bg: '#f3f4f6' };
+    return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${s.label}</span>`;
+}
+
+async function submitFDRequest() {
+    const errDiv = document.getElementById('fdFormError');
+    errDiv.style.display = 'none';
+    const duration = document.getElementById('fdProposedDuration').value.trim();
+    const amountTaka = document.getElementById('fdAmount').value.trim();
+    const comment = document.getElementById('fdMemberComment').value.trim();
+    const userId = sessionStorage.getItem('userId');
+
+    if (!duration || parseInt(duration) < 1) { errDiv.textContent = 'Please select a duration.'; errDiv.style.display = 'block'; return; }
+    if (!amountTaka || parseFloat(amountTaka) <= 0) { errDiv.textContent = 'Amount is required and must be greater than 0.'; errDiv.style.display = 'block'; return; }
+
+    try {
+        const res = await fetch(FD_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, proposedDuration: parseInt(duration), amount: takaToPaysa(parseFloat(amountTaka)), memberComment: comment })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        document.getElementById('fdProposedDuration').value = '';
+        document.getElementById('fdAmount').value = '';
+        document.getElementById('fdMemberComment').value = '';
+        const preview = document.getElementById('fdInterestPreview');
+        if (preview) preview.style.display = 'none';
+        dashboard.showNotification('Fixed deposit request submitted successfully!', 'success');
+        loadMyFDRequests();
+    } catch (err) {
+        errDiv.textContent = 'Error submitting request. Please try again.';
+        errDiv.style.display = 'block';
+    }
+}
+
+async function loadMyFDRequests() {
+    const container = document.getElementById('fdMyRequestsList');
+    if (!container) return;
+    container.innerHTML = '<p style="color:#999;">Loading...</p>';
+    const userId = sessionStorage.getItem('userId');
+    try {
+        const res = await fetch(`${FD_API}/member/${userId}`);
+        const data = await res.json();
+        if (!data.success || data.requests.length === 0) {
+            container.innerHTML = '<p style="color:#999;">No fixed deposit requests yet.</p>';
+            return;
+        }
+        container.innerHTML = data.requests.map(r => {
+            const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const date = new Date(r.createdAt).toLocaleDateString('en-GB');
+
+            // Acknowledgement info box
+            let ackBox = '';
+            if (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'completed') {
+                ackBox = `
+                <div style="background:#dbeafe;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #2563eb;">
+                  <strong style="color:#1d4ed8;">✅ Admin Acknowledged</strong><br>
+                  <span>Approved Duration: <b>${r.acknowledgedDuration} months</b></span> &nbsp;|&nbsp;
+                  <span>Interest Rate: <b>${r.interestRate}%</b></span>
+                  ${r.adminComment ? `<br><span style="color:#374151;">Admin Note: ${r.adminComment}</span>` : ''}
+                </div>`;
+            }
+            if (r.status === 'rejected') {
+                ackBox = `
+                <div style="background:#fee2e2;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #dc2626;">
+                  <strong style="color:#dc2626;">❌ Rejected</strong>
+                  ${r.rejectionReason ? `<br><span style="color:#374151;">Reason: ${r.rejectionReason}</span>` : ''}
+                </div>`;
+            }
+
+            // Payment form (only if acknowledged and not yet submitted)
+            let paymentSection = '';
+            if (r.status === 'acknowledged') {
+                paymentSection = `
+                <div style="background:#f0fdf4;border-radius:8px;padding:14px 16px;margin-top:12px;border:1px solid #bbf7d0;">
+                  <strong style="color:#15803d;">💳 Submit Payment Details</strong>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;" class="fd-form-grid">
+                    <div>
+                      <label style="font-size:0.85rem;font-weight:600;">Payment Method <span style="color:red;">*</span></label>
+                      <select id="fdPayMethod_${r._id}" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
+                        <option value="">-- Select --</option>
+                        <option value="bank">Bank Transfer</option>
+                        <option value="hand_cash">Hand Cash</option>
+                        <option value="mobile_banking">Mobile Banking</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size:0.85rem;font-weight:600;">Transaction ID</label>
+                      <input type="text" id="fdTransId_${r._id}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;" />
+                    </div>
+                    <div style="grid-column:1/-1;">
+                      <label style="font-size:0.85rem;font-weight:600;">Comment</label>
+                      <input type="text" id="fdPayComment_${r._id}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;" />
+                    </div>
+                    <div style="grid-column:1/-1;">
+                      <label style="font-size:0.85rem;font-weight:600;">Payment Document / Screenshot <span style="color:red;">*</span></label>
+                      <input type="file" id="fdPayDoc_${r._id}" accept="image/*,.pdf" style="width:100%;margin-top:4px;" />
+                    </div>
+                  </div>
+                  <div id="fdPayError_${r._id}" style="display:none;color:red;font-size:0.85rem;margin-top:6px;"></div>
+                  <button class="btn btn-primary" onclick="submitFDPayment('${r._id}')" style="margin-top:10px;">📤 Submit Payment</button>
+                </div>`;
+            }
+            if (r.status === 'payment_submitted') {
+                const methodLabel = { bank: 'Bank Transfer', hand_cash: 'Hand Cash', mobile_banking: 'Mobile Banking' }[r.paymentMethod] || r.paymentMethod;
+                paymentSection = `
+                <div style="background:#ede9fe;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #7c3aed;">
+                  <strong style="color:#6d28d9;">🕐 Payment Submitted — Awaiting Admin Confirmation</strong><br>
+                  Method: <b>${methodLabel}</b>
+                  ${r.transactionId ? ` | Transaction ID: <b>${r.transactionId}</b>` : ''}
+                  ${r.paymentComment ? `<br>Comment: ${r.paymentComment}` : ''}
+                </div>`;
+            }
+            if (r.status === 'completed') {
+                paymentSection = `
+                <div style="background:#dcfce7;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #16a34a;">
+                  <strong style="color:#15803d;">✅ Completed — Your Fixed Deposit is active!</strong>
+                </div>`;
+            }
+
+            return `
+            <div style="background:var(--white);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:0 2px 8px var(--shadow);border-left:4px solid #2563eb;">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+                <div>
+                  <span style="font-family:monospace;color:#2563eb;font-weight:700;">${r.requestId}</span>
+                  <span style="margin-left:10px;">${fdStatusBadge(r.status)}</span>
+                </div>
+                <span style="color:#6b7280;font-size:0.85rem;">${date}</span>
+              </div>
+              <div style="margin-top:8px;display:flex;gap:24px;flex-wrap:wrap;">
+                <span>Amount: <b>৳${amountTaka}</b></span>
+                <span>Proposed Duration: <b>${r.proposedDuration} months</b></span>
+              </div>
+              ${r.memberComment ? `<p style="margin-top:6px;color:#6b7280;font-size:0.85rem;">Your note: ${r.memberComment}</p>` : ''}
+              ${ackBox}
+              ${paymentSection}
+            </div>`;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = '<p style="color:#c00;">Failed to load requests.</p>';
+    }
+}
+
+async function submitFDPayment(requestId) {
+    const errDiv = document.getElementById(`fdPayError_${requestId}`);
+    errDiv.style.display = 'none';
+    const method = document.getElementById(`fdPayMethod_${requestId}`).value;
+    const transId = document.getElementById(`fdTransId_${requestId}`).value.trim();
+    const comment = document.getElementById(`fdPayComment_${requestId}`).value.trim();
+    const fileInput = document.getElementById(`fdPayDoc_${requestId}`);
+
+    if (!method) { errDiv.textContent = 'Payment method is required.'; errDiv.style.display = 'block'; return; }
+    if (!fileInput.files[0]) { errDiv.textContent = 'Payment document / screenshot is required.'; errDiv.style.display = 'block'; return; }
+
+    const docBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(fileInput.files[0]);
+    });
+
+    try {
+        const res = await fetch(`${FD_API}/${requestId}/payment`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentMethod: method, transactionId: transId, paymentComment: comment, paymentDocument: docBase64 })
+        });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        dashboard.showNotification('Payment details submitted successfully!', 'success');
+        loadMyFDRequests();
+    } catch (err) {
+        errDiv.textContent = 'Error submitting payment. Please try again.';
+        errDiv.style.display = 'block';
+    }
+}
+
+window.submitFDRequest = submitFDRequest;
+window.loadMyFDRequests = loadMyFDRequests;
+window.submitFDPayment = submitFDPayment;
+window.loadFDRatesForMember = loadFDRatesForMember;

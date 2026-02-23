@@ -27,6 +27,8 @@ app.use("/api/investment-recovery", require("./routes/investmentRecovery"));
 app.use("/api/interest-rates", require("./routes/interestRate"));
 app.use("/api/expenditure", require("./routes/expenditure"));
 app.use("/api/income", require("./routes/income"));
+app.use("/api/fixed-deposit", require("./routes/fixedDeposit"));
+app.use("/api/fdr-rates",      require("./routes/fdrRates"));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)

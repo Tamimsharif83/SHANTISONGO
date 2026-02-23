@@ -225,6 +225,7 @@ class AdminDashboard {
         // Load interest rates when interest-rate-management section is shown
         if (sectionId === 'interest-rate-management') {
             loadInterestRates();
+            loadFDRRates();
         }
 
         // Load expenditure data when expenditure-entry section is shown
@@ -235,6 +236,11 @@ class AdminDashboard {
         // Load income data when income-entry section is shown
         if (sectionId === 'income-entry') {
             initIncomeSection();
+        }
+
+        // Load Fixed Deposit requests when section is shown
+        if (sectionId === 'application-enquiries') {
+            loadFDRequests();
         }
         
         // Clear navbar badge for this section when it's opened
@@ -5003,6 +5009,172 @@ function showInterestRateError(message) {
 window.loadInterestRates = loadInterestRates;
 window.showAddInterestRateModal = showAddInterestRateModal;
 window.closeAddInterestRateModal = closeAddInterestRateModal;
+
+// ── Interest Rate Settings: tab switcher ─────────────────────
+function showIRTab(tab) {
+    const tabs   = { investment: 'ir-tab-investment', fdr: 'ir-tab-fdr' };
+    const panels = { investment: 'ir-panel-investment', fdr: 'ir-panel-fdr' };
+    Object.entries(tabs).forEach(([key, id]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const active = key === tab;
+        btn.style.color        = active ? 'var(--primary-green)' : '#6b7280';
+        btn.style.borderBottom = active ? '3px solid var(--primary-green)' : '3px solid transparent';
+    });
+    Object.entries(panels).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = key === tab ? '' : 'none';
+    });
+}
+window.showIRTab = showIRTab;
+
+// ── FDR Interest Rates ────────────────────────────────────────
+const FDR_RATE_API = `${API_BASE_URL}/api/fdr-rates`;
+
+async function loadFDRRates() {
+    const tbody = document.getElementById('fdrRateTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#666;">Loading...</td></tr>';
+    try {
+        const res  = await fetch(FDR_RATE_API);
+        const data = await res.json();
+        if (!data.success || data.rates.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#666;">No FDR rates configured yet. Click "Add FDR Rate" to create one.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.rates.map(r => {
+            const updated = new Date(r.updatedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+            return `<tr>
+                <td style="font-weight:600;">${r.months} Months</td>
+                <td style="color:var(--primary-green);font-weight:600;">${r.rate}%</td>
+                <td>${r.createdBy}</td>
+                <td>${updated}</td>
+                <td>
+                  <button class="action-btn edit"   onclick="editFDRRate('${r._id}',${r.months},${r.rate})" title="Edit">✏️</button>
+                  <button class="action-btn delete" onclick="deleteFDRRate('${r._id}',${r.months})" title="Delete">🗑️</button>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch(err) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#c00;padding:2rem;">Failed to load FDR rates.</td></tr>';
+    }
+}
+
+function showAddFDRRateModal() {
+    const existing = document.getElementById('addFDRRateModal');
+    if (existing) existing.parentElement.remove();
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <div id="addFDRRateModal" onclick="closeModal('addFDRRateModal')" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;">
+      <div onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;max-width:480px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="padding:1.5rem;border-bottom:2px solid var(--border-gray);display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="color:var(--primary-green);margin:0;">Add FDR Rate</h3>
+          <button onclick="closeModal('addFDRRateModal')" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
+        </div>
+        <form id="addFDRRateForm" style="padding:1.5rem;">
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Duration (Months) *</label>
+            <input type="number" id="fdrMonths" min="1" required placeholder="e.g. 12" style="width:100%;padding:0.75rem;border:2px solid var(--border-gray);border-radius:8px;box-sizing:border-box;" />
+          </div>
+          <div class="form-group" style="margin-bottom:1.5rem;">
+            <label style="display:block;margin-bottom:0.5rem;font-weight:600;">Interest Rate (% per annum) *</label>
+            <input type="number" id="fdrRate" min="0" max="100" step="0.01" required placeholder="e.g. 6.5" style="width:100%;padding:0.75rem;border:2px solid var(--border-gray);border-radius:8px;box-sizing:border-box;" />
+          </div>
+          <div id="fdrCreateError" style="display:none;color:#e53e3e;margin-bottom:0.75rem;background:#fff5f5;padding:0.5rem 0.75rem;border-radius:6px;"></div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+            <button type="button" onclick="closeModal('addFDRRateModal')" class="btn btn-secondary">Cancel</button>
+            <button type="submit" class="btn btn-primary" style="background:var(--primary-green);">Add Rate</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    document.getElementById('addFDRRateForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errDiv  = document.getElementById('fdrCreateError');
+        const months  = parseInt(document.getElementById('fdrMonths').value);
+        const rate    = parseFloat(document.getElementById('fdrRate').value);
+        const createdBy = sessionStorage.getItem('fullName') || 'Admin';
+        errDiv.style.display = 'none';
+        try {
+            const res  = await fetch(FDR_RATE_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ months, rate, createdBy }) });
+            const data = await res.json();
+            if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+            closeModal('addFDRRateModal');
+            loadFDRRates();
+        } catch(err) {
+            errDiv.textContent = 'Network error. Please try again.';
+            errDiv.style.display = 'block';
+        }
+    });
+}
+
+function editFDRRate(id, months, currentRate) {
+    const existing = document.getElementById('editFDRRateModal');
+    if (existing) existing.parentElement.remove();
+    const wrap = document.createElement('div');
+    wrap.innerHTML = `
+    <div id="editFDRRateModal" onclick="closeModal('editFDRRateModal')" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;">
+      <div onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;max-width:420px;width:90%;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="padding:1.5rem;border-bottom:2px solid var(--border-gray);display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="color:var(--primary-green);margin:0;">Edit FDR Rate</h3>
+          <button onclick="closeModal('editFDRRateModal')" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
+        </div>
+        <div style="padding:1.5rem;">
+          <p style="margin:0 0 1rem;color:#6b7280;">Duration: <strong>${months} Months</strong></p>
+          <div class="form-group" style="margin-bottom:1.5rem;">
+            <label style="display:block;margin-bottom:0.5rem;font-weight:600;">New Interest Rate (% p.a.) *</label>
+            <input type="number" id="fdrEditRate" min="0" max="100" step="0.01" value="${currentRate}" style="width:100%;padding:0.75rem;border:2px solid var(--border-gray);border-radius:8px;box-sizing:border-box;font-size:1rem;" />
+          </div>
+          <div id="fdrEditError" style="display:none;color:#e53e3e;margin-bottom:0.75rem;"></div>
+          <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+            <button type="button" onclick="closeModal('editFDRRateModal')" class="btn btn-secondary">Cancel</button>
+            <button type="button" onclick="submitEditFDRRate('${id}')" class="btn btn-primary" style="background:var(--primary-green);">Save Changes</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    setTimeout(() => document.getElementById('fdrEditRate').focus(), 50);
+}
+
+async function submitEditFDRRate(id) {
+    const errDiv = document.getElementById('fdrEditError');
+    const rate   = parseFloat(document.getElementById('fdrEditRate').value);
+    if (isNaN(rate) || rate < 0) { errDiv.textContent = 'Enter a valid rate.'; errDiv.style.display = 'block'; return; }
+    errDiv.style.display = 'none';
+    try {
+        const res  = await fetch(`${FDR_RATE_API}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rate }) });
+        const data = await res.json();
+        if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+        closeModal('editFDRRateModal');
+        loadFDRRates();
+    } catch(err) {
+        errDiv.textContent = 'Network error.'; errDiv.style.display = 'block';
+    }
+}
+
+async function deleteFDRRate(id, months) {
+    if (!confirm(`Delete FDR rate for ${months} months?`)) return;
+    try {
+        await fetch(`${FDR_RATE_API}/${id}`, { method: 'DELETE' });
+        loadFDRRates();
+    } catch(err) {
+        alert('Error deleting rate.');
+    }
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.parentElement.remove();
+}
+
+window.loadFDRRates          = loadFDRRates;
+window.showAddFDRRateModal   = showAddFDRRateModal;
+window.editFDRRate           = editFDRRate;
+window.submitEditFDRRate     = submitEditFDRRate;
+window.deleteFDRRate         = deleteFDRRate;
+window.closeModal            = closeModal;
 window.editInterestRate = editInterestRate;
 window.closeEditInterestRateModal = closeEditInterestRateModal;
 window.submitEditInterestRate = submitEditInterestRate;
@@ -5019,7 +5191,8 @@ async function updateNavBadges() {
         'monthly-share-deposit': 0,
         'investment-recovery-entry': 0,
         'investment-monitoring': 0,
-        'investment-account': 0
+        'investment-account': 0,
+        'application-enquiries': 0
     };
 
     // Expenditure pending
@@ -5082,6 +5255,13 @@ async function updateNavBadges() {
         }
     } catch(e) {}
 
+    // Fixed Deposit — pending or awaiting payment confirmation
+    try {
+        const r = await fetch(`${API_BASE_URL}/api/fixed-deposit/stats/pending-count`);
+        const d = await r.json();
+        if (d.success) counts['application-enquiries'] += (d.pendingCount || 0) + (d.paymentCount || 0);
+    } catch(e) {}
+
     // Apply child badge visibility
     Object.entries(counts).forEach(([section, count]) => {
         const badge = document.getElementById(`badge-${section}`);
@@ -5092,7 +5272,7 @@ async function updateNavBadges() {
     const parentChildMap = {
         'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
         'badge-parent-members':     ['membership-applications'],
-        'badge-parent-monitoring':  ['investment-monitoring'],
+        'badge-parent-monitoring':  ['investment-monitoring', 'application-enquiries'],
         'badge-parent-accounts':    ['investment-account']
     };
     Object.entries(parentChildMap).forEach(([parentId, children]) => {
@@ -5110,7 +5290,7 @@ function clearNavBadge(sectionId) {
     const parentChildMap = {
         'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
         'badge-parent-members':     ['membership-applications'],
-        'badge-parent-monitoring':  ['investment-monitoring'],
+        'badge-parent-monitoring':  ['investment-monitoring', 'application-enquiries'],
         'badge-parent-accounts':    ['investment-account']
     };
     Object.entries(parentChildMap).forEach(([parentId, children]) => {
@@ -5131,3 +5311,241 @@ window.clearNavBadge = clearNavBadge;
 // Initial load + poll every 60 seconds
 updateNavBadges();
 setInterval(updateNavBadges, 60000);
+
+// ================================================================
+// FIXED DEPOSIT APPLICATION ENQUIRIES — ADMIN SIDE
+// ================================================================
+(function() {
+    const FD_ADMIN_API = `${API_BASE_URL}/api/fixed-deposit`;
+    let fdCurrentFilter = 'all';
+    let fdCurrentDetailId = null;
+
+    async function loadFDRequests(filter) {
+        if (filter !== undefined) fdCurrentFilter = filter;
+        // Highlight active tab
+        ['fd-tab-all','fd-tab-pending','fd-tab-ack','fd-tab-payment','fd-tab-rejected','fd-tab-completed'].forEach(tabId => {
+            const el = document.getElementById(tabId);
+            if (el) { el.classList.remove('btn-primary'); el.classList.add('btn-secondary'); }
+        });
+        const activeTabId =
+            fdCurrentFilter === 'all'               ? 'fd-tab-all' :
+            fdCurrentFilter === 'pending'            ? 'fd-tab-pending' :
+            fdCurrentFilter === 'acknowledged'       ? 'fd-tab-ack' :
+            fdCurrentFilter === 'payment_submitted'  ? 'fd-tab-payment' :
+            fdCurrentFilter === 'rejected'           ? 'fd-tab-rejected' : 'fd-tab-completed';
+        const activeTab = document.getElementById(activeTabId);
+        if (activeTab) { activeTab.classList.remove('btn-secondary'); activeTab.classList.add('btn-primary'); }
+
+        const tbody = document.getElementById('fdRequestsTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Loading...</td></tr>';
+        try {
+            const url = fdCurrentFilter === 'all' ? `${FD_ADMIN_API}/all` : `${FD_ADMIN_API}/all?status=${fdCurrentFilter}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!data.success || data.requests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">No requests found.</td></tr>';
+                return;
+            }
+            const statusColor = { pending:'#f59e0b', acknowledged:'#2563eb', rejected:'#dc2626', payment_submitted:'#7c3aed', completed:'#16a34a' };
+            const statusLabel = { pending:'Pending', acknowledged:'Acknowledged', rejected:'Rejected', payment_submitted:'Payment Submitted', completed:'Completed' };
+            tbody.innerHTML = data.requests.map(r => {
+                const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const date = new Date(r.createdAt).toLocaleDateString('en-GB');
+                const sc = statusColor[r.status] || '#6b7280';
+                const sl = statusLabel[r.status] || r.status;
+                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
+                const memberId = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+                return `<tr>
+                    <td><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td>${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td>৳${amountTaka}</td>
+                    <td>${r.proposedDuration} mo</td>
+                    <td><span style="background:${sc}22;color:${sc};padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${sl}</span></td>
+                    <td>${date}</td>
+                    <td><button class="btn btn-small btn-primary" onclick="openFDDetailModal('${r._id}')">View</button></td>
+                </tr>`;
+            }).join('');
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c00;">Failed to load requests.</td></tr>';
+        }
+    }
+
+    async function openFDDetailModal(id) {
+        fdCurrentDetailId = id;
+        let modal = document.getElementById('fdDetailModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'fdDetailModal';
+            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
+            document.body.appendChild(modal);
+        }
+        modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 32px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;position:relative;"><p style="color:#999;">Loading...</p></div>';
+        modal.style.display = 'flex';
+
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}`);
+            const data = await res.json();
+            if (!data.success) { modal.querySelector('div').innerHTML = '<p style="color:red;">Failed to load. <button onclick="closeFDDetailModal()">Close</button></p>'; return; }
+            const r = data.request;
+            const u = r.userId || {};
+            const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const statusColor = { pending:'#f59e0b', acknowledged:'#2563eb', rejected:'#dc2626', payment_submitted:'#7c3aed', completed:'#16a34a' };
+            const statusLabel = { pending:'Pending', acknowledged:'Acknowledged', rejected:'Rejected', payment_submitted:'Payment Submitted', completed:'Completed' };
+            const sc = statusColor[r.status] || '#6b7280';
+            const sl = statusLabel[r.status] || r.status;
+
+            const profilePic = u.profilePicture
+                ? `<img src="${u.profilePicture}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid #e5e7eb;" />`
+                : `<div style="width:72px;height:72px;border-radius:50%;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#9ca3af;">👤</div>`;
+
+            let actionSection = '';
+            if (r.status === 'pending') {
+                actionSection = `
+                <div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:20px;">
+                  <h4 style="margin-bottom:14px;color:#111;">Acknowledge Request</h4>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div><label style="font-size:0.85rem;font-weight:600;">Approved Duration (months) <span style="color:red;">*</span></label>
+                      <input type="number" id="fdAckDuration" min="1" placeholder="e.g. 12" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                    <div><label style="font-size:0.85rem;font-weight:600;">Interest Rate (%) <span style="color:red;">*</span></label>
+                      <input type="number" id="fdAckInterest" min="0" step="0.01" placeholder="e.g. 8.5" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                    <div style="grid-column:1/-1;"><label style="font-size:0.85rem;font-weight:600;">Admin Comment</label>
+                      <input type="text" id="fdAckComment" placeholder="Optional note" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                  </div>
+                  <div id="fdAckError" style="display:none;color:red;font-size:0.85rem;margin-top:8px;"></div>
+                  <div style="display:flex;gap:10px;margin-top:14px;">
+                    <button class="btn btn-primary" onclick="acknowledgeFDRequest('${r._id}')">✅ Acknowledge</button>
+                    <button class="btn" style="background:#dc2626;color:#fff;" onclick="rejectFDRequest('${r._id}')">❌ Reject</button>
+                  </div>
+                </div>`;
+            } else if (r.status === 'payment_submitted') {
+                const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' }[r.paymentMethod] || r.paymentMethod;
+                const docBtn = r.paymentDocument ? `<a href="${r.paymentDocument}" target="_blank" style="font-size:0.85rem;color:#2563eb;text-decoration:underline;">📎 View Document</a>` : '';
+                actionSection = `
+                <div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:20px;background:#f0fdf4;border-radius:10px;padding:16px;">
+                  <h4 style="color:#15803d;margin-bottom:10px;">💳 Payment Submitted by Member</h4>
+                  <p>Method: <b>${methodLabel}</b></p>
+                  ${r.transactionId ? `<p>Transaction ID: <b>${r.transactionId}</b></p>` : ''}
+                  ${r.paymentComment ? `<p>Comment: ${r.paymentComment}</p>` : ''}
+                  ${docBtn}
+                  <div style="margin-top:14px;">
+                    <button class="btn btn-primary" onclick="completeFDRequest('${r._id}')">✅ Confirm & Complete</button>
+                  </div>
+                </div>`;
+            }
+
+            const ackInfo = (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'completed')
+                ? `<div style="background:#dbeafe;border-radius:8px;padding:12px;margin-top:10px;border-left:4px solid #2563eb;">
+                     <b style="color:#1d4ed8;">Acknowledged:</b> ${r.acknowledgedDuration} months @ ${r.interestRate}%
+                     ${r.adminComment ? ` | Note: ${r.adminComment}` : ''}
+                   </div>` : '';
+            const rejInfo = r.status === 'rejected'
+                ? `<div style="background:#fee2e2;border-radius:8px;padding:12px;margin-top:10px;border-left:4px solid #dc2626;">
+                     <b style="color:#dc2626;">Rejected</b>${r.rejectionReason ? `: ${r.rejectionReason}` : ''}
+                   </div>` : '';
+
+            modal.querySelector('div').innerHTML = `
+              <button onclick="closeFDDetailModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;">✕</button>
+              <h3 style="margin-top:0;color:#111;">Fixed Deposit Request — <span style="font-family:monospace;color:#2563eb;">${r.requestId}</span></h3>
+              <div style="display:flex;gap:16px;align-items:center;background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;">
+                ${profilePic}
+                <div>
+                  <div style="font-size:1.05rem;font-weight:700;">${u.name || r.memberName}</div>
+                  <div style="color:#6b7280;font-size:0.88rem;">ID: ${u.memberID || r.memberID}</div>
+                  ${u.phone ? `<div style="color:#6b7280;font-size:0.88rem;">📞 ${u.phone}</div>` : ''}
+                  ${u.email ? `<div style="color:#6b7280;font-size:0.88rem;">✉️ ${u.email}</div>` : ''}
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+                <div style="background:#f9fafb;border-radius:8px;padding:10px;"><div style="font-size:0.75rem;color:#6b7280;">Amount</div><div style="font-weight:700;font-size:1.05rem;">৳${amountTaka}</div></div>
+                <div style="background:#f9fafb;border-radius:8px;padding:10px;"><div style="font-size:0.75rem;color:#6b7280;">Proposed Duration</div><div style="font-weight:700;font-size:1.05rem;">${r.proposedDuration} months</div></div>
+                <div style="background:#f9fafb;border-radius:8px;padding:10px;"><div style="font-size:0.75rem;color:#6b7280;">Status</div><div style="font-weight:700;color:${sc};">${sl}</div></div>
+              </div>
+              ${r.memberComment ? `<div style="background:#fafafa;border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.9rem;"><b>Member Note:</b> ${r.memberComment}</div>` : ''}
+              ${ackInfo}${rejInfo}
+              ${actionSection}
+            `;
+        } catch(err) {
+            modal.querySelector('div').innerHTML = '<p style="color:red;">Error loading request. <button onclick="closeFDDetailModal()">Close</button></p>';
+        }
+    }
+
+    function closeFDDetailModal() {
+        const modal = document.getElementById('fdDetailModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function acknowledgeFDRequest(id) {
+        const errDiv = document.getElementById('fdAckError');
+        errDiv.style.display = 'none';
+        const duration = document.getElementById('fdAckDuration').value.trim();
+        const interest = document.getElementById('fdAckInterest').value.trim();
+        const comment = document.getElementById('fdAckComment').value.trim();
+        const adminId = sessionStorage.getItem('userId');
+        if (!duration || parseInt(duration) < 1) { errDiv.textContent = 'Approved duration is required.'; errDiv.style.display = 'block'; return; }
+        if (!interest || parseFloat(interest) < 0) { errDiv.textContent = 'Interest rate is required.'; errDiv.style.display = 'block'; return; }
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/acknowledge`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ acknowledgedDuration: parseInt(duration), interestRate: parseFloat(interest), adminComment: comment, adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { errDiv.textContent = data.message; errDiv.style.display = 'block'; return; }
+            closeFDDetailModal();
+            dashboard.showNotification('Request acknowledged successfully!', 'success');
+            loadFDRequests();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            errDiv.textContent = 'Error acknowledging request.';
+            errDiv.style.display = 'block';
+        }
+    }
+
+    async function rejectFDRequest(id) {
+        const reason = window.prompt('Rejection reason (optional):');
+        if (reason === null) return; // cancelled
+        const adminId = sessionStorage.getItem('userId');
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/reject`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rejectionReason: reason.trim(), adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed to reject.', 'error'); return; }
+            closeFDDetailModal();
+            dashboard.showNotification('Request rejected.', 'info');
+            loadFDRequests();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            dashboard.showNotification('Error rejecting request.', 'error');
+        }
+    }
+
+    async function completeFDRequest(id) {
+        const adminId = sessionStorage.getItem('userId');
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/complete`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed to complete.', 'error'); return; }
+            closeFDDetailModal();
+            dashboard.showNotification('Fixed deposit request completed!', 'success');
+            loadFDRequests();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            dashboard.showNotification('Error completing request.', 'error');
+        }
+    }
+
+    window.loadFDRequests = loadFDRequests;
+    window.openFDDetailModal = openFDDetailModal;
+    window.closeFDDetailModal = closeFDDetailModal;
+    window.acknowledgeFDRequest = acknowledgeFDRequest;
+    window.rejectFDRequest = rejectFDRequest;
+    window.completeFDRequest = completeFDRequest;
+})();
