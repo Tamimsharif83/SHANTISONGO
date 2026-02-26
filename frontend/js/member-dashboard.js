@@ -1413,7 +1413,9 @@ function fdStatusBadge(status) {
         acknowledged:      { label: 'Acknowledged',      color: '#2563eb', bg: '#dbeafe' },
         rejected:          { label: 'Rejected',          color: '#dc2626', bg: '#fee2e2' },
         payment_submitted: { label: 'Payment Submitted', color: '#7c3aed', bg: '#ede9fe' },
+        entry_confirmed:   { label: 'Waiting for Authorization', color: '#b45309', bg: '#fef9c3' },
         completed:         { label: 'Completed',         color: '#16a34a', bg: '#dcfce7' },
+        cancelled:         { label: 'Cancelled',         color: '#dc2626', bg: '#fee2e2' },
     };
     const s = map[status] || { label: status, color: '#6b7280', bg: '#f3f4f6' };
     return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${s.label}</span>`;
@@ -1469,7 +1471,7 @@ async function loadMyFDRequests() {
 
             // Acknowledgement info box
             let ackBox = '';
-            if (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'completed') {
+            if (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'entry_confirmed' || r.status === 'completed') {
                 ackBox = `
                 <div style="background:#dbeafe;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #2563eb;">
                   <strong style="color:#1d4ed8;">✅ Admin Acknowledged</strong><br>
@@ -1485,6 +1487,13 @@ async function loadMyFDRequests() {
                   ${r.rejectionReason ? `<br><span style="color:#374151;">Reason: ${r.rejectionReason}</span>` : ''}
                 </div>`;
             }
+            if (r.status === 'cancelled') {
+                ackBox = `
+                <div style="background:#fee2e2;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #dc2626;">
+                  <strong style="color:#dc2626;">🚫 Your Fixed Deposit has been Cancelled</strong>
+                  <br><span style="color:#374151;">This FD request was cancelled by the admin after data entry. Please contact the office for more information.</span>
+                </div>`;
+            }
 
             // Payment form (only if acknowledged and not yet submitted)
             let paymentSection = '';
@@ -1495,7 +1504,7 @@ async function loadMyFDRequests() {
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;" class="fd-form-grid">
                     <div>
                       <label style="font-size:0.85rem;font-weight:600;">Payment Method <span style="color:red;">*</span></label>
-                      <select id="fdPayMethod_${r._id}" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
+                      <select id="fdPayMethod_${r._id}" onchange="_fdToggleDocReq('${r._id}')" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;">
                         <option value="">-- Select --</option>
                         <option value="bank">Bank Transfer</option>
                         <option value="hand_cash">Hand Cash</option>
@@ -1510,8 +1519,9 @@ async function loadMyFDRequests() {
                       <label style="font-size:0.85rem;font-weight:600;">Comment</label>
                       <input type="text" id="fdPayComment_${r._id}" placeholder="Optional" style="width:100%;padding:6px;border:1px solid #d1d5db;border-radius:6px;margin-top:4px;" />
                     </div>
-                    <div style="grid-column:1/-1;">
-                      <label style="font-size:0.85rem;font-weight:600;">Payment Document / Screenshot <span style="color:red;">*</span></label>
+                    <div style="grid-column:1/-1;" id="fdPayDocWrap_${r._id}">
+                      <label style="font-size:0.85rem;font-weight:600;">Payment Document / Screenshot <span id="fdPayDocReqMark_${r._id}" style="color:red;">*</span></label>
+                      <div id="fdPayDocNote_${r._id}" style="display:none;font-size:0.8rem;color:#6b7280;margin-top:2px;">(Not required for hand cash)</div>
                       <input type="file" id="fdPayDoc_${r._id}" accept="image/*,.pdf" style="width:100%;margin-top:4px;" />
                     </div>
                   </div>
@@ -1527,6 +1537,19 @@ async function loadMyFDRequests() {
                   Method: <b>${methodLabel}</b>
                   ${r.transactionId ? ` | Transaction ID: <b>${r.transactionId}</b>` : ''}
                   ${r.paymentComment ? `<br>Comment: ${r.paymentComment}` : ''}
+                </div>`;
+            }
+            if (r.status === 'entry_confirmed') {
+                const methodLabel = { bank: 'Bank Transfer', hand_cash: 'Hand Cash', mobile_banking: 'Mobile Banking' }[r.paymentMethod] || r.paymentMethod;
+                paymentSection = `
+                <div style="background:#ede9fe;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #7c3aed;">
+                  <strong style="color:#6d28d9;">✅ Payment Confirmed</strong><br>
+                  Method: <b>${methodLabel}</b>
+                  ${r.transactionId ? ` | Transaction ID: <b>${r.transactionId}</b>` : ''}
+                </div>
+                <div style="background:#fef9c3;border-radius:8px;padding:12px 16px;margin-top:10px;border-left:4px solid #ca8a04;">
+                  <strong style="color:#b45309;">⏳ Waiting for Authorization</strong><br>
+                  <span style="color:#78350f;">Your payment has been entered in the system and is awaiting final authorization by the admin.</span>
                 </div>`;
             }
             if (r.status === 'completed') {
@@ -1568,14 +1591,14 @@ async function submitFDPayment(requestId) {
     const fileInput = document.getElementById(`fdPayDoc_${requestId}`);
 
     if (!method) { errDiv.textContent = 'Payment method is required.'; errDiv.style.display = 'block'; return; }
-    if (!fileInput.files[0]) { errDiv.textContent = 'Payment document / screenshot is required.'; errDiv.style.display = 'block'; return; }
+    if (method !== 'hand_cash' && !fileInput.files[0]) { errDiv.textContent = 'Payment document / screenshot is required.'; errDiv.style.display = 'block'; return; }
 
-    const docBase64 = await new Promise((resolve, reject) => {
+    const docBase64 = fileInput.files[0] ? await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(fileInput.files[0]);
-    });
+    }) : null;
 
     try {
         const res = await fetch(`${FD_API}/${requestId}/payment`, {
@@ -1592,6 +1615,16 @@ async function submitFDPayment(requestId) {
         errDiv.style.display = 'block';
     }
 }
+
+function _fdToggleDocReq(id) {
+    const method  = document.getElementById(`fdPayMethod_${id}`)?.value;
+    const mark    = document.getElementById(`fdPayDocReqMark_${id}`);
+    const note    = document.getElementById(`fdPayDocNote_${id}`);
+    const isHand  = method === 'hand_cash';
+    if (mark) mark.style.display = isHand ? 'none' : 'inline';
+    if (note) note.style.display = isHand ? 'block' : 'none';
+}
+window._fdToggleDocReq = _fdToggleDocReq;
 
 window.submitFDRequest = submitFDRequest;
 window.loadMyFDRequests = loadMyFDRequests;

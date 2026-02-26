@@ -220,6 +220,7 @@ class AdminDashboard {
             loadPendingMonthlyShareEntries();
             loadPendingExpenditureEntries();
             loadPendingIncomeEntries();
+            loadPendingFDAuthEntries();
         }
 
         // Load interest rates when interest-rate-management section is shown
@@ -238,9 +239,19 @@ class AdminDashboard {
             initIncomeSection();
         }
 
-        // Load Fixed Deposit requests when section is shown
+        // Load Fixed Deposit requests when enquiries section is shown
         if (sectionId === 'application-enquiries') {
             loadFDRequests();
+        }
+
+        // Load FD Account when section is shown
+        if (sectionId === 'fd-account') {
+            loadFDActiveAccounts();
+        }
+
+        // Load FD Entry requests when section is shown
+        if (sectionId === 'fixed-deposit-entry') {
+            loadFDEntryRequests();
         }
         
         // Clear navbar badge for this section when it's opened
@@ -3908,7 +3919,7 @@ function displayRecentRecoveries(recoveries) {
 // AUTHORIZE TAB SWITCHER
 // ============================================
 function switchAuthorizeTab(tab) {
-    const tabs = ['recovery', 'monthly-share', 'expenditure', 'income'];
+    const tabs = ['recovery', 'monthly-share', 'expenditure', 'income', 'fd-auth'];
     tabs.forEach(t => {
         const sec = document.getElementById(`subsection-${t}`);
         const btn = document.getElementById(`tab-${t}`);
@@ -3923,6 +3934,7 @@ function switchAuthorizeTab(tab) {
     if (tab === 'monthly-share') loadPendingMonthlyShareEntries();
     if (tab === 'expenditure') loadPendingExpenditureEntries();
     if (tab === 'income') loadPendingIncomeEntries();
+    if (tab === 'fd-auth') loadPendingFDAuthEntries();
 }
 window.switchAuthorizeTab = switchAuthorizeTab;
 
@@ -5192,7 +5204,9 @@ async function updateNavBadges() {
         'investment-recovery-entry': 0,
         'investment-monitoring': 0,
         'investment-account': 0,
-        'application-enquiries': 0
+        'application-enquiries': 0,
+        'fd-account': 0,
+        'fixed-deposit-entry': 0
     };
 
     // Expenditure pending
@@ -5255,11 +5269,15 @@ async function updateNavBadges() {
         }
     } catch(e) {}
 
-    // Fixed Deposit — pending or awaiting payment confirmation
+    // Fixed Deposit — pending enquiries + entry + auth badges
     try {
         const r = await fetch(`${API_BASE_URL}/api/fixed-deposit/stats/pending-count`);
         const d = await r.json();
-        if (d.success) counts['application-enquiries'] += (d.pendingCount || 0) + (d.paymentCount || 0);
+        if (d.success) {
+            counts['application-enquiries'] += (d.pendingCount || 0);
+            counts['fixed-deposit-entry']   += (d.paymentCount || 0);
+            counts['authorize-delete-data'] += (d.entryConfirmedCount || 0);
+        }
     } catch(e) {}
 
     // Apply child badge visibility
@@ -5270,10 +5288,10 @@ async function updateNavBadges() {
 
     // Sync parent menu badges based on their children
     const parentChildMap = {
-        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
+        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry', 'fixed-deposit-entry'],
         'badge-parent-members':     ['membership-applications'],
         'badge-parent-monitoring':  ['investment-monitoring', 'application-enquiries'],
-        'badge-parent-accounts':    ['investment-account']
+        'badge-parent-accounts':    ['investment-account', 'fd-account']
     };
     Object.entries(parentChildMap).forEach(([parentId, children]) => {
         const hasActive = children.some(c => (counts[c] || 0) > 0);
@@ -5288,10 +5306,10 @@ function clearNavBadge(sectionId) {
 
     // Also clear parent badge if no other child sections still have a badge
     const parentChildMap = {
-        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry'],
+        'badge-parent-data-entry':  ['authorize-delete-data', 'monthly-share-deposit', 'investment-recovery-entry', 'fixed-deposit-entry'],
         'badge-parent-members':     ['membership-applications'],
         'badge-parent-monitoring':  ['investment-monitoring', 'application-enquiries'],
-        'badge-parent-accounts':    ['investment-account']
+        'badge-parent-accounts':    ['investment-account', 'fd-account']
     };
     Object.entries(parentChildMap).forEach(([parentId, children]) => {
         if (!children.includes(sectionId)) return;
@@ -5317,57 +5335,36 @@ setInterval(updateNavBadges, 60000);
 // ================================================================
 (function() {
     const FD_ADMIN_API = `${API_BASE_URL}/api/fixed-deposit`;
-    let fdCurrentFilter = 'all';
     let fdCurrentDetailId = null;
 
-    async function loadFDRequests(filter) {
-        if (filter !== undefined) fdCurrentFilter = filter;
-        // Highlight active tab
-        ['fd-tab-all','fd-tab-pending','fd-tab-ack','fd-tab-payment','fd-tab-rejected','fd-tab-completed'].forEach(tabId => {
-            const el = document.getElementById(tabId);
-            if (el) { el.classList.remove('btn-primary'); el.classList.add('btn-secondary'); }
-        });
-        const activeTabId =
-            fdCurrentFilter === 'all'               ? 'fd-tab-all' :
-            fdCurrentFilter === 'pending'            ? 'fd-tab-pending' :
-            fdCurrentFilter === 'acknowledged'       ? 'fd-tab-ack' :
-            fdCurrentFilter === 'payment_submitted'  ? 'fd-tab-payment' :
-            fdCurrentFilter === 'rejected'           ? 'fd-tab-rejected' : 'fd-tab-completed';
-        const activeTab = document.getElementById(activeTabId);
-        if (activeTab) { activeTab.classList.remove('btn-secondary'); activeTab.classList.add('btn-primary'); }
-
+    // Enquiries: always pending only
+    async function loadFDRequests() {
         const tbody = document.getElementById('fdRequestsTableBody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">Loading...</td></tr>';
         try {
-            const url = fdCurrentFilter === 'all' ? `${FD_ADMIN_API}/all` : `${FD_ADMIN_API}/all?status=${fdCurrentFilter}`;
-            const res = await fetch(url);
+            const res = await fetch(`${FD_ADMIN_API}/all?status=pending`);
             const data = await res.json();
             if (!data.success || data.requests.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">No requests found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;padding:2rem;">No pending requests.</td></tr>';
                 return;
             }
-            const statusColor = { pending:'#f59e0b', acknowledged:'#2563eb', rejected:'#dc2626', payment_submitted:'#7c3aed', completed:'#16a34a' };
-            const statusLabel = { pending:'Pending', acknowledged:'Acknowledged', rejected:'Rejected', payment_submitted:'Payment Submitted', completed:'Completed' };
             tbody.innerHTML = data.requests.map(r => {
                 const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 const date = new Date(r.createdAt).toLocaleDateString('en-GB');
-                const sc = statusColor[r.status] || '#6b7280';
-                const sl = statusLabel[r.status] || r.status;
                 const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
                 const memberId = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
                 return `<tr>
-                    <td><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
-                    <td>${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
-                    <td>৳${amountTaka}</td>
-                    <td>${r.proposedDuration} mo</td>
-                    <td><span style="background:${sc}22;color:${sc};padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${sl}</span></td>
-                    <td>${date}</td>
-                    <td><button class="btn btn-small btn-primary" onclick="openFDDetailModal('${r._id}')">View</button></td>
+                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td style="padding:12px;">৳${amountTaka}</td>
+                    <td style="padding:12px;">${r.proposedDuration} months</td>
+                    <td style="padding:12px;">${date}</td>
+                    <td style="padding:12px;"><button class="btn btn-small btn-primary" onclick="openFDDetailModal('${r._id}')">View</button></td>
                 </tr>`;
             }).join('');
         } catch(err) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#c00;">Failed to load requests.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00;">Failed to load requests.</td></tr>';
         }
     }
 
@@ -5406,11 +5403,19 @@ setInterval(updateNavBadges, 60000);
                   <h4 style="margin-bottom:14px;color:#111;">Acknowledge Request</h4>
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div><label style="font-size:0.85rem;font-weight:600;">Approved Duration (months) <span style="color:red;">*</span></label>
-                      <input type="number" id="fdAckDuration" min="1" placeholder="e.g. 12" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                      <input type="number" id="fdAckDuration" min="1" placeholder="e.g. 12" oninput="_fdAckPreview()" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
                     <div><label style="font-size:0.85rem;font-weight:600;">Interest Rate (%) <span style="color:red;">*</span></label>
-                      <input type="number" id="fdAckInterest" min="0" step="0.01" placeholder="e.g. 8.5" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                      <input type="number" id="fdAckInterest" min="0" step="0.01" placeholder="e.g. 8.5" oninput="_fdAckPreview()" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
                     <div style="grid-column:1/-1;"><label style="font-size:0.85rem;font-weight:600;">Admin Comment</label>
                       <input type="text" id="fdAckComment" placeholder="Optional note" style="width:100%;padding:8px;border:1px solid #d1d5db;border-radius:8px;margin-top:4px;" /></div>
+                  </div>
+                  <div id="fdAckPreview" data-amount-paisa="${r.amount}" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:10px;">
+                    💰 <span style="font-weight:600;color:#15803d;">Estimated Interest:</span>
+                    <span id="fdAckPreviewInterest" style="font-weight:700;color:#15803d;"></span>
+                    &nbsp;|&nbsp;
+                    <span style="color:#374151;">Total Return:</span>
+                    <span id="fdAckPreviewTotal" style="font-weight:700;"></span>
+                    <span id="fdAckPreviewMeta" style="display:block;font-size:0.8rem;color:#6b7280;margin-top:2px;"></span>
                   </div>
                   <div id="fdAckError" style="display:none;color:red;font-size:0.85rem;margin-top:8px;"></div>
                   <div style="display:flex;gap:10px;margin-top:14px;">
@@ -5420,21 +5425,36 @@ setInterval(updateNavBadges, 60000);
                 </div>`;
             } else if (r.status === 'payment_submitted') {
                 const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' }[r.paymentMethod] || r.paymentMethod;
-                const docBtn = r.paymentDocument ? `<a href="${r.paymentDocument}" target="_blank" style="font-size:0.85rem;color:#2563eb;text-decoration:underline;">📎 View Document</a>` : '';
+                const docBtn = r.paymentDocument ? `<button onclick="openFDDoc('${r._id}')" style="font-size:0.85rem;color:#2563eb;text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;">📎 View Document</button>` : '';
                 actionSection = `
-                <div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:20px;background:#f0fdf4;border-radius:10px;padding:16px;">
-                  <h4 style="color:#15803d;margin-bottom:10px;">💳 Payment Submitted by Member</h4>
+                <div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:20px;background:#faf5ff;border-radius:10px;padding:16px;border-left:4px solid #7c3aed;">
+                  <h4 style="color:#7c3aed;margin-bottom:10px;">💳 Payment Submitted by Member</h4>
                   <p>Method: <b>${methodLabel}</b></p>
                   ${r.transactionId ? `<p>Transaction ID: <b>${r.transactionId}</b></p>` : ''}
                   ${r.paymentComment ? `<p>Comment: ${r.paymentComment}</p>` : ''}
                   ${docBtn}
                   <div style="margin-top:14px;">
-                    <button class="btn btn-primary" onclick="completeFDRequest('${r._id}')">✅ Confirm & Complete</button>
+                    <button class="btn btn-primary" onclick="confirmFDEntry('${r._id}')">✅ Confirm Entry</button>
                   </div>
+                  <p style="font-size:0.8rem;color:#6b7280;margin-top:8px;">Confirming will send this to Authorize/Delete Data → Fixed Deposit tab for final authorization.</p>
+                </div>`;
+            } else if (r.status === 'entry_confirmed') {
+                const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' }[r.paymentMethod] || r.paymentMethod;
+                const docBtn = r.paymentDocument ? `<button onclick="openFDDoc('${r._id}')" style="font-size:0.85rem;color:#2563eb;text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;">📎 View Document</button>` : '';
+                actionSection = `
+                <div style="border-top:1px solid #e5e7eb;margin-top:20px;padding-top:20px;background:#f0fdf4;border-radius:10px;padding:16px;border-left:4px solid #16a34a;">
+                  <h4 style="color:#15803d;margin-bottom:10px;">✅ Entry Confirmed — Awaiting Authorization</h4>
+                  <p>Method: <b>${methodLabel}</b></p>
+                  ${r.transactionId ? `<p>Transaction ID: <b>${r.transactionId}</b></p>` : ''}
+                  ${docBtn}
+                  <div style="margin-top:14px;">
+                    <button class="btn btn-primary" style="background:#15803d;" onclick="authorizeFDEntry('${r._id}')">★ Authorize FD Account</button>
+                  </div>
+                  <p style="font-size:0.8rem;color:#6b7280;margin-top:8px;">Authorization will activate this as a running FD account.</p>
                 </div>`;
             }
 
-            const ackInfo = (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'completed')
+            const ackInfo = (r.status === 'acknowledged' || r.status === 'payment_submitted' || r.status === 'entry_confirmed' || r.status === 'completed')
                 ? `<div style="background:#dbeafe;border-radius:8px;padding:12px;margin-top:10px;border-left:4px solid #2563eb;">
                      <b style="color:#1d4ed8;">Acknowledged:</b> ${r.acknowledgedDuration} months @ ${r.interestRate}%
                      ${r.adminComment ? ` | Note: ${r.adminComment}` : ''}
@@ -5465,10 +5485,54 @@ setInterval(updateNavBadges, 60000);
               ${ackInfo}${rejInfo}
               ${actionSection}
             `;
+            // Auto-fill fields and show preview for pending requests
+            if (r.status === 'pending') {
+                _fdAckInit(r.proposedDuration, r.amount);
+            }
+            // Cache payment document so openFDDoc() can open it without embedding base64 in onclick
+            _fdCacheDoc(r._id, r.paymentDocument);
         } catch(err) {
             modal.querySelector('div').innerHTML = '<p style="color:red;">Error loading request. <button onclick="closeFDDetailModal()">Close</button></p>';
         }
     }
+
+    // Auto-fill duration from member's proposed value, look up matching FDR rate, then show preview
+    async function _fdAckInit(proposedDuration, amountPaisa) {
+        const durEl  = document.getElementById('fdAckDuration');
+        const rateEl = document.getElementById('fdAckInterest');
+        if (!durEl) return;
+        durEl.value = proposedDuration;
+        try {
+            const res  = await fetch(`${FD_ADMIN_API.replace('/fixed-deposit','')}/fdr-rates`);
+            const data = await res.json();
+            if (data.success && Array.isArray(data.rates)) {
+                const matched = data.rates.find(x => x.months === proposedDuration);
+                if (matched && rateEl) rateEl.value = matched.rate;
+            }
+        } catch (_) { /* admin can fill manually */ }
+        _fdAckPreview();
+    }
+
+    // Live preview: Estimated Interest + Total Return
+    function _fdAckPreview() {
+        const preview = document.getElementById('fdAckPreview');
+        if (!preview) return;
+        const months     = parseInt(document.getElementById('fdAckDuration')?.value) || 0;
+        const rate       = parseFloat(document.getElementById('fdAckInterest')?.value);
+        const amountTaka = parseFloat(preview.getAttribute('data-amount-paisa')) / 100;
+        if (!months || isNaN(rate) || rate < 0 || !amountTaka) {
+            preview.style.display = 'none';
+            return;
+        }
+        const interest = amountTaka * (rate / 100) * (months / 12);
+        const total    = amountTaka + interest;
+        const fmt = n => '৳' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('fdAckPreviewInterest').textContent = fmt(interest);
+        document.getElementById('fdAckPreviewTotal').textContent    = fmt(total);
+        document.getElementById('fdAckPreviewMeta').textContent     = `Based on ${rate}% p.a. for ${months} months (simple interest)`;
+        preview.style.display = 'block';
+    }
+    window._fdAckPreview = _fdAckPreview;
 
     function closeFDDetailModal() {
         const modal = document.getElementById('fdDetailModal');
@@ -5524,21 +5588,22 @@ setInterval(updateNavBadges, 60000);
     }
 
     async function completeFDRequest(id) {
+        // Legacy: kept for backward compat; authorization now handled by authorizeFDEntry
         const adminId = sessionStorage.getItem('userId');
         try {
-            const res = await fetch(`${FD_ADMIN_API}/${id}/complete`, {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/authorize`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminId })
+                body: JSON.stringify({ authorizedBy: adminId })
             });
             const data = await res.json();
-            if (!data.success) { dashboard.showNotification(data.message || 'Failed to complete.', 'error'); return; }
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed.', 'error'); return; }
             closeFDDetailModal();
-            dashboard.showNotification('Fixed deposit request completed!', 'success');
-            loadFDRequests();
+            dashboard.showNotification('FD account activated!', 'success');
+            loadFDActiveAccounts();
             if (typeof updateNavBadges === 'function') updateNavBadges();
         } catch(err) {
-            dashboard.showNotification('Error completing request.', 'error');
+            dashboard.showNotification('Error.', 'error');
         }
     }
 
@@ -5548,4 +5613,280 @@ setInterval(updateNavBadges, 60000);
     window.acknowledgeFDRequest = acknowledgeFDRequest;
     window.rejectFDRequest = rejectFDRequest;
     window.completeFDRequest = completeFDRequest;
+
+    // ── FD Entry (Data Entry section) ─────────────────────────────
+    async function loadFDEntryRequests() {
+        const tbody = document.getElementById('fdEntryTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">Loading...</td></tr>';
+        try {
+            const res  = await fetch(`${FD_ADMIN_API}/all?status=payment_submitted`);
+            const data = await res.json();
+            if (!data.success || data.requests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No pending FD payment entries.</td></tr>';
+                return;
+            }
+            const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+            tbody.innerHTML = data.requests.map(r => {
+                const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
+                const date = new Date(r.paymentSubmittedAt || r.updatedAt).toLocaleDateString('en-GB');
+                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
+                const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+                const method = methodLabel[r.paymentMethod] || r.paymentMethod || '—';
+                return `<tr>
+                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td style="padding:12px;">৳${amountTaka}</td>
+                    <td style="padding:12px;">${r.acknowledgedDuration || r.proposedDuration} months</td>
+                    <td style="padding:12px;">${r.interestRate != null ? r.interestRate + '%' : '—'}</td>
+                    <td style="padding:12px;"><span style="background:#7c3aed22;color:#7c3aed;padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${method}</span></td>
+                    <td style="padding:12px;">${date}</td>
+                    <td style="padding:12px;"><button class="btn btn-small btn-primary" onclick="openFDDetailModal('${r._id}')">View</button></td>
+                </tr>`;
+            }).join('');
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c00;">Failed to load.</td></tr>';
+        }
+    }
+    window.loadFDEntryRequests = loadFDEntryRequests;
+
+    async function confirmFDEntry(id) {
+        if (!confirm('Confirm this FD payment entry? It will move to Authorize/Delete Data for final authorization.')) return;
+        const adminId = sessionStorage.getItem('userId');
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/confirm-entry`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmedBy: adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed.', 'error'); return; }
+            closeFDDetailModal();
+            dashboard.showNotification('FD entry confirmed! Pending authorization.', 'success');
+            loadFDEntryRequests();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            dashboard.showNotification('Error confirming entry.', 'error');
+        }
+    }
+    window.confirmFDEntry = confirmFDEntry;
+
+    // ── FD Authorization (Authorize/Delete Data section) ───────────
+    async function loadPendingFDAuthEntries() {
+        const tbody = document.getElementById('pendingFDAuthTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">Loading...</td></tr>';
+        try {
+            const res  = await fetch(`${FD_ADMIN_API}/all?status=entry_confirmed`);
+            const data = await res.json();
+            if (!data.success || data.requests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No FD entries awaiting authorization.</td></tr>';
+                return;
+            }
+            const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+            tbody.innerHTML = data.requests.map(r => {
+                const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
+                const date = new Date(r.entryConfirmedAt || r.updatedAt).toLocaleDateString('en-GB');
+                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
+                const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+                const method = methodLabel[r.paymentMethod] || r.paymentMethod || '—';
+                return `<tr>
+                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td style="padding:12px;">৳${amountTaka}</td>
+                    <td style="padding:12px;">${r.acknowledgedDuration || r.proposedDuration} months</td>
+                    <td style="padding:12px;">${r.interestRate != null ? r.interestRate + '%' : '—'}</td>
+                    <td style="padding:12px;">${method}</td>
+                    <td style="padding:12px;">${date}</td>
+                    <td style="padding:12px;display:flex;gap:6px;">
+                      <button class="btn btn-small btn-primary" style="background:#15803d;" onclick="authorizeFDEntry('${r._id}')">Authorize</button>
+                      <button class="btn btn-small" style="background:#2563eb;color:#fff;" onclick="openFDDetailModal('${r._id}')">View</button>
+                      <button class="btn btn-small" style="background:#dc2626;color:#fff;" onclick="cancelFDEntry('${r._id}','${r.requestId}')">🗑️ Cancel</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c00;">Failed to load.</td></tr>';
+        }
+    }
+    window.loadPendingFDAuthEntries = loadPendingFDAuthEntries;
+
+    async function authorizeFDEntry(id) {
+        if (!confirm('Authorize this Fixed Deposit account? This will activate it as a running FD account.')) return;
+        const adminId = sessionStorage.getItem('userId');
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/authorize`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ authorizedBy: adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed.', 'error'); return; }
+            closeFDDetailModal();
+            dashboard.showNotification('✅ FD account authorized and activated!', 'success');
+            loadPendingFDAuthEntries();
+            loadFDActiveAccounts();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            dashboard.showNotification('Error authorizing FD.', 'error');
+        }
+    }
+    window.authorizeFDEntry = authorizeFDEntry;
+
+    async function cancelFDEntry(id, requestId) {
+        if (!confirm(`Cancel FD request ${requestId}?`)) return;
+        const adminId = sessionStorage.getItem('userId');
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/${id}/cancel`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cancelledBy: adminId })
+            });
+            const data = await res.json();
+            if (!data.success) { dashboard.showNotification(data.message || 'Failed to cancel.', 'error'); return; }
+            dashboard.showNotification(`FD request ${requestId} cancelled. Member will be notified.`, 'success');
+            loadPendingFDAuthEntries();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(err) {
+            dashboard.showNotification('Error cancelling FD request.', 'error');
+        }
+    }
+    window.cancelFDEntry = cancelFDEntry;
+
+    // ── Fixed Deposit Account section — Pending Payments ──────────
+    async function loadFDAccountRequests() {
+        const tbody = document.getElementById('fdAccountTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">Loading...</td></tr>';
+        try {
+            const res  = await fetch(`${FD_ADMIN_API}/all?status=payment_submitted`);
+            const data = await res.json();
+            if (!data.success || data.requests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No pending payments.</td></tr>';
+                return;
+            }
+            const methodLabel = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+            tbody.innerHTML = data.requests.map(r => {
+                const amountTaka = (r.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const date = new Date(r.paymentSubmittedAt || r.updatedAt).toLocaleDateString('en-GB');
+                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
+                const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+                const method = methodLabel[r.paymentMethod] || r.paymentMethod || '—';
+                return `<tr>
+                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td style="padding:12px;">৳${amountTaka}</td>
+                    <td style="padding:12px;">${r.acknowledgedDuration || r.proposedDuration} months</td>
+                    <td style="padding:12px;">${r.interestRate != null ? r.interestRate + '%' : '—'}</td>
+                    <td style="padding:12px;"><span style="background:#7c3aed22;color:#7c3aed;padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${method}</span></td>
+                    <td style="padding:12px;">${date}</td>
+                    <td style="padding:12px;"><button class="btn btn-small btn-primary" onclick="openFDDetailModal('${r._id}')">View</button></td>
+                </tr>`;
+            }).join('');
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c00;">Failed to load.</td></tr>';
+        }
+    }
+    window.loadFDAccountRequests = loadFDAccountRequests;
+
+    // ── Fixed Deposit Account section — Active FD Accounts ──────────
+    async function loadFDActiveAccounts() {
+        const tbody = document.getElementById('fdActiveTableBody');
+        if (!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">Loading...</td></tr>';
+        try {
+            const res  = await fetch(`${FD_ADMIN_API}/all?status=completed`);
+            const data = await res.json();
+            if (!data.success || data.requests.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No active FD accounts yet.</td></tr>';
+                return;
+            }
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const oneMonthLater = new Date(today);
+            oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+            const fmt = n => '৳' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            tbody.innerHTML = data.requests.map(r => {
+                const duration   = r.acknowledgedDuration || r.proposedDuration;
+                const rate       = r.interestRate || 0;
+                const principal  = r.amount / 100;
+                const interest   = principal * (rate / 100) * (duration / 12);
+                const total      = principal + interest;
+
+                const startDate    = new Date(r.completedAt || r.updatedAt);
+                const maturityDate = new Date(startDate);
+                maturityDate.setMonth(maturityDate.getMonth() + duration);
+                maturityDate.setHours(0, 0, 0, 0);
+
+                const startStr    = startDate.toLocaleDateString('en-GB');
+                const maturityStr = maturityDate.toLocaleDateString('en-GB');
+
+                const alreadyMatured = maturityDate < today;
+                const nearMaturity   = !alreadyMatured && maturityDate <= oneMonthLater;
+
+                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
+                const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+
+                let alertBadge = '';
+                let rowStyle   = '';
+                if (alreadyMatured) {
+                    alertBadge = `<span style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">MATURED</span>`;
+                    rowStyle   = 'background:#fff7f7;';
+                } else if (nearMaturity) {
+                    alertBadge = `<span style="display:inline-block;background:#fef9c3;color:#b45309;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">⚠️ Maturing Soon</span>`;
+                    rowStyle   = 'background:#fffbeb;';
+                }
+
+                return `<tr style="${rowStyle}">
+                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                    <td style="padding:12px;">${fmt(principal)}</td>
+                    <td style="padding:12px;">${duration} months</td>
+                    <td style="padding:12px;">${rate}%</td>
+                    <td style="padding:12px;">${fmt(interest)}<br><small style="color:#6b7280;">Total: ${fmt(total)}</small></td>
+                    <td style="padding:12px;">${startStr}</td>
+                    <td style="padding:12px;">${maturityStr}${alertBadge}</td>
+                </tr>`;
+            }).join('');
+        } catch(err) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c00;">Failed to load.</td></tr>';
+        }
+    }
+    window.loadFDActiveAccounts = loadFDActiveAccounts;
+
+    // ── Document viewer ───────────────────────────────────────────
+    // Cache of id → dataUrl to avoid embedding huge base64 in onclick attr
+    const _fdDocCache = {};
+
+    // Called when openFDDetailModal renders the modal — stash the dataUrl
+    function _fdCacheDoc(id, dataUrl) {
+        if (dataUrl) _fdDocCache[id] = dataUrl;
+    }
+    window._fdCacheDoc = _fdCacheDoc;
+
+    function openFDDoc(id) {
+        const dataUrl = _fdDocCache[id];
+        if (!dataUrl) { alert('Document not available.'); return; }
+        if (dataUrl.startsWith('data:image')) {
+            const win = window.open('', '_blank');
+            if (!win) { alert('Popup blocked — please allow popups for this site.'); return; }
+            win.document.write(`<!DOCTYPE html><html><head><title>Payment Document</title><style>body{margin:0;background:#1a1a1a;display:flex;justify-content:center;align-items:flex-start;}img{max-width:100%;height:auto;display:block;}</style></head><body><img src="${dataUrl}"/></body></html>`);
+            win.document.close();
+        } else {
+            // PDF or other — create blob URL
+            const [meta, b64] = dataUrl.split(',');
+            const mime = meta.replace('data:', '').replace(';base64', '');
+            const bytes = atob(b64);
+            const arr = new Uint8Array(bytes.length);
+            for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+            const blob = new Blob([arr], { type: mime });
+            const url  = URL.createObjectURL(blob);
+            const win  = window.open(url, '_blank');
+            if (!win) { alert('Popup blocked — please allow popups for this site.'); }
+            // revoke after a short delay
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+    }
+    window.openFDDoc = openFDDoc;
 })();

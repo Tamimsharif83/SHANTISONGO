@@ -15,10 +15,10 @@ const fixedDepositRequestSchema = new mongoose.Schema({
     memberComment: { type: String, default: '' },
 
     // Status: pending → acknowledged / rejected
-    //         acknowledged → payment_submitted → completed
+    //         acknowledged → payment_submitted → entry_confirmed → completed
     status: {
         type: String,
-        enum: ['pending', 'acknowledged', 'rejected', 'payment_submitted', 'completed'],
+        enum: ['pending', 'acknowledged', 'rejected', 'payment_submitted', 'entry_confirmed', 'completed', 'cancelled'],
         default: 'pending'
     },
 
@@ -44,7 +44,20 @@ const fixedDepositRequestSchema = new mongoose.Schema({
     paymentDocument: { type: String, default: '' }, // base64
     paymentSubmittedAt: { type: Date },
 
-    // Completion by admin
+    // Data entry confirmation
+    entryConfirmedBy: { type: String },
+    entryConfirmedAt: { type: Date },
+
+    // Authorization (moves to completed)
+    authorizedFDBy: { type: String },
+    authorizedFDAt: { type: Date },
+
+    // Cancellation (by admin from Authorize section)
+    cancelledBy: { type: String },
+    cancelledAt: { type: Date },
+    cancelReason: { type: String, default: '' },
+
+    // Legacy completion field
     completedBy: { type: String },
     completedAt: { type: Date },
 

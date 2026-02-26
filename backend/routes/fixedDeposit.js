@@ -53,6 +53,18 @@ router.get('/all', async (req, res) => {
     }
 });
 
+// ─── ADMIN: Pending count (for badge) ────────────────────────
+router.get('/stats/pending-count', async (req, res) => {
+    try {
+        const pendingCount        = await FixedDepositRequest.countDocuments({ status: 'pending' });
+        const paymentCount        = await FixedDepositRequest.countDocuments({ status: 'payment_submitted' });
+        const entryConfirmedCount = await FixedDepositRequest.countDocuments({ status: 'entry_confirmed' });
+        res.json({ success: true, pendingCount, paymentCount, entryConfirmedCount, total: pendingCount + paymentCount + entryConfirmedCount });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // ─── ADMIN: Get single request with full user details ─────────
 router.get('/:id', async (req, res) => {
     try {
@@ -108,8 +120,11 @@ router.patch('/:id/reject', async (req, res) => {
 router.patch('/:id/payment', async (req, res) => {
     try {
         const { paymentMethod, transactionId, paymentComment, paymentDocument } = req.body;
-        if (!paymentMethod || !paymentDocument) {
-            return res.status(400).json({ success: false, message: 'Payment method and document are required.' });
+        if (!paymentMethod) {
+            return res.status(400).json({ success: false, message: 'Payment method is required.' });
+        }
+        if (paymentMethod !== 'hand_cash' && !paymentDocument) {
+            return res.status(400).json({ success: false, message: 'Payment document / screenshot is required.' });
         }
         const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
             status: 'payment_submitted',
@@ -126,7 +141,41 @@ router.patch('/:id/payment', async (req, res) => {
     }
 });
 
-// ─── ADMIN: Complete (move to Deposit Account) ───────────────
+// ─── DATA ENTRY: Confirm entry (payment_submitted → entry_confirmed) ─
+router.patch('/:id/confirm-entry', async (req, res) => {
+    try {
+        const { confirmedBy } = req.body;
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'entry_confirmed',
+            entryConfirmedBy: confirmedBy || 'Admin',
+            entryConfirmedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── AUTHORIZE: Authorize FD (entry_confirmed → completed) ───────────
+router.patch('/:id/authorize', async (req, res) => {
+    try {
+        const { authorizedBy } = req.body;
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'completed',
+            authorizedFDBy: authorizedBy || 'Admin',
+            authorizedFDAt: new Date(),
+            completedBy: authorizedBy || 'Admin',
+            completedAt: new Date()
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// ─── ADMIN: Complete (legacy, keep for compatibility) ─────────────────
 router.patch('/:id/complete', async (req, res) => {
     try {
         const { completedBy } = req.body;
@@ -143,11 +192,20 @@ router.patch('/:id/complete', async (req, res) => {
 });
 
 // ─── ADMIN: Pending count (for badge) ────────────────────────
-router.get('/stats/pending-count', async (req, res) => {
+// NOTE: This duplicate is now removed — route moved above /:id
+
+// ─── ADMIN: Cancel FD (entry_confirmed → cancelled) ─────────────────────
+router.patch('/:id/cancel', async (req, res) => {
     try {
-        const pendingCount = await FixedDepositRequest.countDocuments({ status: 'pending' });
-        const paymentCount = await FixedDepositRequest.countDocuments({ status: 'payment_submitted' });
-        res.json({ success: true, pendingCount, paymentCount, total: pendingCount + paymentCount });
+        const { cancelledBy, cancelReason } = req.body;
+        const request = await FixedDepositRequest.findByIdAndUpdate(req.params.id, {
+            status: 'cancelled',
+            cancelledBy: cancelledBy || 'Admin',
+            cancelledAt: new Date(),
+            cancelReason: cancelReason || ''
+        }, { new: true });
+        if (!request) return res.status(404).json({ success: false, message: 'Request not found.' });
+        res.json({ success: true, request });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
