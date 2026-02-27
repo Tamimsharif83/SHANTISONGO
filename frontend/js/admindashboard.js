@@ -6979,16 +6979,18 @@ setInterval(updateNavBadges, 60000);
     }
 
     async function exportShareReportPDF() {
-        if (_shareReportRows.length === 0) await generateShareReport();
-        if (_shareReportRows.length === 0) return;
-        const { title, subtitle } = _buildShareTitle();
         const type = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+        if (type !== 'monthly') {
+            if (_shareReportRows.length === 0) await generateShareReport();
+            if (_shareReportRows.length === 0) return;
+        }
+        const { title, subtitle } = _buildShareTitle();
         if (type === 'monthly') {
             if (_shareMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
             const paidCount   = _shareMonthlyRows.filter(r=>r.paid).length;
             const unpaidCount = _shareMonthlyRows.length - paidCount;
-            const paidRows    = _shareMonthlyRows.filter(r=>r.paid).map(r=>`<tr style="background:#f0fdf4;"><td>${r.memberName}</td><td>${r.memberId}</td><td>&#10003; Paid</td><td>${r.amountFmt}</td><td>${r.entryDate}</td><td>${r.authStatus}</td></tr>`).join('');
-            const unpaidRows  = _shareMonthlyRows.filter(r=>!r.paid).map(r=>`<tr style="background:#fff5f5;"><td>${r.memberName}</td><td>${r.memberId}</td><td>&#10007; Unpaid</td><td>-</td><td>-</td><td>-</td></tr>`).join('');
+            const paidRows    = _shareMonthlyRows.filter(r=>r.paid).map(r=>`<tr style="background:#f0fdf4;"><td>${r.memberName}</td><td>${r.memberId}</td><td><span style="background:#16a34a;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px;">&#10003; Paid</span></td><td>${r.amountFmt}</td><td>${r.entryDate}</td><td>${r.authStatus}</td></tr>`).join('');
+            const unpaidRows  = _shareMonthlyRows.filter(r=>!r.paid).map(r=>`<tr style="background:#fff5f5;"><td>${r.memberName}</td><td>${r.memberId}</td><td><span style="background:#dc2626;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px;">&#10007; Unpaid</span></td><td>-</td><td>-</td><td>-</td></tr>`).join('');
             let logoDataURL = '';
             try { const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
             const pw = window.open('','_blank');
@@ -7468,10 +7470,12 @@ setInterval(updateNavBadges, 60000);
     }
 
     async function exportInvReportPDF() {
-        if (_invReportRows.length === 0) await generateInvReport();
-        if (_invReportRows.length === 0) return;
+        const type = document.querySelector('input[name="invReportType"]:checked')?.value || 'summary';
+        if (type !== 'monthly') {
+            if (_invReportRows.length === 0) await generateInvReport();
+            if (_invReportRows.length === 0) return;
+        }
         const { title, subtitle } = _buildInvTitle();
-        const type = document.querySelector('input[name="invReportType"]:checked')?.value||'summary';
         if (type === 'monthly') {
             if (_invMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
             const paidCount    = _invMonthlyRows.filter(r=>r.status==='paid').length;
