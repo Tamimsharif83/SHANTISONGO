@@ -198,11 +198,6 @@ class AdminDashboard {
             loadInvestmentRequests();
         }
         
-        // Load investment report when investment-report section is shown
-        if (sectionId === 'investment-report') {
-            loadInvestmentReport();
-        }
-        
         // Load investment accounts when investment-account section is shown
         if (sectionId === 'investment-account') {
             loadInvestmentAccounts();
@@ -247,6 +242,19 @@ class AdminDashboard {
         // Load FD Account when section is shown
         if (sectionId === 'fd-account') {
             loadFDActiveAccounts();
+        }
+
+        // Load FD Report when section is shown
+        if (sectionId === 'fixed-deposit-report') {
+            if (typeof initFDReport === 'function') initFDReport();
+        }
+        // Load Share Report when section is shown
+        if (sectionId === 'share-report') {
+            if (typeof initShareReport === 'function') initShareReport();
+        }
+        // Load Investment Report when section is shown
+        if (sectionId === 'investment-report') {
+            if (typeof initInvReport === 'function') initInvReport();
         }
 
         // Load FD Entry requests when section is shown
@@ -5790,6 +5798,111 @@ setInterval(updateNavBadges, 60000);
     window.loadFDAccountRequests = loadFDAccountRequests;
 
     // ── Fixed Deposit Account section — Active FD Accounts ──────────
+    let _fdAllActiveData = [];
+
+    function _renderFDActiveRows(records) {
+        const tbody = document.getElementById('fdActiveTableBody');
+        if (!tbody) return;
+        if (records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No records match the filter.</td></tr>';
+            return;
+        }
+        const today = new Date(); today.setHours(0,0,0,0);
+        const oneMonthLater = new Date(today); oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+        const fmt = n => '&#x9F3;' + n.toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits:2 });
+
+        tbody.innerHTML = records.map(r => {
+            const duration   = r.acknowledgedDuration || r.proposedDuration;
+            const rate       = r.interestRate || 0;
+            const principal  = r.amount / 100;
+            const interest   = principal * (rate / 100) * (duration / 12);
+            const total      = principal + interest;
+
+            const depositDate  = new Date(r.depositDate || r.completedAt || r.updatedAt);
+            const maturityDate = r.maturityDate ? new Date(r.maturityDate) : (() => { const d = new Date(depositDate); d.setMonth(d.getMonth() + duration); return d; })();
+            maturityDate.setHours(0,0,0,0);
+
+            const depositStr  = depositDate.toLocaleDateString('en-GB');
+            const maturityStr = maturityDate.toLocaleDateString('en-GB');
+
+            const alreadyMatured = maturityDate < today;
+            const nearMaturity   = !alreadyMatured && maturityDate <= oneMonthLater;
+
+            const memberName = r.userId ? (r.userId.fullName || r.userId.name || r.memberName) : r.memberName;
+            const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+
+            let alertBadge = '', rowStyle = '';
+            if (alreadyMatured) {
+                alertBadge = `<span style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">MATURED</span>`;
+                rowStyle   = 'background:#fff7f7;';
+            } else if (nearMaturity) {
+                alertBadge = `<span style="display:inline-block;background:#fef9c3;color:#b45309;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">&#x26A0;&#xFE0F; Maturing Soon</span>`;
+                rowStyle   = 'background:#fffbeb;';
+            }
+
+            return `<tr style="${rowStyle}">
+                <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
+                <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
+                <td style="padding:12px;">${fmt(principal)}</td>
+                <td style="padding:12px;">${duration} months</td>
+                <td style="padding:12px;">${rate}%</td>
+                <td style="padding:12px;">${fmt(interest)}<br><small style="color:#6b7280;">Total: ${fmt(total)}</small></td>
+                <td style="padding:12px;">${depositStr}</td>
+                <td style="padding:12px;">${maturityStr}${alertBadge}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function filterFDActiveAccounts() {
+        const search  = (document.getElementById('fdFilter_search')?.value || '').trim().toLowerCase();
+        const fromVal = document.getElementById('fdFilter_from')?.value;
+        const toVal   = document.getElementById('fdFilter_to')?.value;
+        const fromDate = fromVal ? new Date(fromVal) : null;
+        const toDate   = toVal   ? (() => { const d = new Date(toVal); d.setHours(23,59,59,999); return d; })() : null;
+
+        let filtered = _fdAllActiveData;
+        if (search) {
+            filtered = filtered.filter(r => {
+                const memberId   = (r.userId ? (r.userId.memberID || r.memberID) : r.memberID || '').toLowerCase();
+                const memberName = (r.userId ? (r.userId.fullName || r.userId.name || r.memberName) : r.memberName || '').toLowerCase();
+                const reqId      = (r.requestId || '').toLowerCase();
+                return memberId.includes(search) || reqId.includes(search) || memberName.includes(search);
+            });
+        }
+        if (fromDate) {
+            filtered = filtered.filter(r => {
+                const dep = new Date(r.depositDate || r.completedAt || r.updatedAt);
+                return dep >= fromDate;
+            });
+        }
+        if (toDate) {
+            filtered = filtered.filter(r => {
+                const dep = new Date(r.depositDate || r.completedAt || r.updatedAt);
+                return dep <= toDate;
+            });
+        }
+        const summary = document.getElementById('fdFilter_summary');
+        if (summary) {
+            const total = _fdAllActiveData.length;
+            const shown = filtered.length;
+            if (search || fromVal || toVal) {
+                summary.textContent = `Showing ${shown} of ${total} records`;
+            } else {
+                summary.textContent = `Total: ${total} records`;
+            }
+        }
+        _renderFDActiveRows(filtered);
+    }
+    window.filterFDActiveAccounts = filterFDActiveAccounts;
+
+    function clearFDActiveFilter() {
+        const s = document.getElementById('fdFilter_search'); if (s) s.value = '';
+        const f = document.getElementById('fdFilter_from');   if (f) f.value = '';
+        const t = document.getElementById('fdFilter_to');     if (t) t.value = '';
+        filterFDActiveAccounts();
+    }
+    window.clearFDActiveFilter = clearFDActiveFilter;
+
     async function loadFDActiveAccounts() {
         const tbody = document.getElementById('fdActiveTableBody');
         if (!tbody) return;
@@ -5798,57 +5911,14 @@ setInterval(updateNavBadges, 60000);
             const res  = await fetch(`${FD_ADMIN_API}/all?status=completed`);
             const data = await res.json();
             if (!data.success || data.requests.length === 0) {
+                _fdAllActiveData = [];
                 tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#999;padding:2rem;">No active FD accounts yet.</td></tr>';
+                const summary = document.getElementById('fdFilter_summary');
+                if (summary) summary.textContent = 'Total: 0 records';
                 return;
             }
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const oneMonthLater = new Date(today);
-            oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
-            const fmt = n => '৳' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-            tbody.innerHTML = data.requests.map(r => {
-                const duration   = r.acknowledgedDuration || r.proposedDuration;
-                const rate       = r.interestRate || 0;
-                const principal  = r.amount / 100;
-                const interest   = principal * (rate / 100) * (duration / 12);
-                const total      = principal + interest;
-
-                const startDate    = new Date(r.completedAt || r.updatedAt);
-                const maturityDate = new Date(startDate);
-                maturityDate.setMonth(maturityDate.getMonth() + duration);
-                maturityDate.setHours(0, 0, 0, 0);
-
-                const startStr    = startDate.toLocaleDateString('en-GB');
-                const maturityStr = maturityDate.toLocaleDateString('en-GB');
-
-                const alreadyMatured = maturityDate < today;
-                const nearMaturity   = !alreadyMatured && maturityDate <= oneMonthLater;
-
-                const memberName = r.userId ? (r.userId.name || r.memberName) : r.memberName;
-                const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
-
-                let alertBadge = '';
-                let rowStyle   = '';
-                if (alreadyMatured) {
-                    alertBadge = `<span style="display:inline-block;background:#fee2e2;color:#dc2626;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">MATURED</span>`;
-                    rowStyle   = 'background:#fff7f7;';
-                } else if (nearMaturity) {
-                    alertBadge = `<span style="display:inline-block;background:#fef9c3;color:#b45309;border-radius:99px;padding:2px 8px;font-size:0.72rem;font-weight:700;margin-left:6px;">⚠️ Maturing Soon</span>`;
-                    rowStyle   = 'background:#fffbeb;';
-                }
-
-                return `<tr style="${rowStyle}">
-                    <td style="padding:12px;"><span style="font-family:monospace;color:#2563eb;font-weight:600;">${r.requestId}</span></td>
-                    <td style="padding:12px;">${memberName}<br><small style="color:#6b7280;">${memberId}</small></td>
-                    <td style="padding:12px;">${fmt(principal)}</td>
-                    <td style="padding:12px;">${duration} months</td>
-                    <td style="padding:12px;">${rate}%</td>
-                    <td style="padding:12px;">${fmt(interest)}<br><small style="color:#6b7280;">Total: ${fmt(total)}</small></td>
-                    <td style="padding:12px;">${startStr}</td>
-                    <td style="padding:12px;">${maturityStr}${alertBadge}</td>
-                </tr>`;
-            }).join('');
+            _fdAllActiveData = data.requests;
+            filterFDActiveAccounts();
         } catch(err) {
             tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#c00;">Failed to load.</td></tr>';
         }
@@ -5889,4 +5959,1711 @@ setInterval(updateNavBadges, 60000);
         }
     }
     window.openFDDoc = openFDDoc;
+
+    // ================================================================
+    // ADMIN DIRECT FDR CREATION
+    // ================================================================
+    let _adminFDRRates  = [];
+    let _adminFDRMember = null;
+
+    function openNewFDRModal() {
+        let modal = document.getElementById('adminNewFDRModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'adminNewFDRModal';
+            modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;overflow-y:auto;padding:40px 20px;';
+            modal.innerHTML = `
+            <div style="background:#fff;border-radius:16px;max-width:660px;margin:0 auto;padding:32px;position:relative;">
+              <button onclick="closeNewFDRModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;">&#x2715;</button>
+              <h3 style="margin-top:0;color:#111;">&#x1F4CB; New Fixed Deposit — Admin Entry</h3>
+
+              <div style="background:#f9fafb;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid #e5e7eb;">
+                <label style="font-weight:600;font-size:0.9rem;display:block;margin-bottom:8px;">Member ID <span style="color:red;">*</span></label>
+                <div style="display:flex;gap:8px;">
+                  <input id="nfdr_memberID" type="text" placeholder="e.g. SS-0023" style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;" oninput="this.value=this.value.toUpperCase()" />
+                  <button class="btn btn-primary" onclick="lookupMemberForFDR()" style="white-space:nowrap;">&#x1F50D; Lookup</button>
+                </div>
+                <div id="nfdr_memberInfo" style="margin-top:12px;display:none;"></div>
+              </div>
+
+              <div id="nfdr_form" style="display:none;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+                  <div>
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Deposit Amount (&#x9F3;) <span style="color:red;">*</span></label>
+                    <input id="nfdr_amount" type="number" min="1" step="1" placeholder="e.g. 50000" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;" />
+                  </div>
+                  <div>
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Duration <span style="color:red;">*</span></label>
+                    <select id="nfdr_duration" onchange="onFDRDurationChange()" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;">
+                      <option value="">-- Select Duration --</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Interest Rate (%)</label>
+                    <input id="nfdr_rate" type="text" readonly style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#374151;box-sizing:border-box;" placeholder="Auto from duration" />
+                  </div>
+                  <div>
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Deposit Date <span style="color:red;">*</span></label>
+                    <input id="nfdr_depositDate" type="date" onchange="onFDRDurationChange()" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;" />
+                  </div>
+                  <div style="grid-column:1/-1;">
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Maturity Date</label>
+                    <input id="nfdr_maturity" type="text" readonly style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;color:#374151;box-sizing:border-box;" placeholder="Auto-calculated" />
+                  </div>
+                  <div style="grid-column:1/-1;">
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Payment Method <span style="color:red;">*</span></label>
+                    <select id="nfdr_payMethod" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;">
+                      <option value="">-- Select Payment Method --</option>
+                      <option value="bank">&#x1F3E6; Bank Transfer</option>
+                      <option value="hand_cash">&#x1F4B5; Hand Cash</option>
+                      <option value="mobile_banking">&#x1F4F1; Mobile Banking</option>
+                    </select>
+                  </div>
+                  <div style="grid-column:1/-1;">
+                    <label style="font-weight:600;font-size:0.875rem;display:block;margin-bottom:4px;">Admin Notes (optional)</label>
+                    <input id="nfdr_notes" type="text" placeholder="Optional notes" style="width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box;" />
+                  </div>
+                </div>
+                <div id="nfdr_error" style="display:none;background:#fee2e2;color:#dc2626;padding:10px;border-radius:8px;margin-bottom:12px;font-size:0.875rem;"></div>
+                <div style="display:flex;gap:10px;justify-content:flex-end;">
+                  <button class="btn btn-secondary" onclick="closeNewFDRModal()">Cancel</button>
+                  <button class="btn btn-primary" style="background:#15803d;" onclick="submitAdminFDR()">&#x2705; Create FD Entry</button>
+                </div>
+              </div>
+            </div>`;
+            document.body.appendChild(modal);
+        }
+        // Set today as default + max deposit date
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('nfdr_depositDate');
+        if (dateInput) { dateInput.value = today; dateInput.max = today; }
+        // Reset fields
+        document.getElementById('nfdr_memberID').value = '';
+        document.getElementById('nfdr_memberInfo').style.display = 'none';
+        document.getElementById('nfdr_form').style.display = 'none';
+        document.getElementById('nfdr_amount').value = '';
+        document.getElementById('nfdr_rate').value = '';
+        document.getElementById('nfdr_maturity').value = '';
+        document.getElementById('nfdr_notes').value = '';
+        document.getElementById('nfdr_error').style.display = 'none';
+        const pm = document.getElementById('nfdr_payMethod'); if (pm) pm.value = '';
+        _adminFDRMember = null;
+        modal.style.display = 'block';
+        _loadFDRRatesForForm();
+    }
+    window.openNewFDRModal = openNewFDRModal;
+
+    function closeNewFDRModal() {
+        const modal = document.getElementById('adminNewFDRModal');
+        if (modal) modal.style.display = 'none';
+    }
+    window.closeNewFDRModal = closeNewFDRModal;
+
+    async function _loadFDRRatesForForm() {
+        try {
+            const res  = await fetch(`${API_BASE_URL}/api/fdr-rates`);
+            const data = await res.json();
+            _adminFDRRates = data.success ? data.rates : [];
+            const sel = document.getElementById('nfdr_duration');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">-- Select Duration --</option>' +
+                _adminFDRRates.map(r => `<option value="${r.months}" data-rate="${r.rate}">${r.months} months (${r.rate}%)</option>`).join('');
+        } catch(e) { /* ignore */ }
+    }
+
+    function onFDRDurationChange() {
+        const sel          = document.getElementById('nfdr_duration');
+        const rateInput    = document.getElementById('nfdr_rate');
+        const maturityInput= document.getElementById('nfdr_maturity');
+        const dateInput    = document.getElementById('nfdr_depositDate');
+        if (!sel || !rateInput || !maturityInput || !dateInput) return;
+        const opt   = sel.options[sel.selectedIndex];
+        const rate  = opt ? opt.getAttribute('data-rate') : null;
+        const months= parseInt(sel.value);
+        rateInput.value = rate ? rate + '%' : '';
+        const depositVal = dateInput.value;
+        if (months && depositVal) {
+            const d = new Date(depositVal);
+            d.setMonth(d.getMonth() + months);
+            maturityInput.value = d.toLocaleDateString('en-GB');
+        } else {
+            maturityInput.value = '';
+        }
+    }
+    window.onFDRDurationChange = onFDRDurationChange;
+
+    async function lookupMemberForFDR() {
+        const memberID = (document.getElementById('nfdr_memberID').value || '').trim().toUpperCase();
+        if (!memberID) { alert('Please enter a Member ID.'); return; }
+        const infoDiv = document.getElementById('nfdr_memberInfo');
+        const formDiv = document.getElementById('nfdr_form');
+        infoDiv.innerHTML = '<span style="color:#6b7280;font-size:0.875rem;">Looking up...</span>';
+        infoDiv.style.display = 'block';
+        formDiv.style.display  = 'none';
+        try {
+            const res  = await fetch(`${FD_ADMIN_API}/member-info/${encodeURIComponent(memberID)}`);
+            const data = await res.json();
+            if (!data.success) {
+                infoDiv.innerHTML = `<span style="color:#dc2626;font-weight:600;">&#x274C; ${data.message || 'Member not found.'}</span>`;
+                return;
+            }
+            _adminFDRMember = data.user;
+            const u = data.user;
+            const picHtml = u.profilePicture
+                ? `<img src="${u.profilePicture}" alt="Profile" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid #2563eb;flex-shrink:0;" />`
+                : `<div style="width:56px;height:56px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">&#x1F464;</div>`;
+            const fdRows = data.fdHistory.length > 0
+                ? data.fdHistory.map(f => {
+                    const amt = (f.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 });
+                    return `<tr><td style="padding:3px 8px;">${f.requestId}</td><td style="padding:3px 8px;">&#x9F3;${amt}</td><td style="padding:3px 8px;">${f.acknowledgedDuration}m @ ${f.interestRate}%</td></tr>`;
+                }).join('')
+                : '<tr><td colspan="3" style="padding:4px 8px;color:#9ca3af;">No previous completed FDs</td></tr>';
+            infoDiv.innerHTML = `
+                <div style="background:#dbeafe;border-radius:8px;padding:12px;border-left:4px solid #2563eb;">
+                  <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+                    ${picHtml}
+                    <div>
+                      <div style="font-weight:700;font-size:1rem;">${u.fullName}</div>
+                      <div style="color:#374151;font-size:0.85rem;">Member ID: <b>${u.memberID}</b> &nbsp;|&nbsp; Shares: <b>${u.numberOfShares}</b></div>
+                      ${u.email ? `<div style="color:#6b7280;font-size:0.82rem;">&#x2709;&#xFE0F; ${u.email}</div>` : ''}
+                      ${u.phone ? `<div style="color:#6b7280;font-size:0.82rem;">&#x1F4DE; ${u.phone}</div>` : ''}
+                    </div>
+                  </div>
+                  <div style="margin-top:4px;">
+                    <b style="font-size:0.82rem;color:#374151;">Previous Completed FDs:</b>
+                    <table style="width:100%;font-size:0.8rem;margin-top:4px;border-collapse:collapse;"><tbody>${fdRows}</tbody></table>
+                  </div>
+                </div>`;
+            formDiv.style.display = 'block';
+            // Reset form values
+            const today = new Date().toISOString().split('T')[0];
+            const di = document.getElementById('nfdr_depositDate');
+            if (di) { di.value = today; di.max = today; }
+            document.getElementById('nfdr_amount').value   = '';
+            document.getElementById('nfdr_rate').value     = '';
+            document.getElementById('nfdr_maturity').value = '';
+            const dur = document.getElementById('nfdr_duration');
+            if (dur) dur.value = '';
+        } catch(e) {
+            infoDiv.innerHTML = '<span style="color:#dc2626;">Error looking up member.</span>';
+        }
+    }
+    window.lookupMemberForFDR = lookupMemberForFDR;
+
+    async function submitAdminFDR() {
+        const errDiv = document.getElementById('nfdr_error');
+        errDiv.style.display = 'none';
+        const show = (msg) => { errDiv.textContent = msg; errDiv.style.display = 'block'; };
+        if (!_adminFDRMember) { show('Please lookup a valid member first.'); return; }
+        const amountTaka  = parseFloat(document.getElementById('nfdr_amount').value);
+        const duration    = parseInt(document.getElementById('nfdr_duration').value);
+        const depositDate = document.getElementById('nfdr_depositDate').value;
+        const rateText    = (document.getElementById('nfdr_rate').value || '').replace('%', '');
+        const notes       = document.getElementById('nfdr_notes').value.trim();
+        const paymentMethod = (document.getElementById('nfdr_payMethod').value || '').trim();
+        const adminId     = sessionStorage.getItem('userId');
+        if (!amountTaka || amountTaka <= 0) { show('Please enter a valid deposit amount.'); return; }
+        if (!duration) { show('Please select a duration.'); return; }
+        if (!depositDate) { show('Please select a deposit date.'); return; }
+        const today = new Date().toISOString().split('T')[0];
+        if (depositDate > today) { show('Deposit date cannot be in the future.'); return; }
+        if (!paymentMethod) { show('Please select a payment method.'); return; }
+        try {
+            const res = await fetch(`${FD_ADMIN_API}/admin-create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memberID: _adminFDRMember.memberID,
+                    amount:   amountTaka,
+                    duration,
+                    interestRate: parseFloat(rateText),
+                    depositDate,
+                    paymentMethod,
+                    notes,
+                    createdBy: adminId
+                })
+            });
+            const data = await res.json();
+            if (!data.success) { show(data.message || 'Failed to create FD.'); return; }
+            closeNewFDRModal();
+            dashboard.showNotification(`✅ FD entry created for ${_adminFDRMember.fullName}. Pending authorization.`, 'success');
+            loadPendingFDAuthEntries();
+            if (typeof updateNavBadges === 'function') updateNavBadges();
+        } catch(e) {
+            show('Error creating FD entry. Please try again.');
+        }
+    }
+    window.submitAdminFDR = submitAdminFDR;
+
+})();
+
+// ================================================================
+// FIXED DEPOSIT REPORT BUILDER
+// ================================================================
+(function () {
+    const FD_REPORT_API = `${API_BASE_URL}/api/fixed-deposit`;
+    let _fdReportData = [];   // full fetched list
+    let _fdReportRows = [];   // after filters
+
+    /* ── Helpers ─────────────────────────────────────────────── */
+    function _calcFD(r) {
+        const today    = new Date(); today.setHours(0,0,0,0);
+        const duration = r.acknowledgedDuration || r.proposedDuration;
+        const rate     = r.interestRate || 0;
+        const principal= r.amount / 100;
+        const interest = principal * (rate / 100) * (duration / 12);
+        const total    = principal + interest;
+        const dep      = new Date(r.depositDate || r.completedAt || r.updatedAt);
+        const mat      = r.maturityDate ? new Date(r.maturityDate)
+                        : (() => { const d = new Date(dep); d.setMonth(d.getMonth() + duration); return d; })();
+        mat.setHours(0,0,0,0);
+        const isMatured  = mat < today;
+        const memberName = r.userId ? (r.userId.fullName || r.userId.name || r.memberName) : r.memberName;
+        const memberId   = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+        return { duration, rate, principal, interest, total, dep, mat, isMatured,
+                 memberName, memberId,
+                 depStr: dep.toLocaleDateString('en-GB'),
+                 matStr: mat.toLocaleDateString('en-GB') };
+    }
+
+    function _fmt(n) { return parseFloat(n.toFixed(2)); }
+    function _fmtDisplay(n) { return '৳' + n.toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+
+    function _buildTitle() {
+        const type   = document.querySelector('input[name="fdReportType"]:checked')?.value || 'summary';
+        const from   = document.getElementById('fdRpt_from')?.value;
+        const to     = document.getElementById('fdRpt_to')?.value;
+        const memId  = (document.getElementById('fdRpt_memberId')?.value || '').trim().toUpperCase();
+        const statv  = document.getElementById('fdRpt_status')?.value || 'all';
+        let sub = type === 'summary' ? 'Summary Report' : 'Detailed Report';
+        if (memId)     sub += ` | Member: ${memId}`;
+        if (statv !== 'all') sub += ` | ${statv.charAt(0).toUpperCase()+statv.slice(1)} only`;
+        if (from && to) sub += ` | ${from} to ${to}`;
+        else if (from)  sub += ` | From ${from}`;
+        else if (to)    sub += ` | Up to ${to}`;
+        else            sub += ' | All Time';
+        return { title: 'SHANTISONGHO — Fixed Deposit Report', subtitle: sub };
+    }
+
+    function _getActiveCols() {
+        const allCols = [
+            { id: 'fdCol_requestId',    key: 'requestId',    label: 'Request ID' },
+            { id: 'fdCol_memberName',   key: 'memberName',   label: 'Member Name' },
+            { id: 'fdCol_memberId',     key: 'memberId',     label: 'Member ID' },
+            { id: 'fdCol_principal',    key: 'principal',    label: 'Principal (৳)' },
+            { id: 'fdCol_duration',     key: 'duration',     label: 'Duration (months)' },
+            { id: 'fdCol_rate',         key: 'rate',         label: 'Rate (%)' },
+            { id: 'fdCol_interest',     key: 'interest',     label: 'Interest (৳)' },
+            { id: 'fdCol_total',        key: 'total',        label: 'Total Return (৳)' },
+            { id: 'fdCol_depositDate',  key: 'depositDate',  label: 'Deposit Date' },
+            { id: 'fdCol_maturityDate', key: 'maturityDate', label: 'Maturity Date' },
+            { id: 'fdCol_payMethod',    key: 'payMethod',    label: 'Payment Method' },
+            { id: 'fdCol_status',       key: 'status',       label: 'Status' },
+        ];
+        return allCols.filter(c => document.getElementById(c.id)?.checked);
+    }
+
+    /* ── Type radio change ─────────────────────────────────────── */
+    function onFDReportTypeChange() {
+        const type = document.querySelector('input[name="fdReportType"]:checked')?.value || 'summary';
+        const d = document.getElementById('fdRpt_colsDiv');
+        if (d) d.style.display = type === 'detailed' ? 'block' : 'none';
+    }
+    window.onFDReportTypeChange = onFDReportTypeChange;
+
+    /* ── Generate preview ──────────────────────────────────────── */
+    async function generateFDReport() {
+        const preview = document.getElementById('fdRpt_preview');
+        const summary = document.getElementById('fdRpt_summary');
+        if (summary) summary.innerHTML = '<p style="color:#6b7280;">Loading data…</p>';
+        if (preview) preview.style.display = 'block';
+        try {
+            const res  = await fetch(`${FD_REPORT_API}/all?status=completed`);
+            const data = await res.json();
+            if (!data.success) { summary.innerHTML = '<p style="color:#dc2626;">Failed to load FD data.</p>'; return; }
+            _fdReportData = data.requests;
+
+            // ── Filters
+            let filtered = [..._fdReportData];
+
+            const memberIdFilter = (document.getElementById('fdRpt_memberId')?.value || '').trim().toUpperCase();
+            if (memberIdFilter) {
+                filtered = filtered.filter(r => {
+                    const mid = r.userId ? (r.userId.memberID || r.memberID) : r.memberID;
+                    return (mid || '').toUpperCase() === memberIdFilter;
+                });
+            }
+
+            const fromMonth = document.getElementById('fdRpt_from')?.value;
+            const toMonth   = document.getElementById('fdRpt_to')?.value;
+            if (fromMonth) {
+                const fromDate = new Date(fromMonth + '-01');
+                filtered = filtered.filter(r => new Date(r.depositDate || r.completedAt || r.updatedAt) >= fromDate);
+            }
+            if (toMonth) {
+                const toDate = new Date(toMonth + '-01');
+                toDate.setMonth(toDate.getMonth() + 1);
+                filtered = filtered.filter(r => new Date(r.depositDate || r.completedAt || r.updatedAt) < toDate);
+            }
+
+            const statusFilter = document.getElementById('fdRpt_status')?.value || 'all';
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(r => {
+                    const { isMatured } = _calcFD(r);
+                    return statusFilter === 'matured' ? isMatured : !isMatured;
+                });
+            }
+
+            _fdReportRows = filtered;
+
+            const type = document.querySelector('input[name="fdReportType"]:checked')?.value || 'summary';
+            if (type === 'summary') _renderSummary(filtered);
+            else                    _renderDetailed(filtered);
+
+        } catch(e) {
+            if (summary) summary.innerHTML = '<p style="color:#dc2626;">Error loading data.</p>';
+            console.error(e);
+        }
+    }
+    window.generateFDReport = generateFDReport;
+
+    /* ── Render Summary ────────────────────────────────────────── */
+    function _renderSummary(records) {
+        let ac=0, mc=0, ap=0, mp=0, ai=0, mi=0;
+        records.forEach(r => {
+            const c = _calcFD(r);
+            if (c.isMatured) { mc++; mp += c.principal; mi += c.interest; }
+            else             { ac++; ap += c.principal; ai += c.interest; }
+        });
+        const total = records.length;
+
+        const summaryDiv = document.getElementById('fdRpt_summary');
+        summaryDiv.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+              <div style="background:#dcfce7;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#15803d;font-weight:600;margin-bottom:4px;">Active FDs</div>
+                <div style="font-size:2rem;font-weight:800;color:#15803d;">${ac}</div>
+                <div style="font-size:0.8rem;color:#166534;">${_fmtDisplay(ap)}</div>
+              </div>
+              <div style="background:#fee2e2;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-bottom:4px;">Matured FDs</div>
+                <div style="font-size:2rem;font-weight:800;color:#dc2626;">${mc}</div>
+                <div style="font-size:0.8rem;color:#991b1b;">${_fmtDisplay(mp)}</div>
+              </div>
+              <div style="background:#dbeafe;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#1d4ed8;font-weight:600;margin-bottom:4px;">Total FDs</div>
+                <div style="font-size:2rem;font-weight:800;color:#1d4ed8;">${total}</div>
+                <div style="font-size:0.8rem;color:#1e40af;">${_fmtDisplay(ap+mp)}</div>
+              </div>
+            </div>`;
+
+        const table = document.getElementById('fdRpt_table');
+        table.innerHTML = `
+            <thead>
+              <tr style="background:#dbeafe;">
+                <th style="padding:12px;text-align:left;">Status</th>
+                <th style="padding:12px;text-align:right;">Count</th>
+                <th style="padding:12px;text-align:right;">Total Principal (৳)</th>
+                <th style="padding:12px;text-align:right;">Est. Interest (৳)</th>
+                <th style="padding:12px;text-align:right;">Total Return (৳)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="background:#f0fdf4;">
+                <td style="padding:12px;"><span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:99px;font-weight:600;font-size:0.85rem;">Active</span></td>
+                <td style="padding:12px;text-align:right;">${ac}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ap)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ai)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ap+ai)}</td>
+              </tr>
+              <tr style="background:#fff7f7;">
+                <td style="padding:12px;"><span style="background:#fee2e2;color:#dc2626;padding:2px 10px;border-radius:99px;font-weight:600;font-size:0.85rem;">Matured</span></td>
+                <td style="padding:12px;text-align:right;">${mc}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(mp)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(mi)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(mp+mi)}</td>
+              </tr>
+              <tr style="font-weight:700;background:#f9fafb;border-top:2px solid #e5e7eb;">
+                <td style="padding:12px;">Total</td>
+                <td style="padding:12px;text-align:right;">${total}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ap+mp)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ai+mi)}</td>
+                <td style="padding:12px;text-align:right;">${_fmtDisplay(ap+mp+ai+mi)}</td>
+              </tr>
+            </tbody>`;
+    }
+
+    /* ── Render Detailed ───────────────────────────────────────── */
+    function _renderDetailed(records) {
+        const summaryDiv = document.getElementById('fdRpt_summary');
+        summaryDiv.innerHTML = `<p style="color:#6b7280;font-size:0.875rem;">Showing <b>${records.length}</b> records</p>`;
+
+        const activeCols = _getActiveCols();
+        if (activeCols.length === 0) {
+            summaryDiv.innerHTML += '<p style="color:#dc2626;">Please select at least one column.</p>';
+            return;
+        }
+        const methodMap = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+        const table = document.getElementById('fdRpt_table');
+        const hdr   = activeCols.map(c => `<th style="padding:10px 12px;text-align:left;white-space:nowrap;">${c.label}</th>`).join('');
+        let totPrincipal = 0, totInterest = 0, totTotal = 0;
+        const rows  = records.map(r => {
+            const c = _calcFD(r);
+            totPrincipal += c.principal;
+            totInterest  += c.interest;
+            totTotal     += c.total;
+            const vals = {
+                requestId:    r.requestId,
+                memberName:   c.memberName,
+                memberId:     c.memberId,
+                principal:    _fmtDisplay(c.principal),
+                duration:     String(c.duration),
+                rate:         c.rate + '%',
+                interest:     _fmtDisplay(c.interest),
+                total:        _fmtDisplay(c.total),
+                depositDate:  c.depStr,
+                maturityDate: c.matStr,
+                payMethod:    methodMap[r.paymentMethod] || r.paymentMethod || '—',
+                status:       c.isMatured
+                    ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:99px;font-size:0.78rem;font-weight:600;">Matured</span>'
+                    : '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:0.78rem;font-weight:600;">Active</span>'
+            };
+            const cells = activeCols.map(col => `<td style="padding:10px 12px;white-space:nowrap;">${vals[col.key] ?? '—'}</td>`).join('');
+            const bg = c.isMatured ? 'background:#fff7f7;' : '';
+            return `<tr style="${bg}">${cells}</tr>`;
+        }).join('');
+
+        // Totals row — show sum only for numeric columns, dash for others
+        const numericKeys = new Set(['principal','interest','total']);
+        const totalVals = { principal: _fmtDisplay(totPrincipal), interest: _fmtDisplay(totInterest), total: _fmtDisplay(totTotal) };
+        const totalCells = activeCols.map((col, i) => {
+            if (i === 0) return `<td style="padding:10px 12px;white-space:nowrap;font-weight:700;">Total (${records.length})</td>`;
+            const v = numericKeys.has(col.key) ? totalVals[col.key] : '—';
+            return `<td style="padding:10px 12px;white-space:nowrap;font-weight:700;">${v}</td>`;
+        }).join('');
+        const totalRow = `<tr style="background:#f0fdf4;border-top:2px solid #16a34a;">${totalCells}</tr>`;
+
+        table.innerHTML = `<thead><tr style="background:#dbeafe;">${hdr}</tr></thead><tbody>${rows || '<tr><td colspan="99" style="padding:2rem;text-align:center;color:#999;">No records found.</td></tr>'}${records.length ? totalRow : ''}</tbody>`;
+    }
+
+    /* ── PDF Export ────────────────────────────────────────────── */
+    async function exportFDReportPDF() {
+        if (_fdReportRows.length === 0) await generateFDReport();
+        if (_fdReportRows.length === 0) return; // still empty after fetch
+
+        const { title, subtitle } = _buildTitle();
+        const type = document.querySelector('input[name="fdReportType"]:checked')?.value || 'summary';
+        const methodMap = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+
+        /* ── Build table HTML ─────────────────────────────── */
+        let tableHTML = '';
+        if (type === 'summary') {
+            let ac=0, mc=0, ap=0, mp=0, ai=0, mi=0;
+            _fdReportRows.forEach(r => {
+                const c = _calcFD(r);
+                if (c.isMatured) { mc++; mp += c.principal; mi += c.interest; }
+                else             { ac++; ap += c.principal; ai += c.interest; }
+            });
+            const fmt = n => '৳' + n.toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 });
+            tableHTML = `
+                <table class="report-table">
+                    <thead><tr>
+                        <th>Status</th><th>Count</th>
+                        <th>Total Principal</th><th>Est. Interest</th><th>Total Return</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td>Active</td><td>${ac}</td><td>${fmt(ap)}</td><td>${fmt(ai)}</td><td>${fmt(ap+ai)}</td></tr>
+                        <tr><td>Matured</td><td>${mc}</td><td>${fmt(mp)}</td><td>${fmt(mi)}</td><td>${fmt(mp+mi)}</td></tr>
+                        <tr class="total-row"><td><strong>Total</strong></td><td><strong>${ac+mc}</strong></td><td><strong>${fmt(ap+mp)}</strong></td><td><strong>${fmt(ai+mi)}</strong></td><td><strong>${fmt(ap+mp+ai+mi)}</strong></td></tr>
+                    </tbody>
+                </table>`;
+        } else {
+            const activeCols = _getActiveCols();
+            if (activeCols.length === 0) { alert('Please select at least one column.'); return; }
+            const hdrs = activeCols.map(c => `<th>${c.label}</th>`).join('');
+            let pdfTotP = 0, pdfTotI = 0, pdfTotT = 0;
+            const rows = _fdReportRows.map(r => {
+                const c = _calcFD(r);
+                pdfTotP += c.principal; pdfTotI += c.interest; pdfTotT += c.total;
+                const fmtP = n => '৳' + n.toLocaleString('en', {minimumFractionDigits:2,maximumFractionDigits:2});
+                const vals = {
+                    requestId:    r.requestId,
+                    memberName:   c.memberName,
+                    memberId:     c.memberId,
+                    principal:    fmtP(c.principal),
+                    duration:     String(c.duration),
+                    rate:         c.rate + '%',
+                    interest:     fmtP(c.interest),
+                    total:        fmtP(c.total),
+                    depositDate:  c.depStr,
+                    maturityDate: c.matStr,
+                    payMethod:    methodMap[r.paymentMethod] || r.paymentMethod || '—',
+                    status:       c.isMatured ? 'Matured' : 'Active',
+                };
+                const cells = activeCols.map(col => `<td>${vals[col.key] ?? '—'}</td>`).join('');
+                return `<tr class="${c.isMatured ? 'row-matured' : ''}">${cells}</tr>`;
+            }).join('');
+            // Totals row for PDF
+            const pdfNumericKeys = new Set(['principal','interest','total']);
+            const pdfTotalVals = { principal:'৳'+pdfTotP.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}), interest:'৳'+pdfTotI.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}), total:'৳'+pdfTotT.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2}) };
+            const pdfTotalCells = activeCols.map((col, i) => {
+                if (i === 0) return `<td><strong>Total (${_fdReportRows.length})</strong></td>`;
+                return `<td><strong>${pdfNumericKeys.has(col.key) ? pdfTotalVals[col.key] : '—'}</strong></td>`;
+            }).join('');
+            const pdfTotalRow = _fdReportRows.length ? `<tr class="total-row">${pdfTotalCells}</tr>` : '';
+            tableHTML = `
+                <table class="report-table">
+                    <thead><tr>${hdrs}</tr></thead>
+                    <tbody>${rows || '<tr><td colspan="99" style="text-align:center;color:#999;">No records.</td></tr>'}${pdfTotalRow}</tbody>
+                </table>`;
+        }
+
+        /* ── Print window ─────────────────────────────────── */
+        /* fetch logo as base64 so it renders in the blank popup */
+        let logoDataURL = '';
+        try {
+            const logoResp = await fetch('/frontend/logo/without_bg_logo.png');
+            const blob     = await logoResp.blob();
+            logoDataURL    = await new Promise(res => {
+                const r = new FileReader();
+                r.onload = () => res(r.result);
+                r.readAsDataURL(blob);
+            });
+        } catch(_) { /* logo optional */ }
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SHANTISONGHO - Fixed Deposit Report</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #333; font-size: 13px; }
+        .letterhead { text-align: center; border-bottom: 3px solid #1e7e34; padding-bottom: 18px; margin-bottom: 24px; }
+        .logo-section { display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+        .logo { width: 60px; height: 60px; margin-right: 14px; }
+        .org-title h1 { color: #1e7e34; margin: 0; font-size: 26px; }
+        .org-title p  { color: #666; margin: 4px 0; font-size: 13px; }
+        .report-info { background: #f8f9fa; padding: 14px 16px; border-radius: 8px; margin-bottom: 20px; }
+        .report-info h3 { color: #1e7e34; margin: 0 0 8px 0; font-size: 15px; }
+        .report-info p  { margin: 4px 0; }
+        .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .report-table th, .report-table td { padding: 10px 12px; text-align: left; border: 1px solid #ddd; }
+        .report-table th { background: #dcfce7; color: #1e7e34; font-weight: 600; }
+        .report-table tr:nth-child(even) { background: #f9fafb; }
+        .report-table tr.row-matured td { background: #fff7f7; }
+        .report-table tr.total-row td { background: #f0fdf4; border-top: 2px solid #16a34a; }
+        .footer { text-align: center; margin-top: 28px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #666; }
+        @media print {
+            body { padding: 12px; }
+            .letterhead { page-break-after: avoid; }
+            .report-table tr { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="letterhead">
+        <div class="logo-section">
+            ${logoDataURL ? `<img src="${logoDataURL}" alt="logo" class="logo" />` : ''}
+            <div class="org-title">
+                <h1>শান্তিসংঘ (SHANTISONGHO)</h1>
+                <p>Islamic Finance &amp; Community Welfare Organization</p>
+                <p>Established: April 10, 2025</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-info">
+        <h3>Fixed Deposit Report</h3>
+        <p><strong>Report Type:</strong> ${subtitle}</p>
+        <p><strong>Total Records:</strong> ${_fdReportRows.length}</p>
+        <p><strong>Generated On:</strong> ${new Date().toLocaleString('en-GB')}</p>
+    </div>
+
+    ${tableHTML}
+
+    <div class="footer">
+        <p>This is a computer-generated report from SHANTISONGHO admin portal.</p>
+        <p>For any queries, please contact the organization office.</p>
+        <p>&copy; 2025 SHANTISONGHO. All rights reserved.</p>
+    </div>
+</body>
+</html>`);
+        printWindow.document.close();
+        setTimeout(() => { printWindow.focus(); printWindow.print(); }, 800);
+    }
+    window.exportFDReportPDF = exportFDReportPDF;
+
+    /* ── Excel Export ──────────────────────────────────────────── */
+    async function exportFDReportExcel() {
+        if (_fdReportRows.length === 0) await generateFDReport();
+        try {
+            const XLSX = window.XLSX;
+            if (!XLSX) { alert('Excel library not loaded yet. Please wait a moment and try again.'); return; }
+            const { title, subtitle } = _buildTitle();
+            const type = document.querySelector('input[name="fdReportType"]:checked')?.value || 'summary';
+            const methodMap = { bank:'Bank Transfer', hand_cash:'Hand Cash', mobile_banking:'Mobile Banking' };
+
+            let dataRows = [];
+            if (type === 'summary') {
+                let ac=0, mc=0, ap=0, mp=0, ai=0, mi=0;
+                _fdReportRows.forEach(r => {
+                    const c = _calcFD(r);
+                    if (c.isMatured) { mc++; mp += c.principal; mi += c.interest; }
+                    else             { ac++; ap += c.principal; ai += c.interest; }
+                });
+                dataRows = [
+                    ['Status', 'Count', 'Total Principal (BDT)', 'Est. Interest (BDT)', 'Total Return (BDT)'],
+                    ['Active',  ac, _fmt(ap),    _fmt(ai),    _fmt(ap+ai)],
+                    ['Matured', mc, _fmt(mp),    _fmt(mi),    _fmt(mp+mi)],
+                    ['Total',   ac+mc, _fmt(ap+mp), _fmt(ai+mi), _fmt(ap+mp+ai+mi)],
+                ];
+            } else {
+                const activeCols = _getActiveCols();
+                const labelMap = { requestId:'Request ID', memberName:'Member Name', memberId:'Member ID', principal:'Principal (BDT)', duration:'Duration (months)', rate:'Rate (%)', interest:'Interest (BDT)', total:'Total Return (BDT)', depositDate:'Deposit Date', maturityDate:'Maturity Date', payMethod:'Payment Method', status:'Status' };
+                dataRows.push(activeCols.map(c => labelMap[c.key] || c.label));
+                let xlsTotP = 0, xlsTotI = 0, xlsTotT = 0;
+                _fdReportRows.forEach(r => {
+                    const c = _calcFD(r);
+                    xlsTotP += c.principal; xlsTotI += c.interest; xlsTotT += c.total;
+                    const vals = { requestId: r.requestId, memberName: c.memberName, memberId: c.memberId, principal: _fmt(c.principal), duration: c.duration, rate: c.rate + '%', interest: _fmt(c.interest), total: _fmt(c.total), depositDate: c.depStr, maturityDate: c.matStr, payMethod: methodMap[r.paymentMethod] || r.paymentMethod || '', status: c.isMatured ? 'Matured' : 'Active' };
+                    dataRows.push(activeCols.map(col => vals[col.key] ?? ''));
+                });
+                // Totals row
+                const xlsNumericKeys = new Set(['principal','interest','total']);
+                const xlsTotalVals = { principal: _fmt(xlsTotP), interest: _fmt(xlsTotI), total: _fmt(xlsTotT) };
+                const xlsTotalRow = activeCols.map((col, i) => {
+                    if (i === 0) return `Total (${_fdReportRows.length})`;
+                    return xlsNumericKeys.has(col.key) ? xlsTotalVals[col.key] : '';
+                });
+                dataRows.push(xlsTotalRow);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet([[title], [subtitle], [`Generated: ${new Date().toLocaleString('en-GB')}`], [], ...dataRows]);
+            // Bold header row (row 5, 0-indexed = 4) and total row
+            const headerRowIdx = 4;
+            const colCount = dataRows[0]?.length || 5;
+            const totalRowIdx = 4 + dataRows.length - 1; // last row
+            for (let ci = 0; ci < colCount; ci++) {
+                const hAddr = XLSX.utils.encode_cell({ r: headerRowIdx, c: ci });
+                if (ws[hAddr]) { ws[hAddr].s = { font: { bold: true } }; }
+                const tAddr = XLSX.utils.encode_cell({ r: totalRowIdx, c: ci });
+                if (ws[tAddr]) { ws[tAddr].s = { font: { bold: true } }; }
+            }
+            ws['!cols'] = Array(colCount).fill({ wch: 20 });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'FD Report');
+            XLSX.writeFile(wb, `FD_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+        } catch(e) {
+            alert('Excel export error: ' + e.message);
+            console.error(e);
+        }
+    }
+    window.exportFDReportExcel = exportFDReportExcel;
+
+    /* ── Init (called when section opens) ──────────────────────── */
+    window.initFDReport = function () {
+        onFDReportTypeChange();
+        const preview = document.getElementById('fdRpt_preview');
+        if (preview) preview.style.display = 'none';
+    };
+})();
+
+// ================================================================
+// SHARE DEPOSIT REPORT
+// ================================================================
+(function () {
+    const SHARE_API = `${API_BASE_URL}/api/monthlyshare`;
+    let _shareReportRows = [];
+    let _shareMonthlyRows = [];   // [{memberName,memberId,paid,entries,amount,entryDate,authStatus}]
+    let _shareMonthlyLabel = '';
+
+    function _fmtD(n) { return '\u09f3' + n.toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+    function _fmtN(n) { return parseFloat(n.toFixed(2)); }
+
+    function _buildShareTitle() {
+        const type   = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+        if (type === 'monthly') {
+            const month = document.getElementById('shareRpt_month')?.value || '';
+            const memId2 = (document.getElementById('shareRpt_monthMemId')?.value || '').trim().toUpperCase();
+            const [yr, mo] = month.split('-');
+            const monthLabel = month ? new Date(parseInt(yr), parseInt(mo)-1, 1).toLocaleString('en-GB', { month:'long', year:'numeric' }) : 'No month selected';
+            let sub = `Monthly View \u2014 ${monthLabel}`;
+            if (memId2) sub += ` | Member: ${memId2}`;
+            return { title: 'SHANTISONGHO \u2014 Share Deposit Report', subtitle: sub };
+        }
+        const from   = document.getElementById('shareRpt_from')?.value;
+        const to     = document.getElementById('shareRpt_to')?.value;
+        const memId  = (document.getElementById('shareRpt_memberId')?.value || '').trim().toUpperCase();
+        const statv  = document.getElementById('shareRpt_status')?.value || 'all';
+        let sub = type === 'summary' ? 'Summary Report' : 'Detailed Report';
+        if (memId)     sub += ` | Member: ${memId}`;
+        if (statv !== 'all') sub += ` | ${statv} only`;
+        if (from && to) sub += ` | ${from} to ${to}`;
+        else if (from)  sub += ` | From ${from}`;
+        else if (to)    sub += ` | Up to ${to}`;
+        else            sub += ' | All Time';
+        return { title: 'SHANTISONGHO \u2014 Share Deposit Report', subtitle: sub };
+    }
+
+    function _getShareCols() {
+        const all = [
+            { id:'shareCol_memberName',  key:'memberName',  label:'Member Name' },
+            { id:'shareCol_memberId',    key:'memberId',    label:'Member ID' },
+            { id:'shareCol_amount',      key:'amount',      label:'Amount (\u09f3)' },
+            { id:'shareCol_month',       key:'month',       label:'Share Month' },
+            { id:'shareCol_date',        key:'date',        label:'Entry Date' },
+            { id:'shareCol_status',      key:'status',      label:'Status' },
+            { id:'shareCol_entryBy',     key:'entryBy',     label:'Entry By' },
+            { id:'shareCol_authorizedBy',key:'authorizedBy',label:'Authorized By' },
+        ];
+        return all.filter(c => document.getElementById(c.id)?.checked);
+    }
+
+    function _currentYYYYMM() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    function onShareReportTypeChange() {
+        const type = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+        const colsDiv    = document.getElementById('shareRpt_colsDiv');
+        const filtersDiv = document.getElementById('shareRpt_filtersDiv');
+        const monthlyDiv = document.getElementById('shareRpt_monthlyDiv');
+        if (colsDiv)    colsDiv.style.display    = type === 'detailed' ? 'block' : 'none';
+        if (filtersDiv) filtersDiv.style.display  = type === 'monthly'  ? 'none'  : '';
+        if (monthlyDiv) monthlyDiv.style.display  = type === 'monthly'  ? 'block' : 'none';
+        if (type === 'monthly') {
+            const inp = document.getElementById('shareRpt_month');
+            if (inp && !inp.value) inp.value = _currentYYYYMM();
+        }
+    }
+    window.onShareReportTypeChange = onShareReportTypeChange;
+
+    async function _renderShareMonthly() {
+        const preview    = document.getElementById('shareRpt_preview');
+        const summaryDiv = document.getElementById('shareRpt_summary');
+        if (summaryDiv) summaryDiv.innerHTML = '<p style="color:#6b7280;">Loading\u2026</p>';
+        if (preview) preview.style.display = 'block';
+
+        const selectedMonth = document.getElementById('shareRpt_month')?.value;
+        if (!selectedMonth) {
+            summaryDiv.innerHTML = '<p style="color:#dc2626;font-weight:600;">Please select a month first.</p>';
+            return;
+        }
+        const filterMemId = (document.getElementById('shareRpt_monthMemId')?.value || '').trim().toUpperCase();
+        try {
+            const [membersRes, entriesRes] = await Promise.all([
+                fetch(`${SHARE_API}/all-members`),
+                fetch(`${SHARE_API}/`)
+            ]);
+            const members = await membersRes.json();
+            const entries = await entriesRes.json();
+            if (!Array.isArray(members) || !Array.isArray(entries)) {
+                summaryDiv.innerHTML = '<p style="color:#dc2626;">Failed to load data.</p>'; return;
+            }
+            // group paid entries by memberID for this month
+            const paidMap = {};
+            entries.filter(r => r.month === selectedMonth).forEach(r => {
+                const mid = (r.memberId || '').toUpperCase();
+                if (!paidMap[mid]) paidMap[mid] = [];
+                paidMap[mid].push(r);
+            });
+            let rows = members.map(m => {
+                const mid  = (m.memberID || '').toUpperCase();
+                const paid = paidMap[mid] || [];
+                return { memberName:m.fullName||'\u2014', memberId:mid, paid:paid.length>0, entries:paid };
+            });
+            if (filterMemId) rows = rows.filter(r => r.memberId === filterMemId);
+            const paidCount   = rows.filter(r => r.paid).length;
+            const unpaidCount = rows.length - paidCount;
+            const [yr, mo]    = selectedMonth.split('-');
+            const monthLabel  = new Date(parseInt(yr), parseInt(mo)-1, 1).toLocaleString('en-GB', {month:'long',year:'numeric'});
+            summaryDiv.innerHTML = `
+                <div style="margin-bottom:12px;"><h4 style="margin:0 0 10px 0;color:#1e40af;font-size:1rem;">Monthly View: <span style="color:#15803d;">${monthLabel}</span></h4></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px;">
+                  <div style="background:#dcfce7;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#15803d;font-weight:600;margin-bottom:4px;">\u2705 Paid</div>
+                    <div style="font-size:2rem;font-weight:800;color:#15803d;">${paidCount}</div>
+                    <div style="font-size:0.75rem;color:#166534;">Members</div>
+                  </div>
+                  <div style="background:#fee2e2;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-bottom:4px;">\u274c Unpaid</div>
+                    <div style="font-size:2rem;font-weight:800;color:#dc2626;">${unpaidCount}</div>
+                    <div style="font-size:0.75rem;color:#991b1b;">Members</div>
+                  </div>
+                  <div style="background:#dbeafe;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#1d4ed8;font-weight:600;margin-bottom:4px;">Total</div>
+                    <div style="font-size:2rem;font-weight:800;color:#1d4ed8;">${rows.length}</div>
+                    <div style="font-size:0.75rem;color:#1e40af;">Members</div>
+                  </div>
+                </div>`;
+            const tableEl  = document.getElementById('shareRpt_table');
+            const tableRows = rows.map(r => {
+                const badge = r.paid
+                    ? `<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:700;">\u2705 Paid</span>`
+                    : `<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:700;">\u274c Unpaid</span>`;
+                const amount     = r.paid ? r.entries.map(e=>_fmtD(e.amount)).join(', ')                                                              : '\u2014';
+                const authStatus = r.paid ? r.entries.map(e=>e.status).join(', ')                                                                      : '\u2014';
+                const entryDate  = r.paid ? r.entries.map(e=>e.date?new Date(e.date).toLocaleDateString('en-GB'):'\u2014').join(', ')                  : '\u2014';
+                return `<tr style="${r.paid?'':'background:#fff5f5;'}">
+                    <td style="padding:10px 12px;">${r.memberName}</td>
+                    <td style="padding:10px 12px;">${r.memberId}</td>
+                    <td style="padding:10px 12px;text-align:center;">${badge}</td>
+                    <td style="padding:10px 12px;">${amount}</td>
+                    <td style="padding:10px 12px;">${entryDate}</td>
+                    <td style="padding:10px 12px;">${authStatus}</td>
+                </tr>`;
+            }).join('');
+            tableEl.innerHTML = `<thead><tr style="background:#dbeafe;">
+                <th style="padding:10px 12px;">Member Name</th>
+                <th style="padding:10px 12px;">Member ID</th>
+                <th style="padding:10px 12px;text-align:center;">Status</th>
+                <th style="padding:10px 12px;">Amount (\u09f3)</th>
+                <th style="padding:10px 12px;">Entry Date</th>
+                <th style="padding:10px 12px;">Auth Status</th>
+            </tr></thead><tbody>${tableRows||'<tr><td colspan="6" style="padding:2rem;text-align:center;color:#999;">No members found.</td></tr>'}</tbody>`;
+            // cache for export
+            _shareMonthlyLabel = monthLabel;
+            _shareMonthlyRows  = rows.map(r => ({
+                memberName:  r.memberName,
+                memberId:    r.memberId,
+                paid:        r.paid,
+                amount:      r.paid ? r.entries.map(e => e.amount).reduce((a,b)=>a+b, 0) : 0,
+                amountFmt:   r.paid ? r.entries.map(e => _fmtD(e.amount)).join(', ') : '\u2014',
+                entryDate:   r.paid ? r.entries.map(e => e.date ? new Date(e.date).toLocaleDateString('en-GB') : '\u2014').join(', ') : '\u2014',
+                authStatus:  r.paid ? r.entries.map(e => e.status).join(', ') : '\u2014',
+            }));
+        } catch(e) {
+            summaryDiv.innerHTML = '<p style="color:#dc2626;">Error loading data.</p>';
+            console.error(e);
+        }
+    }
+
+    async function generateShareReport() {
+        const type = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+        if (type === 'monthly') { await _renderShareMonthly(); return; }
+        const preview = document.getElementById('shareRpt_preview');
+        const summaryDiv = document.getElementById('shareRpt_summary');
+        if (summaryDiv) summaryDiv.innerHTML = '<p style="color:#6b7280;">Loading data\u2026</p>';
+        if (preview) preview.style.display = 'block';
+        try {
+            const res  = await fetch(`${SHARE_API}/`);
+            const data = await res.json();
+            if (!Array.isArray(data)) { summaryDiv.innerHTML = '<p style="color:#dc2626;">Failed to load data.</p>'; return; }
+
+            let filtered = [...data];
+
+            const memId = (document.getElementById('shareRpt_memberId')?.value || '').trim().toUpperCase();
+            if (memId) filtered = filtered.filter(r => (r.memberId || '').toUpperCase() === memId);
+
+            const fromMonth = document.getElementById('shareRpt_from')?.value;
+            const toMonth   = document.getElementById('shareRpt_to')?.value;
+            if (fromMonth) {
+                filtered = filtered.filter(r => {
+                    const d = new Date(r.date || r.createdAt);
+                    const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    return ym >= fromMonth;
+                });
+            }
+            if (toMonth) {
+                filtered = filtered.filter(r => {
+                    const d = new Date(r.date || r.createdAt);
+                    const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                    return ym <= toMonth;
+                });
+            }
+
+            const statv = document.getElementById('shareRpt_status')?.value || 'all';
+            if (statv !== 'all') filtered = filtered.filter(r => r.status === statv);
+
+            _shareReportRows = filtered;
+
+            const type2 = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+            if (type2 === 'summary') _renderShareSummary(filtered);
+            else                     _renderShareDetailed(filtered);
+        } catch(e) {
+            if (summaryDiv) summaryDiv.innerHTML = '<p style="color:#dc2626;">Error loading data.</p>';
+            console.error(e);
+        }
+    }
+    window.generateShareReport = generateShareReport;
+
+    function _renderShareSummary(records) {
+        let authCount=0, pendCount=0, authTotal=0, pendTotal=0;
+        records.forEach(r => {
+            const amt = r.amount;
+            if (r.status === 'Authorized') { authCount++; authTotal += amt; }
+            else                           { pendCount++; pendTotal += amt; }
+        });
+        const summaryDiv = document.getElementById('shareRpt_summary');
+        summaryDiv.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+              <div style="background:#dcfce7;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#15803d;font-weight:600;margin-bottom:4px;">Authorized</div>
+                <div style="font-size:2rem;font-weight:800;color:#15803d;">${authCount}</div>
+                <div style="font-size:0.8rem;color:#166534;">${_fmtD(authTotal)}</div>
+              </div>
+              <div style="background:#fef9c3;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#ca8a04;font-weight:600;margin-bottom:4px;">Pending</div>
+                <div style="font-size:2rem;font-weight:800;color:#ca8a04;">${pendCount}</div>
+                <div style="font-size:0.8rem;color:#a16207;">${_fmtD(pendTotal)}</div>
+              </div>
+              <div style="background:#dbeafe;border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:#1d4ed8;font-weight:600;margin-bottom:4px;">Total</div>
+                <div style="font-size:2rem;font-weight:800;color:#1d4ed8;">${records.length}</div>
+                <div style="font-size:0.8rem;color:#1e40af;">${_fmtD(authTotal+pendTotal)}</div>
+              </div>
+            </div>`;
+        const table = document.getElementById('shareRpt_table');
+        table.innerHTML = `
+            <thead><tr style="background:#dbeafe;">
+              <th style="padding:12px;">Status</th>
+              <th style="padding:12px;text-align:right;">Count</th>
+              <th style="padding:12px;text-align:right;">Total Amount (\u09f3)</th>
+            </tr></thead>
+            <tbody>
+              <tr style="background:#f0fdf4;">
+                <td style="padding:12px;"><span style="background:#dcfce7;color:#15803d;padding:2px 10px;border-radius:99px;font-size:0.82rem;font-weight:600;">Authorized</span></td>
+                <td style="padding:12px;text-align:right;">${authCount}</td>
+                <td style="padding:12px;text-align:right;">${_fmtD(authTotal)}</td>
+              </tr>
+              <tr style="background:#fefce8;">
+                <td style="padding:12px;"><span style="background:#fef9c3;color:#ca8a04;padding:2px 10px;border-radius:99px;font-size:0.82rem;font-weight:600;">Pending</span></td>
+                <td style="padding:12px;text-align:right;">${pendCount}</td>
+                <td style="padding:12px;text-align:right;">${_fmtD(pendTotal)}</td>
+              </tr>
+              <tr style="font-weight:700;background:#f9fafb;border-top:2px solid #e5e7eb;">
+                <td style="padding:12px;">Total</td>
+                <td style="padding:12px;text-align:right;">${records.length}</td>
+                <td style="padding:12px;text-align:right;">${_fmtD(authTotal+pendTotal)}</td>
+              </tr>
+            </tbody>`;
+    }
+
+    function _renderShareDetailed(records) {
+        const summaryDiv = document.getElementById('shareRpt_summary');
+        summaryDiv.innerHTML = `<p style="color:#6b7280;font-size:0.875rem;">Showing <b>${records.length}</b> records</p>`;
+        const activeCols = _getShareCols();
+        if (activeCols.length === 0) { summaryDiv.innerHTML += '<p style="color:#dc2626;">Please select at least one column.</p>'; return; }
+        const table = document.getElementById('shareRpt_table');
+        const hdr   = activeCols.map(c => `<th style="padding:10px 12px;text-align:left;white-space:nowrap;">${c.label}</th>`).join('');
+        let totAmt  = 0;
+        const rows  = records.map(r => {
+            totAmt += r.amount;
+            const vals = {
+                memberName:   r.memberName || '\u2014',
+                memberId:     r.memberId   || '\u2014',
+                amount:       _fmtD(r.amount),
+                month:        r.month      || '\u2014',
+                date:         r.date ? new Date(r.date).toLocaleDateString('en-GB') : '\u2014',
+                status:       r.status === 'Authorized'
+                    ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:99px;font-size:0.78rem;font-weight:600;">Authorized</span>'
+                    : '<span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:99px;font-size:0.78rem;font-weight:600;">Pending</span>',
+                entryBy:      r.entryBy       || '\u2014',
+                authorizedBy: r.authorizedBy  || '\u2014',
+            };
+            const cells = activeCols.map(col => `<td style="padding:10px 12px;white-space:nowrap;">${vals[col.key] ?? '\u2014'}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+        const numericKeys = new Set(['amount']);
+        const totVals = { amount: _fmtD(totAmt) };
+        const totalCells = activeCols.map((col, i) => {
+            if (i === 0) return `<td style="padding:10px 12px;white-space:nowrap;font-weight:700;">Total (${records.length})</td>`;
+            return `<td style="padding:10px 12px;white-space:nowrap;font-weight:700;">${numericKeys.has(col.key) ? totVals[col.key] : '\u2014'}</td>`;
+        }).join('');
+        const totalRow = records.length ? `<tr style="background:#f0fdf4;border-top:2px solid #16a34a;">${totalCells}</tr>` : '';
+        table.innerHTML = `<thead><tr style="background:#dbeafe;">${hdr}</tr></thead><tbody>${rows || '<tr><td colspan="99" style="padding:2rem;text-align:center;color:#999;">No records.</td></tr>'}${totalRow}</tbody>`;
+    }
+
+    async function exportShareReportPDF() {
+        if (_shareReportRows.length === 0) await generateShareReport();
+        if (_shareReportRows.length === 0) return;
+        const { title, subtitle } = _buildShareTitle();
+        const type = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+        if (type === 'monthly') {
+            if (_shareMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
+            const paidCount   = _shareMonthlyRows.filter(r=>r.paid).length;
+            const unpaidCount = _shareMonthlyRows.length - paidCount;
+            const paidRows    = _shareMonthlyRows.filter(r=>r.paid).map(r=>`<tr style="background:#f0fdf4;"><td>${r.memberName}</td><td>${r.memberId}</td><td>&#10003; Paid</td><td>${r.amountFmt}</td><td>${r.entryDate}</td><td>${r.authStatus}</td></tr>`).join('');
+            const unpaidRows  = _shareMonthlyRows.filter(r=>!r.paid).map(r=>`<tr style="background:#fff5f5;"><td>${r.memberName}</td><td>${r.memberId}</td><td>&#10007; Unpaid</td><td>-</td><td>-</td><td>-</td></tr>`).join('');
+            let logoDataURL = '';
+            try { const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
+            const pw = window.open('','_blank');
+            pw.document.write(`<!DOCTYPE html><html><head><title>Share Monthly View</title><style>
+                body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
+                .letterhead{text-align:center;border-bottom:3px solid #1e7e34;padding-bottom:18px;margin-bottom:24px;}
+                .logo-section{display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+                .logo{width:60px;height:60px;margin-right:14px;}
+                .org-title h1{color:#1e7e34;margin:0;font-size:26px;} .org-title p{color:#666;margin:4px 0;font-size:13px;}
+                .stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+                .stat-box{flex:1;min-width:100px;padding:14px;border-radius:8px;text-align:center;}
+                .report-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+                .report-table th,.report-table td{padding:10px 12px;text-align:left;border:1px solid #ddd;}
+                .report-table th{background:#dcfce7;color:#1e7e34;font-weight:600;}
+                .report-table tr:nth-child(even){background:#f9fafb;}
+                .footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#666;}
+                @media print{body{padding:12px;}.report-table tr{page-break-inside:avoid;}}
+            </style></head><body>
+            <div class="letterhead"><div class="logo-section">
+                ${logoDataURL?`<img src="${logoDataURL}" class="logo" alt="logo" />`:''}                <div class="org-title"><h1>\u09b6\u09be\u09a8\u09cd\u09a4\u09bf\u09b8\u0982\u0998 (SHANTISONGHO)</h1><p>Islamic Finance &amp; Community Welfare Organization</p><p>Established: April 10, 2025</p></div>
+            </div></div>
+            <div style="background:#f8f9fa;padding:14px 16px;border-radius:8px;margin-bottom:20px;">
+                <h3 style="color:#1e7e34;margin:0 0 8px 0;font-size:15px;">Share Deposit &#8212; Monthly View</h3>
+                <p><strong>Month:</strong> ${_shareMonthlyLabel}</p>
+                <p><strong>Generated On:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+            <div class="stats">
+                <div class="stat-box" style="background:#dcfce7;color:#15803d;"><div style="font-size:1.8rem;font-weight:800;">${paidCount}</div><div>Paid</div></div>
+                <div class="stat-box" style="background:#fee2e2;color:#dc2626;"><div style="font-size:1.8rem;font-weight:800;">${unpaidCount}</div><div>Unpaid</div></div>
+                <div class="stat-box" style="background:#dbeafe;color:#1d4ed8;"><div style="font-size:1.8rem;font-weight:800;">${_shareMonthlyRows.length}</div><div>Total</div></div>
+            </div>
+            <table class="report-table"><thead><tr>
+                <th>Member Name</th><th>Member ID</th><th>Status</th><th>Amount (\u09f3)</th><th>Entry Date</th><th>Auth Status</th>
+            </tr></thead><tbody>${paidRows}${unpaidRows}</tbody></table>
+            <div class="footer"><p>Computer-generated report from SHANTISONGHO admin portal. &copy; 2025 SHANTISONGHO.</p></div>
+            </body></html>`);
+            pw.document.close(); setTimeout(()=>{pw.focus();pw.print();},800);
+            return;
+        }
+
+        let tableHTML = '';
+        if (type === 'summary') {
+            let ac=0, pc=0, at=0, pt=0;
+            _shareReportRows.forEach(r => { if (r.status==='Authorized'){ac++;at+=r.amount;}else{pc++;pt+=r.amount;} });
+            const f = n => _fmtD(n);
+            tableHTML = `<table class="report-table"><thead><tr><th>Status</th><th>Count</th><th>Total Amount</th></tr></thead><tbody>
+                <tr><td>Authorized</td><td>${ac}</td><td>${f(at)}</td></tr>
+                <tr><td>Pending</td><td>${pc}</td><td>${f(pt)}</td></tr>
+                <tr class="total-row"><td><strong>Total</strong></td><td><strong>${ac+pc}</strong></td><td><strong>${f(at+pt)}</strong></td></tr>
+            </tbody></table>`;
+        } else {
+            const activeCols = _getShareCols();
+            if (activeCols.length === 0) { alert('Please select at least one column.'); return; }
+            const hdrs = activeCols.map(c => `<th>${c.label}</th>`).join('');
+            let pdfTot = 0;
+            const rows = _shareReportRows.map(r => {
+                pdfTot += r.amount;
+                const vals = { memberName:r.memberName||'\u2014', memberId:r.memberId||'\u2014', amount:_fmtD(r.amount), month:r.month||'\u2014', date:r.date?new Date(r.date).toLocaleDateString('en-GB'):'\u2014', status:r.status, entryBy:r.entryBy||'\u2014', authorizedBy:r.authorizedBy||'\u2014' };
+                return `<tr>${activeCols.map(col=>`<td>${vals[col.key]??'\u2014'}</td>`).join('')}</tr>`;
+            }).join('');
+            const totCells = activeCols.map((col,i) => i===0?`<td><strong>Total (${_shareReportRows.length})</strong></td>`:`<td><strong>${col.key==='amount'?_fmtD(pdfTot):'\u2014'}</strong></td>`).join('');
+            tableHTML = `<table class="report-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}<tr class="total-row">${totCells}</tr></tbody></table>`;
+        }
+
+        let logoDataURL = '';
+        try {
+            const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob();
+            logoDataURL = await new Promise(res => { const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
+        } catch(_){}
+
+        const pw = window.open('', '_blank');
+        pw.document.write(`<!DOCTYPE html><html><head><title>SHANTISONGHO Share Report</title><style>
+            body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
+            .letterhead{text-align:center;border-bottom:3px solid #1e7e34;padding-bottom:18px;margin-bottom:24px;}
+            .logo-section{display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+            .logo{width:60px;height:60px;margin-right:14px;}
+            .org-title h1{color:#1e7e34;margin:0;font-size:26px;} .org-title p{color:#666;margin:4px 0;font-size:13px;}
+            .report-info{background:#f8f9fa;padding:14px 16px;border-radius:8px;margin-bottom:20px;}
+            .report-info h3{color:#1e7e34;margin:0 0 8px 0;font-size:15px;} .report-info p{margin:4px 0;}
+            .report-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+            .report-table th,.report-table td{padding:10px 12px;text-align:left;border:1px solid #ddd;}
+            .report-table th{background:#dcfce7;color:#1e7e34;font-weight:600;}
+            .report-table tr:nth-child(even){background:#f9fafb;}
+            .report-table tr.total-row td{background:#f0fdf4;border-top:2px solid #16a34a;}
+            .footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#666;}
+            @media print{body{padding:12px;} .report-table tr{page-break-inside:avoid;}}
+        </style></head><body>
+            <div class="letterhead"><div class="logo-section">
+                ${logoDataURL?`<img src="${logoDataURL}" class="logo" alt="logo" />`:''}                <div class="org-title"><h1>\u09b6\u09be\u09a8\u09cd\u09a4\u09bf\u09b8\u0982\u0998 (SHANTISONGHO)</h1><p>Islamic Finance &amp; Community Welfare Organization</p><p>Established: April 10, 2025</p></div>
+            </div></div>
+            <div class="report-info"><h3>Share Deposit Report</h3>
+                <p><strong>Report Type:</strong> ${subtitle}</p>
+                <p><strong>Total Records:</strong> ${_shareReportRows.length}</p>
+                <p><strong>Generated On:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+            ${tableHTML}
+            <div class="footer"><p>This is a computer-generated report from SHANTISONGHO admin portal.</p><p>For any queries, please contact the organization office.</p><p>&copy; 2025 SHANTISONGHO. All rights reserved.</p></div>
+        </body></html>`);
+        pw.document.close();
+        setTimeout(() => { pw.focus(); pw.print(); }, 800);
+    }
+    window.exportShareReportPDF = exportShareReportPDF;
+
+    async function exportShareReportExcel() {
+        if (_shareReportRows.length === 0) await generateShareReport();
+        try {
+            const XLSX = window.XLSX;
+            if (!XLSX) { alert('Excel library not loaded.'); return; }
+            const { title, subtitle } = _buildShareTitle();
+            const type = document.querySelector('input[name="shareReportType"]:checked')?.value || 'summary';
+            if (type === 'monthly') {
+                if (_shareMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
+                const XLSX = window.XLSX;
+                if (!XLSX) { alert('Excel library not loaded.'); return; }
+                const paidCount   = _shareMonthlyRows.filter(r=>r.paid).length;
+                const unpaidCount = _shareMonthlyRows.length - paidCount;
+                const dataRows = [
+                    [`Share Deposit Monthly View \u2014 ${_shareMonthlyLabel}`],
+                    [`Generated: ${new Date().toLocaleString('en-GB')}`],
+                    [`Paid: ${paidCount}  |  Unpaid: ${unpaidCount}  |  Total: ${_shareMonthlyRows.length}`],
+                    [],
+                    ['Member Name','Member ID','Status','Amount (BDT)','Entry Date','Auth Status'],
+                    ..._shareMonthlyRows.map(r=>[r.memberName, r.memberId, r.paid?'Paid':'Unpaid', r.paid?_fmtN(r.amount):'', r.entryDate, r.authStatus]),
+                ];
+                const ws  = XLSX.utils.aoa_to_sheet(dataRows);
+                ws['!cols'] = Array(6).fill({wch:22});
+                const wb  = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Monthly View');
+                XLSX.writeFile(wb, `Share_Monthly_${document.getElementById('shareRpt_month')?.value||'report'}.xlsx`);
+                return;
+            }
+            let dataRows = [];
+            if (type === 'summary') {
+                let ac=0,pc=0,at=0,pt=0;
+                _shareReportRows.forEach(r=>{if(r.status==='Authorized'){ac++;at+=r.amount;}else{pc++;pt+=r.amount;}});
+                dataRows = [['Status','Count','Total Amount (BDT)'],['Authorized',ac,_fmtN(at)],['Pending',pc,_fmtN(pt)],['Total',ac+pc,_fmtN(at+pt)]];
+            } else {
+                const activeCols = _getShareCols();
+                const lmap = { memberName:'Member Name', memberId:'Member ID', amount:'Amount (BDT)', month:'Share Month', date:'Entry Date', status:'Status', entryBy:'Entry By', authorizedBy:'Authorized By' };
+                dataRows.push(activeCols.map(c => lmap[c.key]||c.label));
+                let tot = 0;
+                _shareReportRows.forEach(r => {
+                    tot += r.amount;
+                    const vals = { memberName:r.memberName, memberId:r.memberId, amount:_fmtN(r.amount), month:r.month, date:r.date?new Date(r.date).toLocaleDateString('en-GB'):'', status:r.status, entryBy:r.entryBy, authorizedBy:r.authorizedBy||'' };
+                    dataRows.push(activeCols.map(col => vals[col.key]??''));
+                });
+                const totRow = activeCols.map((col,i)=>i===0?`Total (${_shareReportRows.length})`:col.key==='amount'?_fmtN(tot):'');
+                dataRows.push(totRow);
+            }
+            const ws = XLSX.utils.aoa_to_sheet([[title],[subtitle],[`Generated: ${new Date().toLocaleString('en-GB')}`],[],...dataRows]);
+            const colCount = dataRows[0]?.length||3;
+            [4, 4+dataRows.length-1].forEach(ri=>{ for(let ci=0;ci<colCount;ci++){const a=XLSX.utils.encode_cell({r:ri,c:ci});if(ws[a])ws[a].s={font:{bold:true}};} });
+            ws['!cols'] = Array(colCount).fill({wch:22});
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Share Report');
+            XLSX.writeFile(wb, `Share_Deposit_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+        } catch(e) { alert('Excel export error: ' + e.message); console.error(e); }
+    }
+    window.exportShareReportExcel = exportShareReportExcel;
+
+    window.initShareReport = function () {
+        const inp = document.getElementById('shareRpt_month');
+        if (inp) inp.value = _currentYYYYMM();
+        onShareReportTypeChange();
+        const p = document.getElementById('shareRpt_preview');
+        if (p) p.style.display = 'none';
+    };
+})();
+
+// ================================================================
+// INVESTMENT REPORT
+// ================================================================
+(function () {
+    const INV_API = `${API_BASE_URL}/api/investment-accounts`;
+    let _invReportRows = [];
+    let _invMonthlyRows  = [];   // [{accountNo,memberName,memberId,dueAmount,paidAmount,dueDate,paidDate,status}]
+    let _invMonthlyLabel = '';
+
+    // amounts stored in paisa → divide by 100
+    function _paisa(n) { return (n || 0) / 100; }
+    function _fmtD(n) { return '\u09f3' + n.toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+    function _fmtN(n) { return parseFloat(n.toFixed(2)); }
+
+    function _buildInvTitle() {
+        const type  = document.querySelector('input[name="invReportType"]:checked')?.value || 'summary';
+        if (type === 'monthly') {
+            const month = document.getElementById('invRpt_month')?.value || '';
+            const memId2 = (document.getElementById('invRpt_monthMemId')?.value || '').trim().toUpperCase();
+            const [yr, mo] = month.split('-');
+            const monthLabel = month ? new Date(parseInt(yr), parseInt(mo)-1, 1).toLocaleString('en-GB', {month:'long',year:'numeric'}) : 'No month selected';
+            let sub = `Monthly Installment View \u2014 ${monthLabel}`;
+            if (memId2) sub += ` | Member: ${memId2}`;
+            return { title: 'SHANTISONGHO \u2014 Investment Report', subtitle: sub };
+        }
+        const from  = document.getElementById('invRpt_from')?.value;
+        const to    = document.getElementById('invRpt_to')?.value;
+        const memId = (document.getElementById('invRpt_memberId')?.value || '').trim().toUpperCase();
+        const statv = document.getElementById('invRpt_status')?.value || 'all';
+        let sub = type === 'summary' ? 'Summary Report' : 'Detailed Report';
+        if (memId)     sub += ` | Member: ${memId}`;
+        if (statv !== 'all') sub += ` | ${statv.charAt(0).toUpperCase()+statv.slice(1)} only`;
+        if (from && to) sub += ` | ${from} to ${to}`;
+        else if (from)  sub += ` | From ${from}`;
+        else if (to)    sub += ` | Up to ${to}`;
+        else            sub += ' | All Time';
+        return { title: 'SHANTISONGHO \u2014 Investment Report', subtitle: sub };
+    }
+
+    function _getInvCols() {
+        const all = [
+            { id:'invCol_accountNo',     key:'accountNo',     label:'Account No.' },
+            { id:'invCol_memberName',    key:'memberName',    label:'Member Name' },
+            { id:'invCol_memberId',      key:'memberId',      label:'Member ID' },
+            { id:'invCol_principal',     key:'principal',     label:'Principal (\u09f3)' },
+            { id:'invCol_duration',      key:'duration',      label:'Duration (months)' },
+            { id:'invCol_profitPct',     key:'profitPct',     label:'Profit %' },
+            { id:'invCol_monthlyProfit', key:'monthlyProfit', label:'Monthly Profit (\u09f3)' },
+            { id:'invCol_totalProfit',   key:'totalProfit',   label:'Total Profit (\u09f3)' },
+            { id:'invCol_totalAmount',   key:'totalAmount',   label:'Total Amount (\u09f3)' },
+            { id:'invCol_startDate',     key:'startDate',     label:'Start Date' },
+            { id:'invCol_endDate',       key:'endDate',       label:'End Date' },
+            { id:'invCol_status',        key:'status',        label:'Status' },
+            { id:'invCol_purpose',       key:'purpose',       label:'Purpose' },
+        ];
+        return all.filter(c => document.getElementById(c.id)?.checked);
+    }
+
+    function _statusBadge(s) {
+        const map = { active:'#dcfce7,#15803d,Active', completed:'#dbeafe,#1d4ed8,Completed', defaulted:'#fee2e2,#dc2626,Defaulted' };
+        const [bg,fg,label] = (map[s]||'#f3f4f6,#374151,'+s).split(',');
+        return `<span style="background:${bg};color:${fg};padding:2px 8px;border-radius:99px;font-size:0.78rem;font-weight:600;">${label}</span>`;
+    }
+
+    function _currentYYYYMM() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    }
+
+    function onInvReportTypeChange() {
+        const type = document.querySelector('input[name="invReportType"]:checked')?.value || 'summary';
+        const colsDiv    = document.getElementById('invRpt_colsDiv');
+        const filtersDiv = document.getElementById('invRpt_filtersDiv');
+        const monthlyDiv = document.getElementById('invRpt_monthlyDiv');
+        if (colsDiv)    colsDiv.style.display    = type === 'detailed' ? 'block' : 'none';
+        if (filtersDiv) filtersDiv.style.display  = type === 'monthly'  ? 'none'  : '';
+        if (monthlyDiv) monthlyDiv.style.display  = type === 'monthly'  ? 'block' : 'none';
+        if (type === 'monthly') {
+            const inp = document.getElementById('invRpt_month');
+            if (inp && !inp.value) inp.value = _currentYYYYMM();
+        }
+    }
+    window.onInvReportTypeChange = onInvReportTypeChange;
+
+    async function _renderInvMonthly() {
+        const preview    = document.getElementById('invRpt_preview');
+        const summaryDiv = document.getElementById('invRpt_summary');
+        if (summaryDiv) summaryDiv.innerHTML = '<p style="color:#6b7280;">Loading\u2026</p>';
+        if (preview) preview.style.display = 'block';
+
+        const selectedMonth = document.getElementById('invRpt_month')?.value;
+        if (!selectedMonth) {
+            summaryDiv.innerHTML = '<p style="color:#dc2626;font-weight:600;">Please select a month first.</p>';
+            return;
+        }
+        const filterMemId = (document.getElementById('invRpt_monthMemId')?.value || '').trim().toUpperCase();
+        const [selectedYear, selectedMo] = selectedMonth.split('-').map(Number);
+        try {
+            const res  = await fetch(`${INV_API}/all`);
+            const data = await res.json();
+            if (!Array.isArray(data)) { summaryDiv.innerHTML = '<p style="color:#dc2626;">Failed to load data.</p>'; return; }
+
+            let accounts = data.filter(a => a.status === 'active');
+            if (filterMemId) accounts = accounts.filter(a => (a.memberID||'').toUpperCase() === filterMemId);
+
+            const rows = accounts.map(a => {
+                const payments    = a.monthlyPayments || [];
+                const installment = payments.find(p => {
+                    const d = new Date(p.dueDate);
+                    return d.getFullYear() === selectedYear && (d.getMonth()+1) === selectedMo;
+                });
+                return {
+                    accountNo:  a.investmentAccountNumber || '\u2014',
+                    memberName: a.memberName || '\u2014',
+                    memberId:   a.memberID   || '\u2014',
+                    dueAmount:  installment ? _paisa(installment.expectedAmount) : _paisa(a.monthlyProfit),
+                    paidAmount: installment ? _paisa(installment.amountPaid)     : 0,
+                    dueDate:    installment?.dueDate  ? new Date(installment.dueDate).toLocaleDateString('en-GB')  : '\u2014',
+                    paidDate:   installment?.paidDate ? new Date(installment.paidDate).toLocaleDateString('en-GB') : '\u2014',
+                    status:     installment ? installment.status : 'no-installment',
+                };
+            });
+
+            const paidCount    = rows.filter(r => r.status === 'paid').length;
+            const pendingCount = rows.filter(r => r.status === 'pending').length;
+            const overdueCount = rows.filter(r => r.status === 'overdue').length;
+            const noInstCount  = rows.filter(r => r.status === 'no-installment').length;
+
+            const [yr, mo] = selectedMonth.split('-');
+            const monthLabel = new Date(parseInt(yr), parseInt(mo)-1, 1).toLocaleString('en-GB', {month:'long',year:'numeric'});
+
+            summaryDiv.innerHTML = `
+                <div style="margin-bottom:12px;"><h4 style="margin:0 0 10px 0;color:#1e40af;font-size:1rem;">Monthly Installment View: <span style="color:#15803d;">${monthLabel}</span></h4></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px;">
+                  <div style="background:#dcfce7;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#15803d;font-weight:600;margin-bottom:4px;">\u2705 Paid</div>
+                    <div style="font-size:2rem;font-weight:800;color:#15803d;">${paidCount}</div>
+                  </div>
+                  <div style="background:#fef9c3;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#ca8a04;font-weight:600;margin-bottom:4px;">\u23f3 Pending</div>
+                    <div style="font-size:2rem;font-weight:800;color:#ca8a04;">${pendingCount}</div>
+                  </div>
+                  <div style="background:#fee2e2;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-bottom:4px;">\ud83d\udd34 Overdue</div>
+                    <div style="font-size:2rem;font-weight:800;color:#dc2626;">${overdueCount}</div>
+                  </div>
+                  <div style="background:#f3f4f6;border-radius:10px;padding:14px;text-align:center;">
+                    <div style="font-size:0.78rem;color:#6b7280;font-weight:600;margin-bottom:4px;">No Installment</div>
+                    <div style="font-size:2rem;font-weight:800;color:#6b7280;">${noInstCount}</div>
+                  </div>
+                </div>`;
+
+            const statusBadgeInv = s => {
+                if (s==='paid')    return `<span style="background:#dcfce7;color:#15803d;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:700;">\u2705 Paid</span>`;
+                if (s==='pending') return `<span style="background:#fef9c3;color:#ca8a04;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:700;">\u23f3 Pending</span>`;
+                if (s==='overdue') return `<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:700;">\ud83d\udd34 Overdue</span>`;
+                return `<span style="background:#f3f4f6;color:#6b7280;padding:3px 10px;border-radius:99px;font-size:0.82rem;font-weight:600;">\u2014</span>`;
+            };
+
+            const tableEl = document.getElementById('invRpt_table');
+            const tableRows = rows.map(r => `<tr style="${r.status==='overdue'?'background:#fff5f5;':r.status==='paid'?'background:#f0fdf4;':''}">
+                <td style="padding:10px 12px;">${r.accountNo}</td>
+                <td style="padding:10px 12px;">${r.memberName}</td>
+                <td style="padding:10px 12px;">${r.memberId}</td>
+                <td style="padding:10px 12px;text-align:right;">${_fmtD(r.dueAmount)}</td>
+                <td style="padding:10px 12px;text-align:right;">${r.paidAmount>0?_fmtD(r.paidAmount):'\u2014'}</td>
+                <td style="padding:10px 12px;">${r.dueDate}</td>
+                <td style="padding:10px 12px;">${r.paidDate}</td>
+                <td style="padding:10px 12px;text-align:center;">${statusBadgeInv(r.status)}</td>
+            </tr>`).join('');
+            tableEl.innerHTML = `<thead><tr style="background:#dbeafe;">
+                <th style="padding:10px 12px;">Account No.</th>
+                <th style="padding:10px 12px;">Member Name</th>
+                <th style="padding:10px 12px;">Member ID</th>
+                <th style="padding:10px 12px;text-align:right;">Due Amount (\u09f3)</th>
+                <th style="padding:10px 12px;text-align:right;">Paid Amount (\u09f3)</th>
+                <th style="padding:10px 12px;">Due Date</th>
+                <th style="padding:10px 12px;">Paid Date</th>
+                <th style="padding:10px 12px;text-align:center;">Status</th>
+            </tr></thead><tbody>${tableRows||'<tr><td colspan="8" style="padding:2rem;text-align:center;color:#999;">No active accounts found for this month.</td></tr>'}</tbody>`;
+            // cache for export
+            _invMonthlyLabel = monthLabel;
+            _invMonthlyRows  = rows;
+        } catch(e) {
+            summaryDiv.innerHTML = '<p style="color:#dc2626;">Error loading data.</p>';
+            console.error(e);
+        }
+    }
+
+    async function generateInvReport() {
+        const type = document.querySelector('input[name="invReportType"]:checked')?.value || 'summary';
+        if (type === 'monthly') { await _renderInvMonthly(); return; }
+        const preview = document.getElementById('invRpt_preview');
+        const summaryDiv = document.getElementById('invRpt_summary');
+        if (summaryDiv) summaryDiv.innerHTML = '<p style="color:#6b7280;">Loading data\u2026</p>';
+        if (preview) preview.style.display = 'block';
+        try {
+            const res  = await fetch(`${INV_API}/all`);
+            const data = await res.json();
+            if (!Array.isArray(data)) { summaryDiv.innerHTML='<p style="color:#dc2626;">Failed to load data.</p>'; return; }
+
+            let filtered = [...data];
+
+            const memId = (document.getElementById('invRpt_memberId')?.value||'').trim().toUpperCase();
+            if (memId) filtered = filtered.filter(r => (r.memberID||'').toUpperCase() === memId);
+
+            const statv = document.getElementById('invRpt_status')?.value||'all';
+            if (statv !== 'all') filtered = filtered.filter(r => r.status === statv);
+
+            const fromMonth = document.getElementById('invRpt_from')?.value;
+            const toMonth   = document.getElementById('invRpt_to')?.value;
+            if (fromMonth) {
+                const fd = new Date(fromMonth+'-01');
+                filtered = filtered.filter(r => new Date(r.startDate) >= fd);
+            }
+            if (toMonth) {
+                const td = new Date(toMonth+'-01'); td.setMonth(td.getMonth()+1);
+                filtered = filtered.filter(r => new Date(r.startDate) < td);
+            }
+
+            _invReportRows = filtered;
+
+            const type2 = document.querySelector('input[name="invReportType"]:checked')?.value||'summary';
+            if (type2 === 'summary') _renderInvSummary(filtered);
+            else                     _renderInvDetailed(filtered);
+        } catch(e) {
+            if (summaryDiv) summaryDiv.innerHTML='<p style="color:#dc2626;">Error loading data.</p>';
+            console.error(e);
+        }
+    }
+    window.generateInvReport = generateInvReport;
+
+    function _renderInvSummary(records) {
+        const groups = { active:{count:0,principal:0,totalProfit:0,totalAmount:0}, completed:{count:0,principal:0,totalProfit:0,totalAmount:0}, defaulted:{count:0,principal:0,totalProfit:0,totalAmount:0} };
+        records.forEach(r => {
+            const g = groups[r.status] || groups.active;
+            g.count++; g.principal += _paisa(r.amount); g.totalProfit += _paisa(r.totalProfit); g.totalAmount += _paisa(r.totalAmount);
+        });
+        const cards = [
+            { label:'Active',    data:groups.active,    bg:'#dcfce7', fg:'#15803d' },
+            { label:'Completed', data:groups.completed, bg:'#dbeafe', fg:'#1d4ed8' },
+            { label:'Defaulted', data:groups.defaulted, bg:'#fee2e2', fg:'#dc2626' },
+        ];
+        const summaryDiv = document.getElementById('shareRpt_summary') || document.getElementById('invRpt_summary');
+        const sum2 = document.getElementById('invRpt_summary');
+        sum2.innerHTML = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+              ${cards.map(c=>`<div style="background:${c.bg};border-radius:10px;padding:14px;text-align:center;">
+                <div style="font-size:0.78rem;color:${c.fg};font-weight:600;margin-bottom:4px;">${c.label}</div>
+                <div style="font-size:2rem;font-weight:800;color:${c.fg};">${c.data.count}</div>
+                <div style="font-size:0.8rem;color:${c.fg};">${_fmtD(c.data.principal)}</div>
+              </div>`).join('')}
+            </div>`;
+        const totPrincipal = records.reduce((s,r)=>s+_paisa(r.amount),0);
+        const totProfit    = records.reduce((s,r)=>s+_paisa(r.totalProfit),0);
+        const totAmount    = records.reduce((s,r)=>s+_paisa(r.totalAmount),0);
+        const table = document.getElementById('invRpt_table');
+        table.innerHTML = `
+            <thead><tr style="background:#dbeafe;">
+              <th style="padding:12px;">Status</th>
+              <th style="padding:12px;text-align:right;">Count</th>
+              <th style="padding:12px;text-align:right;">Total Principal (\u09f3)</th>
+              <th style="padding:12px;text-align:right;">Total Profit (\u09f3)</th>
+              <th style="padding:12px;text-align:right;">Total Amount (\u09f3)</th>
+            </tr></thead>
+            <tbody>
+              ${cards.map(c=>`<tr style="background:${c.bg}22;"><td style="padding:12px;"><span style="background:${c.bg};color:${c.fg};padding:2px 10px;border-radius:99px;font-size:0.82rem;font-weight:600;">${c.label}</span></td><td style="padding:12px;text-align:right;">${c.data.count}</td><td style="padding:12px;text-align:right;">${_fmtD(c.data.principal)}</td><td style="padding:12px;text-align:right;">${_fmtD(c.data.totalProfit)}</td><td style="padding:12px;text-align:right;">${_fmtD(c.data.totalAmount)}</td></tr>`).join('')}
+              <tr style="font-weight:700;background:#f9fafb;border-top:2px solid #e5e7eb;"><td style="padding:12px;">Total</td><td style="padding:12px;text-align:right;">${records.length}</td><td style="padding:12px;text-align:right;">${_fmtD(totPrincipal)}</td><td style="padding:12px;text-align:right;">${_fmtD(totProfit)}</td><td style="padding:12px;text-align:right;">${_fmtD(totAmount)}</td></tr>
+            </tbody>`;
+    }
+
+    function _renderInvDetailed(records) {
+        const summaryDiv = document.getElementById('invRpt_summary');
+        summaryDiv.innerHTML = `<p style="color:#6b7280;font-size:0.875rem;">Showing <b>${records.length}</b> records</p>`;
+        const activeCols = _getInvCols();
+        if (activeCols.length === 0) { summaryDiv.innerHTML+='<p style="color:#dc2626;">Please select at least one column.</p>'; return; }
+        const table = document.getElementById('invRpt_table');
+        const hdr   = activeCols.map(c=>`<th style="padding:10px 12px;text-align:left;white-space:nowrap;">${c.label}</th>`).join('');
+        const numericSet = new Set(['principal','monthlyProfit','totalProfit','totalAmount']);
+        let tots = { principal:0, monthlyProfit:0, totalProfit:0, totalAmount:0 };
+        const rows = records.map(r => {
+            const prin = _paisa(r.amount); const mp = _paisa(r.monthlyProfit); const tp = _paisa(r.totalProfit); const ta = _paisa(r.totalAmount);
+            tots.principal += prin; tots.monthlyProfit += mp; tots.totalProfit += tp; tots.totalAmount += ta;
+            const vals = {
+                accountNo:     r.investmentAccountNumber || '\u2014',
+                memberName:    r.memberName || '\u2014',
+                memberId:      r.memberID   || '\u2014',
+                principal:     _fmtD(prin),
+                duration:      String(r.duration),
+                profitPct:     r.profitPercentage + '%',
+                monthlyProfit: _fmtD(mp),
+                totalProfit:   _fmtD(tp),
+                totalAmount:   _fmtD(ta),
+                startDate:     r.startDate ? new Date(r.startDate).toLocaleDateString('en-GB') : '\u2014',
+                endDate:       r.endDate   ? new Date(r.endDate).toLocaleDateString('en-GB')   : '\u2014',
+                status:        _statusBadge(r.status),
+                purpose:       r.purpose   || '\u2014',
+            };
+            const cells = activeCols.map(col=>`<td style="padding:10px 12px;white-space:nowrap;">${vals[col.key]??'\u2014'}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+        const totalCells = activeCols.map((col,i)=>{
+            if (i===0) return `<td style="padding:10px 12px;font-weight:700;">Total (${records.length})</td>`;
+            return `<td style="padding:10px 12px;font-weight:700;">${numericSet.has(col.key)?_fmtD(tots[col.key]):'\u2014'}</td>`;
+        }).join('');
+        const totalRow = records.length ? `<tr style="background:#f0fdf4;border-top:2px solid #16a34a;">${totalCells}</tr>` : '';
+        table.innerHTML = `<thead><tr style="background:#dbeafe;">${hdr}</tr></thead><tbody>${rows||'<tr><td colspan="99" style="padding:2rem;text-align:center;color:#999;">No records.</td></tr>'}${totalRow}</tbody>`;
+    }
+
+    async function exportInvReportPDF() {
+        if (_invReportRows.length === 0) await generateInvReport();
+        if (_invReportRows.length === 0) return;
+        const { title, subtitle } = _buildInvTitle();
+        const type = document.querySelector('input[name="invReportType"]:checked')?.value||'summary';
+        if (type === 'monthly') {
+            if (_invMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
+            const paidCount    = _invMonthlyRows.filter(r=>r.status==='paid').length;
+            const pendingCount = _invMonthlyRows.filter(r=>r.status==='pending').length;
+            const overdueCount = _invMonthlyRows.filter(r=>r.status==='overdue').length;
+            const noInstCount  = _invMonthlyRows.filter(r=>r.status==='no-installment').length;
+            const statusLabel  = s => s==='paid'?'Paid':s==='pending'?'Pending':s==='overdue'?'Overdue':'No Installment';
+            const rowsHTML = _invMonthlyRows.map(r=>{
+                const bg = r.status==='paid'?'#f0fdf4':r.status==='overdue'?'#fff5f5':r.status==='pending'?'#fefce8':'';
+                return `<tr style="background:${bg};"><td>${r.accountNo}</td><td>${r.memberName}</td><td>${r.memberId}</td><td style="text-align:right;">${_fmtD(r.dueAmount)}</td><td style="text-align:right;">${r.paidAmount>0?_fmtD(r.paidAmount):'-'}</td><td>${r.dueDate}</td><td>${r.paidDate}</td><td>${statusLabel(r.status)}</td></tr>`;
+            }).join('');
+            let logoDataURL = '';
+            try { const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
+            const pw = window.open('','_blank');
+            pw.document.write(`<!DOCTYPE html><html><head><title>Investment Monthly View</title><style>
+                body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
+                .letterhead{text-align:center;border-bottom:3px solid #1e7e34;padding-bottom:18px;margin-bottom:24px;}
+                .logo-section{display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+                .logo{width:60px;height:60px;margin-right:14px;}
+                .org-title h1{color:#1e7e34;margin:0;font-size:26px;} .org-title p{color:#666;margin:4px 0;font-size:13px;}
+                .stats{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+                .stat-box{flex:1;min-width:100px;padding:14px;border-radius:8px;text-align:center;}
+                .report-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+                .report-table th,.report-table td{padding:10px 12px;text-align:left;border:1px solid #ddd;}
+                .report-table th{background:#dcfce7;color:#1e7e34;font-weight:600;}
+                .report-table tr:nth-child(even){background:#f9fafb;}
+                .footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#666;}
+                @media print{body{padding:12px;}.report-table tr{page-break-inside:avoid;}}
+            </style></head><body>
+            <div class="letterhead"><div class="logo-section">
+                ${logoDataURL?`<img src="${logoDataURL}" class="logo" alt="logo" />`:''}                <div class="org-title"><h1>\u09b6\u09be\u09a8\u09cd\u09a4\u09bf\u09b8\u0982\u0998 (SHANTISONGHO)</h1><p>Islamic Finance &amp; Community Welfare Organization</p><p>Established: April 10, 2025</p></div>
+            </div></div>
+            <div style="background:#f8f9fa;padding:14px 16px;border-radius:8px;margin-bottom:20px;">
+                <h3 style="color:#1e7e34;margin:0 0 8px 0;font-size:15px;">Investment &#8212; Monthly Installment View</h3>
+                <p><strong>Month:</strong> ${_invMonthlyLabel}</p>
+                <p><strong>Generated On:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+            <div class="stats">
+                <div class="stat-box" style="background:#dcfce7;color:#15803d;"><div style="font-size:1.8rem;font-weight:800;">${paidCount}</div><div>Paid</div></div>
+                <div class="stat-box" style="background:#fef9c3;color:#ca8a04;"><div style="font-size:1.8rem;font-weight:800;">${pendingCount}</div><div>Pending</div></div>
+                <div class="stat-box" style="background:#fee2e2;color:#dc2626;"><div style="font-size:1.8rem;font-weight:800;">${overdueCount}</div><div>Overdue</div></div>
+                <div class="stat-box" style="background:#f3f4f6;color:#6b7280;"><div style="font-size:1.8rem;font-weight:800;">${noInstCount}</div><div>No Installment</div></div>
+            </div>
+            <table class="report-table"><thead><tr>
+                <th>Account No.</th><th>Member Name</th><th>Member ID</th><th>Due Amount (\u09f3)</th><th>Paid Amount (\u09f3)</th><th>Due Date</th><th>Paid Date</th><th>Status</th>
+            </tr></thead><tbody>${rowsHTML}</tbody></table>
+            <div class="footer"><p>Computer-generated report from SHANTISONGHO admin portal. &copy; 2025 SHANTISONGHO.</p></div>
+            </body></html>`);
+            pw.document.close(); setTimeout(()=>{pw.focus();pw.print();},800);
+            return;
+        }
+
+        let tableHTML = '';
+        if (type === 'summary') {
+            const groups = { active:{c:0,p:0,tp:0,ta:0}, completed:{c:0,p:0,tp:0,ta:0}, defaulted:{c:0,p:0,tp:0,ta:0} };
+            _invReportRows.forEach(r=>{const g=groups[r.status]||groups.active;g.c++;g.p+=_paisa(r.amount);g.tp+=_paisa(r.totalProfit);g.ta+=_paisa(r.totalAmount);});
+            const r2c = [[`Active`,groups.active],[`Completed`,groups.completed],[`Defaulted`,groups.defaulted]];
+            tableHTML = `<table class="report-table"><thead><tr><th>Status</th><th>Count</th><th>Principal (\u09f3)</th><th>Total Profit (\u09f3)</th><th>Total Amount (\u09f3)</th></tr></thead><tbody>
+                ${r2c.map(([l,d])=>`<tr><td>${l}</td><td>${d.c}</td><td>${_fmtD(d.p)}</td><td>${_fmtD(d.tp)}</td><td>${_fmtD(d.ta)}</td></tr>`).join('')}
+                <tr class="total-row"><td><strong>Total</strong></td><td><strong>${_invReportRows.length}</strong></td><td><strong>${_fmtD(_invReportRows.reduce((s,r)=>s+_paisa(r.amount),0))}</strong></td><td><strong>${_fmtD(_invReportRows.reduce((s,r)=>s+_paisa(r.totalProfit),0))}</strong></td><td><strong>${_fmtD(_invReportRows.reduce((s,r)=>s+_paisa(r.totalAmount),0))}</strong></td></tr>
+            </tbody></table>`;
+        } else {
+            const activeCols = _getInvCols();
+            if (activeCols.length === 0) { alert('Please select at least one column.'); return; }
+            const hdrs = activeCols.map(c=>`<th>${c.label}</th>`).join('');
+            const numericSet = new Set(['principal','monthlyProfit','totalProfit','totalAmount']);
+            let tots = {principal:0,monthlyProfit:0,totalProfit:0,totalAmount:0};
+            const rows = _invReportRows.map(r => {
+                const prin=_paisa(r.amount),mp=_paisa(r.monthlyProfit),tp=_paisa(r.totalProfit),ta=_paisa(r.totalAmount);
+                tots.principal+=prin;tots.monthlyProfit+=mp;tots.totalProfit+=tp;tots.totalAmount+=ta;
+                const vals={accountNo:r.investmentAccountNumber,memberName:r.memberName,memberId:r.memberID,principal:_fmtD(prin),duration:String(r.duration),profitPct:r.profitPercentage+'%',monthlyProfit:_fmtD(mp),totalProfit:_fmtD(tp),totalAmount:_fmtD(ta),startDate:r.startDate?new Date(r.startDate).toLocaleDateString('en-GB'):'\u2014',endDate:r.endDate?new Date(r.endDate).toLocaleDateString('en-GB'):'\u2014',status:r.status,purpose:r.purpose};
+                return `<tr>${activeCols.map(col=>`<td>${vals[col.key]??'\u2014'}</td>`).join('')}</tr>`;
+            }).join('');
+            const totCells=activeCols.map((col,i)=>i===0?`<td><strong>Total (${_invReportRows.length})</strong></td>`:`<td><strong>${numericSet.has(col.key)?_fmtD(tots[col.key]):'\u2014'}</strong></td>`).join('');
+            tableHTML = `<table class="report-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}<tr class="total-row">${totCells}</tr></tbody></table>`;
+        }
+
+        let logoDataURL = '';
+        try {
+            const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob();
+            logoDataURL = await new Promise(res => { const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
+        } catch(_){}
+
+        const pw = window.open('', '_blank');
+        pw.document.write(`<!DOCTYPE html><html><head><title>SHANTISONGHO Investment Report</title><style>
+            body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
+            .letterhead{text-align:center;border-bottom:3px solid #1e7e34;padding-bottom:18px;margin-bottom:24px;}
+            .logo-section{display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+            .logo{width:60px;height:60px;margin-right:14px;}
+            .org-title h1{color:#1e7e34;margin:0;font-size:26px;} .org-title p{color:#666;margin:4px 0;font-size:13px;}
+            .report-info{background:#f8f9fa;padding:14px 16px;border-radius:8px;margin-bottom:20px;}
+            .report-info h3{color:#1e7e34;margin:0 0 8px 0;font-size:15px;} .report-info p{margin:4px 0;}
+            .report-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+            .report-table th,.report-table td{padding:10px 12px;text-align:left;border:1px solid #ddd;}
+            .report-table th{background:#dcfce7;color:#1e7e34;font-weight:600;}
+            .report-table tr:nth-child(even){background:#f9fafb;}
+            .report-table tr.total-row td{background:#f0fdf4;border-top:2px solid #16a34a;}
+            .footer{text-align:center;margin-top:28px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#666;}
+            @media print{body{padding:12px;} .report-table tr{page-break-inside:avoid;}}
+        </style></head><body>
+            <div class="letterhead"><div class="logo-section">
+                ${logoDataURL?`<img src="${logoDataURL}" class="logo" alt="logo" />`:''}                <div class="org-title"><h1>\u09b6\u09be\u09a8\u09cd\u09a4\u09bf\u09b8\u0982\u0998 (SHANTISONGHO)</h1><p>Islamic Finance &amp; Community Welfare Organization</p><p>Established: April 10, 2025</p></div>
+            </div></div>
+            <div class="report-info"><h3>Investment Report</h3>
+                <p><strong>Report Type:</strong> ${subtitle}</p>
+                <p><strong>Total Records:</strong> ${_invReportRows.length}</p>
+                <p><strong>Generated On:</strong> ${new Date().toLocaleString('en-GB')}</p>
+            </div>
+            ${tableHTML}
+            <div class="footer"><p>This is a computer-generated report from SHANTISONGHO admin portal.</p><p>For any queries, please contact the organization office.</p><p>&copy; 2025 SHANTISONGHO. All rights reserved.</p></div>
+        </body></html>`);
+        pw.document.close();
+        setTimeout(() => { pw.focus(); pw.print(); }, 800);
+    }
+    window.exportInvReportPDF = exportInvReportPDF;
+
+    async function exportInvReportExcel() {
+        if (_invReportRows.length === 0) await generateInvReport();
+        try {
+            const XLSX = window.XLSX;
+            if (!XLSX) { alert('Excel library not loaded.'); return; }
+            const { title, subtitle } = _buildInvTitle();
+            const type = document.querySelector('input[name="invReportType"]:checked')?.value||'summary';
+            if (type === 'monthly') {
+                if (_invMonthlyRows.length === 0) { alert('Please generate the Monthly View report first.'); return; }
+                const XLSX = window.XLSX;
+                if (!XLSX) { alert('Excel library not loaded.'); return; }
+                const statusLabel = s => s==='paid'?'Paid':s==='pending'?'Pending':s==='overdue'?'Overdue':'No Installment';
+                const paidCount   = _invMonthlyRows.filter(r=>r.status==='paid').length;
+                const pendingCount= _invMonthlyRows.filter(r=>r.status==='pending').length;
+                const overdueCount= _invMonthlyRows.filter(r=>r.status==='overdue').length;
+                const dataRows = [
+                    [`Investment Monthly Installment View \u2014 ${_invMonthlyLabel}`],
+                    [`Generated: ${new Date().toLocaleString('en-GB')}`],
+                    [`Paid: ${paidCount}  |  Pending: ${pendingCount}  |  Overdue: ${overdueCount}  |  Total: ${_invMonthlyRows.length}`],
+                    [],
+                    ['Account No.','Member Name','Member ID','Due Amount (BDT)','Paid Amount (BDT)','Due Date','Paid Date','Status'],
+                    ..._invMonthlyRows.map(r=>[
+                        r.accountNo, r.memberName, r.memberId,
+                        _fmtN(r.dueAmount), r.paidAmount>0?_fmtN(r.paidAmount):'',
+                        r.dueDate, r.paidDate, statusLabel(r.status)
+                    ]),
+                ];
+                const ws = XLSX.utils.aoa_to_sheet(dataRows);
+                ws['!cols'] = Array(8).fill({wch:20});
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Monthly View');
+                XLSX.writeFile(wb, `Investment_Monthly_${document.getElementById('invRpt_month')?.value||'report'}.xlsx`);
+                return;
+            }
+            let dataRows = [];
+            if (type === 'summary') {
+                const groups={active:{c:0,p:0,tp:0,ta:0},completed:{c:0,p:0,tp:0,ta:0},defaulted:{c:0,p:0,tp:0,ta:0}};
+                _invReportRows.forEach(r=>{const g=groups[r.status]||groups.active;g.c++;g.p+=_paisa(r.amount);g.tp+=_paisa(r.totalProfit);g.ta+=_paisa(r.totalAmount);});
+                dataRows=[
+                    ['Status','Count','Total Principal (BDT)','Total Profit (BDT)','Total Amount (BDT)'],
+                    ['Active',groups.active.c,_fmtN(groups.active.p),_fmtN(groups.active.tp),_fmtN(groups.active.ta)],
+                    ['Completed',groups.completed.c,_fmtN(groups.completed.p),_fmtN(groups.completed.tp),_fmtN(groups.completed.ta)],
+                    ['Defaulted',groups.defaulted.c,_fmtN(groups.defaulted.p),_fmtN(groups.defaulted.tp),_fmtN(groups.defaulted.ta)],
+                    ['Total',_invReportRows.length,_fmtN(_invReportRows.reduce((s,r)=>s+_paisa(r.amount),0)),_fmtN(_invReportRows.reduce((s,r)=>s+_paisa(r.totalProfit),0)),_fmtN(_invReportRows.reduce((s,r)=>s+_paisa(r.totalAmount),0))],
+                ];
+            } else {
+                const activeCols = _getInvCols();
+                const lmap={accountNo:'Account No.',memberName:'Member Name',memberId:'Member ID',principal:'Principal (BDT)',duration:'Duration (months)',profitPct:'Profit %',monthlyProfit:'Monthly Profit (BDT)',totalProfit:'Total Profit (BDT)',totalAmount:'Total Amount (BDT)',startDate:'Start Date',endDate:'End Date',status:'Status',purpose:'Purpose'};
+                dataRows.push(activeCols.map(c=>lmap[c.key]||c.label));
+                const numericSet=new Set(['principal','monthlyProfit','totalProfit','totalAmount']);
+                let tots={principal:0,monthlyProfit:0,totalProfit:0,totalAmount:0};
+                _invReportRows.forEach(r=>{
+                    const prin=_paisa(r.amount),mp=_paisa(r.monthlyProfit),tp=_paisa(r.totalProfit),ta=_paisa(r.totalAmount);
+                    tots.principal+=prin;tots.monthlyProfit+=mp;tots.totalProfit+=tp;tots.totalAmount+=ta;
+                    const vals={accountNo:r.investmentAccountNumber,memberName:r.memberName,memberId:r.memberID,principal:_fmtN(prin),duration:r.duration,profitPct:r.profitPercentage+'%',monthlyProfit:_fmtN(mp),totalProfit:_fmtN(tp),totalAmount:_fmtN(ta),startDate:r.startDate?new Date(r.startDate).toLocaleDateString('en-GB'):'',endDate:r.endDate?new Date(r.endDate).toLocaleDateString('en-GB'):'',status:r.status,purpose:r.purpose||''};
+                    dataRows.push(activeCols.map(col=>vals[col.key]??''));
+                });
+                const totRow=activeCols.map((col,i)=>i===0?`Total (${_invReportRows.length})`:numericSet.has(col.key)?_fmtN(tots[col.key]):'');
+                dataRows.push(totRow);
+            }
+            const ws = XLSX.utils.aoa_to_sheet([[title],[subtitle],[`Generated: ${new Date().toLocaleString('en-GB')}`],[],...dataRows]);
+            const colCount=dataRows[0]?.length||5;
+            [4,4+dataRows.length-1].forEach(ri=>{for(let ci=0;ci<colCount;ci++){const a=XLSX.utils.encode_cell({r:ri,c:ci});if(ws[a])ws[a].s={font:{bold:true}};}});
+            ws['!cols']=Array(colCount).fill({wch:22});
+            const wb=XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb,ws,'Investment Report');
+            XLSX.writeFile(wb,`Investment_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
+        } catch(e) { alert('Excel export error: '+e.message); console.error(e); }
+    }
+    window.exportInvReportExcel = exportInvReportExcel;
+
+    window.initInvReport = function () {
+        const inp = document.getElementById('invRpt_month');
+        if (inp) inp.value = _currentYYYYMM();
+        onInvReportTypeChange();
+        const p = document.getElementById('invRpt_preview');
+        if (p) p.style.display = 'none';
+    };
 })();

@@ -61,6 +61,11 @@ const fixedDepositRequestSchema = new mongoose.Schema({
     completedBy: { type: String },
     completedAt: { type: Date },
 
+    // Admin direct FDR entry fields
+    depositDate:  { type: Date },
+    maturityDate: { type: Date },
+    adminCreated: { type: Boolean, default: false },
+
 }, { timestamps: true });
 
 // Virtual readable ID

@@ -1277,9 +1277,12 @@
         <section id="fixed-deposit-entry" class="content-section">
           <div class="section-header">
             <h2>Fixed Deposit Entry</h2>
-            <button class="btn btn-secondary btn-sm" onclick="loadFDEntryRequests()">⟳ Refresh</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary btn-sm" onclick="openNewFDRModal()" style="background:#15803d;">➕ New FDR</button>
+              <button class="btn btn-secondary btn-sm" onclick="loadFDEntryRequests()">⟳ Refresh</button>
+            </div>
           </div>
-          <p style="color:#6b7280;margin-bottom:1rem;">Member-submitted FD payments awaiting data entry confirmation. Click View to review details and confirm.</p>
+          <p style="color:#6b7280;margin-bottom:1rem;">Member-submitted FD payments awaiting data entry confirmation. Click View to review details and confirm. Use <b>➕ New FDR</b> to create an FD on behalf of a member directly.</p>
           <div style="overflow-x:auto;">
             <table class="admin-table" style="width:100%;border-collapse:collapse;">
               <thead>
@@ -2035,67 +2038,266 @@
         <!-- Investment Report Section -->
         <section id="investment-report" class="content-section">
           <div class="section-header">
-            <h2>Investment Report</h2>
+            <h2>&#x1F4B0; Investment Report</h2>
+          </div>
+          <!-- Report Builder -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;">
+            <!-- Report Type -->
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.875rem;color:#374151;display:block;margin-bottom:8px;">Report Type</label>
+              <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="invReportType" value="summary" checked onchange="onInvReportTypeChange()"> Summary
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="invReportType" value="detailed" onchange="onInvReportTypeChange()"> Detailed
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="invReportType" value="monthly" onchange="onInvReportTypeChange()"> 📅 Monthly View (Paid/Unpaid)
+                </label>
+              </div>
+            </div>
+            <!-- Monthly View filter -->
+            <div id="invRpt_monthlyDiv" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:16px;">
+              <p style="margin:0 0 10px 0;font-size:0.82rem;color:#1d4ed8;font-weight:600;">Select a month to see which active investment accounts have paid their installment and which haven't.</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                <div>
+                  <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Month</label>
+                  <input id="invRpt_month" type="month" style="width:100%;padding:8px 10px;border:1px solid #93c5fd;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                </div>
+                <div>
+                  <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Member ID (optional)</label>
+                  <input id="invRpt_monthMemId" type="text" placeholder="e.g. SS-0023" oninput="this.value=this.value.toUpperCase()" style="width:100%;padding:8px 10px;border:1px solid #93c5fd;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                </div>
+              </div>
+            </div>
+            <!-- Regular Filters -->
+            <div id="invRpt_filtersDiv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Member ID</label>
+                <input id="invRpt_memberId" type="text" placeholder="e.g. SS-0023" oninput="this.value=this.value.toUpperCase()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Account Status</label>
+                <select id="invRpt_status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+                  <option value="all">All</option>
+                  <option value="active">Active</option>
+                  <option value="completed">Completed</option>
+                  <option value="defaulted">Defaulted</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Start Date From (month)</label>
+                <input id="invRpt_from" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Start Date To (month)</label>
+                <input id="invRpt_to" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+            </div>
+            <!-- Column selector (detailed only) -->
+            <div id="invRpt_colsDiv" style="display:none;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.875rem;color:#374151;display:block;margin-bottom:10px;">Columns to Include</label>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:0.85rem;">
+                <label><input type="checkbox" id="invCol_accountNo" checked> Account No.</label>
+                <label><input type="checkbox" id="invCol_memberName" checked> Member Name</label>
+                <label><input type="checkbox" id="invCol_memberId" checked> Member ID</label>
+                <label><input type="checkbox" id="invCol_principal" checked> Principal (৳)</label>
+                <label><input type="checkbox" id="invCol_duration" checked> Duration (months)</label>
+                <label><input type="checkbox" id="invCol_profitPct" checked> Profit %</label>
+                <label><input type="checkbox" id="invCol_monthlyProfit" checked> Monthly Profit (৳)</label>
+                <label><input type="checkbox" id="invCol_totalProfit" checked> Total Profit (৳)</label>
+                <label><input type="checkbox" id="invCol_totalAmount" checked> Total Amount (৳)</label>
+                <label><input type="checkbox" id="invCol_startDate" checked> Start Date</label>
+                <label><input type="checkbox" id="invCol_endDate" checked> End Date</label>
+                <label><input type="checkbox" id="invCol_status" checked> Status</label>
+                <label><input type="checkbox" id="invCol_purpose"> Purpose</label>
+              </div>
+            </div>
+            <!-- Action buttons -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button onclick="generateInvReport()" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F50D; Generate Preview</button>
+              <button onclick="exportInvReportPDF()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F4C4; Export PDF</button>
+              <button onclick="exportInvReportExcel()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F4CA; Export Excel</button>
+            </div>
+          </div>
+          <!-- Preview area -->
+          <div id="invRpt_preview" style="display:none;">
+            <div id="invRpt_summary" style="margin-bottom:16px;"></div>
+            <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:10px;">
+              <table id="invRpt_table" class="admin-table" style="width:100%;border-collapse:collapse;"></table>
+            </div>
           </div>
         </section>
 
         <!-- Share Deposit Report Section -->
         <section id="share-report" class="content-section">
           <div class="section-header">
-            <h2>Share Deposit Report</h2>
+            <h2>&#x1F4B5; Share Deposit Report</h2>
           </div>
-          <div class="data-table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>New Shares</th>
-                  <th>Total Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>November 2023</td>
-                  <td>50</td>
-                  <td>৳50,000</td>
-                </tr>
-                <tr>
-                  <td>December 2023</td>
-                  <td>30</td>
-                  <td>৳30,000</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Report Builder -->
+          <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;">
+            <!-- Report Type -->
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.875rem;color:#374151;display:block;margin-bottom:8px;">Report Type</label>
+              <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="shareReportType" value="summary" checked onchange="onShareReportTypeChange()"> Summary
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="shareReportType" value="detailed" onchange="onShareReportTypeChange()"> Detailed
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.875rem;">
+                  <input type="radio" name="shareReportType" value="monthly" onchange="onShareReportTypeChange()"> 📅 Monthly View (Paid/Unpaid)
+                </label>
+              </div>
+            </div>
+            <!-- Monthly View filter -->
+            <div id="shareRpt_monthlyDiv" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px;margin-bottom:16px;">
+              <p style="margin:0 0 10px 0;font-size:0.82rem;color:#1d4ed8;font-weight:600;">Select a month to see all members and whether they have submitted their share deposit for that month.</p>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                <div>
+                  <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Month</label>
+                  <input id="shareRpt_month" type="month" style="width:100%;padding:8px 10px;border:1px solid #93c5fd;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                </div>
+                <div>
+                  <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Filter Member ID (optional)</label>
+                  <input id="shareRpt_monthMemId" type="text" placeholder="e.g. SS-0023" oninput="this.value=this.value.toUpperCase()" style="width:100%;padding:8px 10px;border:1px solid #93c5fd;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                </div>
+              </div>
+            </div>
+            <!-- Regular Filters -->
+            <div id="shareRpt_filtersDiv" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Member ID</label>
+                <input id="shareRpt_memberId" type="text" placeholder="e.g. SS-0023" oninput="this.value=this.value.toUpperCase()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">Entry Status</label>
+                <select id="shareRpt_status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+                  <option value="all">All</option>
+                  <option value="Authorized">Authorized</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">From Month (YYYY-MM)</label>
+                <input id="shareRpt_from" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-size:0.8rem;font-weight:600;color:#6b7280;display:block;margin-bottom:4px;">To Month (YYYY-MM)</label>
+                <input id="shareRpt_to" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+            </div>
+            <!-- Column selector (detailed only) -->
+            <div id="shareRpt_colsDiv" style="display:none;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.875rem;color:#374151;display:block;margin-bottom:10px;">Columns to Include</label>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:0.85rem;">
+                <label><input type="checkbox" id="shareCol_memberName" checked> Member Name</label>
+                <label><input type="checkbox" id="shareCol_memberId" checked> Member ID</label>
+                <label><input type="checkbox" id="shareCol_amount" checked> Amount (৳)</label>
+                <label><input type="checkbox" id="shareCol_month" checked> Share Month</label>
+                <label><input type="checkbox" id="shareCol_date" checked> Entry Date</label>
+                <label><input type="checkbox" id="shareCol_status" checked> Status</label>
+                <label><input type="checkbox" id="shareCol_entryBy"> Entry By</label>
+                <label><input type="checkbox" id="shareCol_authorizedBy"> Authorized By</label>
+              </div>
+            </div>
+            <!-- Action buttons -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button onclick="generateShareReport()" style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F50D; Generate Preview</button>
+              <button onclick="exportShareReportPDF()" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F4C4; Export PDF</button>
+              <button onclick="exportShareReportExcel()" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 22px;font-weight:600;cursor:pointer;font-size:0.875rem;">&#x1F4CA; Export Excel</button>
+            </div>
+          </div>
+          <!-- Preview area -->
+          <div id="shareRpt_preview" style="display:none;">
+            <div id="shareRpt_summary" style="margin-bottom:16px;"></div>
+            <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:10px;">
+              <table id="shareRpt_table" class="admin-table" style="width:100%;border-collapse:collapse;"></table>
+            </div>
           </div>
         </section>
 
         <!-- Fixed Deposit Report Section -->
         <section id="fixed-deposit-report" class="content-section">
           <div class="section-header">
-            <h2>Fixed Deposit Report</h2>
+            <h2>&#x1F4CA; Fixed Deposit Report</h2>
           </div>
-          <div class="data-table-container">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>Count</th>
-                  <th>Total Principal</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Active</td>
-                  <td>120</td>
-                  <td>৳12,000,000</td>
-                </tr>
-                <tr>
-                  <td>Matured</td>
-                  <td>5</td>
-                  <td>৳500,000</td>
-                </tr>
-              </tbody>
-            </table>
+
+          <!-- Report Builder -->
+          <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;">
+
+            <!-- Report Type -->
+            <div style="margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.875rem;color:#374151;display:block;margin-bottom:8px;">Report Type</label>
+              <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem;">
+                  <input type="radio" name="fdReportType" value="summary" checked onchange="onFDReportTypeChange()"> Summary (Status count + totals)
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem;">
+                  <input type="radio" name="fdReportType" value="detailed" onchange="onFDReportTypeChange()"> Detailed (Individual records)
+                </label>
+              </div>
+            </div>
+
+            <!-- Filters -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:16px;">
+              <div>
+                <label style="font-weight:600;font-size:0.8rem;color:#374151;display:block;margin-bottom:4px;">Member ID (optional)</label>
+                <input id="fdRpt_memberId" type="text" placeholder="e.g. SS-0023" oninput="this.value=this.value.toUpperCase()" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-weight:600;font-size:0.8rem;color:#374151;display:block;margin-bottom:4px;">Account Status</label>
+                <select id="fdRpt_status" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;">
+                  <option value="all">All (Active + Matured)</option>
+                  <option value="active">Active only</option>
+                  <option value="matured">Matured only</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-weight:600;font-size:0.8rem;color:#374151;display:block;margin-bottom:4px;">Deposit From (Month)</label>
+                <input id="fdRpt_from" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+              <div>
+                <label style="font-weight:600;font-size:0.8rem;color:#374151;display:block;margin-bottom:4px;">Deposit To (Month)</label>
+                <input id="fdRpt_to" type="month" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+              </div>
+            </div>
+
+            <!-- Column selector (detailed only) -->
+            <div id="fdRpt_colsDiv" style="display:none;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:16px;">
+              <label style="font-weight:600;font-size:0.8rem;color:#374151;display:block;margin-bottom:10px;">Columns to Include</label>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:0.85rem;">
+                <label><input type="checkbox" id="fdCol_requestId" checked> Request ID</label>
+                <label><input type="checkbox" id="fdCol_memberName" checked> Member Name</label>
+                <label><input type="checkbox" id="fdCol_memberId" checked> Member ID</label>
+                <label><input type="checkbox" id="fdCol_principal" checked> Principal</label>
+                <label><input type="checkbox" id="fdCol_duration" checked> Duration (months)</label>
+                <label><input type="checkbox" id="fdCol_rate" checked> Interest Rate</label>
+                <label><input type="checkbox" id="fdCol_interest" checked> Est. Interest</label>
+                <label><input type="checkbox" id="fdCol_total" checked> Total Return</label>
+                <label><input type="checkbox" id="fdCol_depositDate" checked> Deposit Date</label>
+                <label><input type="checkbox" id="fdCol_maturityDate" checked> Maturity Date</label>
+                <label><input type="checkbox" id="fdCol_payMethod"> Payment Method</label>
+                <label><input type="checkbox" id="fdCol_status" checked> Status</label>
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="generateFDReport()">&#x1F50D; Generate Preview</button>
+              <button class="btn btn-secondary" onclick="exportFDReportPDF()" style="background:#dc2626;color:#fff;border-color:#dc2626;">&#x1F4C4; Export PDF</button>
+              <button class="btn btn-secondary" onclick="exportFDReportExcel()" style="background:#15803d;color:#fff;border-color:#15803d;">&#x1F4CA; Export Excel</button>
+            </div>
+          </div>
+
+          <!-- Preview Area -->
+          <div id="fdRpt_preview" style="display:none;">
+            <div id="fdRpt_summary" style="margin-bottom:16px;"></div>
+            <div style="overflow-x:auto;">
+              <table id="fdRpt_table" class="admin-table" style="width:100%;border-collapse:collapse;"></table>
+            </div>
           </div>
         </section>
 
@@ -3097,6 +3299,28 @@
                 <button class="btn btn-secondary btn-sm" onclick="loadFDActiveAccounts();">⟳ Refresh</button>
               </div>
 
+              <!-- ── Filter Bar ── -->
+              <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+                  <div style="flex:1;min-width:180px;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Member ID / Name / Request ID</label>
+                    <input id="fdFilter_search" type="text" placeholder="e.g. SS-0023 or FD-2026-..." oninput="filterFDActiveAccounts()" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                  </div>
+                  <div style="min-width:150px;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Deposit After</label>
+                    <input id="fdFilter_from" type="date" onchange="filterFDActiveAccounts()" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                  </div>
+                  <div style="min-width:150px;">
+                    <label style="font-size:0.8rem;font-weight:600;color:#374151;display:block;margin-bottom:4px;">Deposit Before</label>
+                    <input id="fdFilter_to" type="date" onchange="filterFDActiveAccounts()" style="width:100%;padding:7px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:0.875rem;box-sizing:border-box;" />
+                  </div>
+                  <div>
+                    <button class="btn btn-secondary btn-sm" onclick="clearFDActiveFilter()" style="padding:8px 14px;">✕ Clear</button>
+                  </div>
+                </div>
+                <div id="fdFilter_summary" style="font-size:0.8rem;color:#6b7280;margin-top:8px;"></div>
+              </div>
+
               <!-- ── Active FD Accounts ── -->
               <div>
                 <h3 style="font-size:1rem;font-weight:700;color:#15803d;margin-bottom:0.75rem;display:flex;align-items:center;gap:6px;">
@@ -3113,7 +3337,7 @@
                         <th style="padding:12px;text-align:left;">Duration</th>
                         <th style="padding:12px;text-align:left;">Rate</th>
                         <th style="padding:12px;text-align:left;">Interest / Total</th>
-                        <th style="padding:12px;text-align:left;">Start Date</th>
+                        <th style="padding:12px;text-align:left;">Deposit Date</th>
                         <th style="padding:12px;text-align:left;">Maturity Date</th>
                       </tr>
                     </thead>
@@ -3128,6 +3352,9 @@
     });
     </script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="/frontend/js/admindashboard.js"></script>
     <script src="/frontend/js/charts.js"></script>
     <script src="/frontend/js/monthlyShare.js"></script>

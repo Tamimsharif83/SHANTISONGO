@@ -64,7 +64,65 @@ router.get('/stats/pending-count', async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 });
+// ─── ADMIN: Lookup member info by memberID (for admin FDR form) ───
+router.get('/member-info/:memberID', async (req, res) => {
+    try {
+        const user = await User.findOne({ memberID: req.params.memberID.trim().toUpperCase() });
+        if (!user) return res.status(404).json({ success: false, message: 'Member not found with this Member ID.' });
+        const fdHistory = await FixedDepositRequest.find({ userId: user._id, status: 'completed' })
+            .select('requestId amount acknowledgedDuration interestRate completedAt')
+            .sort({ completedAt: -1 }).limit(5);
+        res.json({
+            success: true,
+            user: { _id: user._id, fullName: user.fullName, memberID: user.memberID, numberOfShares: user.numberOfShares, email: user.email, phone: user.phone, profilePicture: user.profilePicture },
+            fdHistory
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 
+// ─── ADMIN: Direct FDR creation (bypasses member request flow) ───
+router.post('/admin-create', async (req, res) => {
+    try {
+        const { memberID, amount, duration, interestRate, depositDate, paymentMethod, notes, createdBy } = req.body;
+        if (!memberID || !amount || !duration || !interestRate || !paymentMethod) {
+            return res.status(400).json({ success: false, message: 'memberID, amount, duration, interestRate and paymentMethod are required.' });
+        }
+        const user = await User.findOne({ memberID: memberID.trim().toUpperCase() });
+        if (!user) return res.status(404).json({ success: false, message: 'Member not found.' });
+
+        const deposit = depositDate ? new Date(depositDate) : new Date();
+        const maturity = new Date(deposit);
+        maturity.setMonth(maturity.getMonth() + parseInt(duration));
+
+        const amountPaisa = Math.round(parseFloat(amount) * 100);
+
+        const request = await FixedDepositRequest.create({
+            userId: user._id,
+            memberID: user.memberID,
+            memberName: user.fullName,
+            proposedDuration: parseInt(duration),
+            amount: amountPaisa,
+            memberComment: notes || '',
+            status: 'entry_confirmed',
+            acknowledgedDuration: parseInt(duration),
+            interestRate: parseFloat(interestRate),
+            acknowledgedBy: createdBy || 'Admin',
+            acknowledgedAt: deposit,
+            paymentMethod: paymentMethod,
+            paymentSubmittedAt: deposit,
+            entryConfirmedBy: createdBy || 'Admin',
+            entryConfirmedAt: new Date(),
+            depositDate: deposit,
+            maturityDate: maturity,
+            adminCreated: true
+        });
+        res.status(201).json({ success: true, request });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
 // ─── ADMIN: Get single request with full user details ─────────
 router.get('/:id', async (req, res) => {
     try {
