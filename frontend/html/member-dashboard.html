@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Member Dashboard - শান্তিসংঘ (SHANTISONGHO)</title>
+    <link rel="stylesheet" href="/frontend/styles/member-dashboard.css" />
+  </head>
+  <body>
+    <!-- Navigation Header -->
+    <nav class="top-nav">
+      <div class="nav-container">
+        <div class="nav-left">
+          <div class="logo" onclick="logoRefresh()" style="cursor: pointer;">
+            <img
+              src="/frontend/logo/without_bg_logo.png"
+              alt="nav-logo"
+              class="nav-logo"
+            />
+            <div class="logo-text">
+              <span class="logo-bangla">শান্তিসংঘ</span>
+              <span class="logo-english">SHANTISONGHO</span>
+            </div>
+          </div>
+
+          <div class="dashboard-title">Member's Dashboard</div>
+        </div>
+        <div class="nav-right">
+          <div class="theme-toggle">
+            <button id="themeToggle" class="theme-btn">
+              <span class="theme-icon">🌞</span>
+            </button>
+          </div>
+          <button class="logout-btn" onclick="logout()">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+            >
+              <path
+                d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+              />
+            </svg>
+            Logout
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+          <div class="sidebar-menu">
+            <div
+              class="menu-item active"
+              data-section="dashboard"
+              onclick="showSection('dashboard')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <rect x="3" y="3" width="7" height="7" />
+                <rect x="14" y="3" width="7" height="7" />
+                <rect x="14" y="14" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" />
+              </svg>
+              Dashboard
+            </div>
+            <div
+              class="menu-item"
+              data-section="profile"
+              onclick="showSection('profile')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Profile
+            </div>
+            <div
+              class="menu-item"
+              data-section="investment"
+              onclick="showSection('investment')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+              </svg>
+              Investment
+            </div>
+            <div
+              class="menu-item"
+              data-section="reports"
+              onclick="showSection('reports')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                />
+                <polyline points="14,2 14,8 20,8" />
+              </svg>
+              Reports
+            </div>
+            <div
+              class="menu-item"
+              data-section="board"
+              onclick="showSection('board')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                />
+              </svg>
+              Board Members
+            </div>
+            <div
+              class="menu-item"
+              data-section="committee"
+              onclick="showSection('committee')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
+              </svg>
+              Committee
+            </div>
+            <div
+              class="menu-item"
+              data-section="notices"
+              onclick="showSection('notices')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path d="M8 2v4" />
+                <path d="M16 2v4" />
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M3 10h18" />
+              </svg>
+              Notices
+            </div>
+            <div
+              class="menu-item"
+              data-section="fixed-deposit"
+              onclick="showSection('fixed-deposit')"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+              Fixed Deposit
+            </div>
+            <div
+              class="menu-item"
+              data-section="chat"
+              onclick="showSection('chat')"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
+                <path
+                  d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"
+                />
+              </svg>
+              Support
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard" class="content-section active">
+          <!-- Member Info Card -->
+          <div class="member-info-card">
+            <div class="member-basic-info">
+              <div class="member-details">
+                <div class="member-field">
+                  <label>Name:</label>
+                  <span id="memberName">Mohammad Rahman</span>
+                </div>
+                <div class="member-field">
+                  <label>ID Number:</label>
+                  <span id="memberID">SS123456</span>
+                </div>
+                <div class="member-field">
+                  <label>Number of Shares:</label>
+                  <span id="memberShares">5</span>
+                </div>
+                <div class="member-field">
+                  <label>Member Since:</label>
+                  <span id="memberSince">January 2025</span>
+                </div>
+              </div>
+              <div class="member-photo">
+                <div class="photo-container" id="dashboardPhoto">
+                  <img
+                    id="dashboardProfileImage"
+                    src=""
+                    alt="Profile"
+                    style="display: none"
+                  />
+                  <div class="photo-placeholder" id="dashboardPhotoPlaceholder">
+                    <svg
+                      width="60"
+                      height="60"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                </div>
+                <span>Photo</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Financial Highlights -->
+          <div class="financial-highlights">
+            <h2>Financial Highlights</h2>
+            <div class="highlights-section">
+              <h3>Deposit Related</h3>
+              <div class="highlights-grid">
+                <div class="highlight-card">
+                  <div class="card-label">Total Share Value</div>
+                  <div class="card-amount">৳5,000</div>
+                </div>
+                <div class="highlight-card">
+                  <div class="card-label">Total Fixed Deposit</div>
+                  <div class="card-amount">৳25,000</div>
+                </div>
+                <div class="highlight-card">
+                  <div class="card-label">Monthly Deposit</div>
+                  <div class="card-amount">৳2,000</div>
+                </div>
+              </div>
+            </div>
+            <div class="highlights-section">
+              <h3>Investment Related</h3>
+              <div class="highlights-grid">
+                <div class="highlight-card">
+                  <div class="card-label">Total Investment Received</div>
+                  <div class="card-amount">৳15,000</div>
+                </div>
+                <div class="highlight-card">
+                  <div class="card-label">Total Outstanding</div>
+                  <div class="card-amount">৳10,500</div>
+                </div>
+                <div class="highlight-card">
+                  <div class="card-label">Number of Installments</div>
+                  <div class="card-amount">12</div>
+                </div>
+                <div class="highlight-card wide">
+                  <div class="card-label">Closing Date</div>
+                  <div class="card-amount">December 2025</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- All Members Section (moved here from separate section) -->
+          <div class="members-section">
+            <div class="section-header">
+              <h2>All Members</h2>
+              <div class="members-search">
+                <input
+                  type="text"
+                  id="membersSearch"
+                  placeholder="Search members..."
+                  onkeyup="filterMembers()"
+                />
+              </div>
+            </div>
+            <div class="members-grid" id="membersGrid">
+              <div class="loading-members">Loading members...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Profile Section -->
+        <section id="profile" class="content-section">
+          <div class="section-header">
+            <h2>Personal Profile</h2>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" onclick="openChangePasswordModal()">
+                Change Password
+              </button>
+              <button class="btn btn-primary" onclick="toggleEditProfile()">
+                <span id="editProfileBtn">Edit Profile</span>
+              </button>
+            </div>
+          </div>
+          <div class="profile-content">
+            <!-- Profile Picture Section -->
+            <div class="profile-picture-section">
+              <div class="profile-picture-container">
+                <div class="profile-picture" id="profilePicture">
+                  <img
+                    id="profileImage"
+                    src=""
+                    alt="Profile"
+                    style="display: none"
+                  />
+                  <div class="picture-placeholder" id="picturePlaceholder">
+                    <svg
+                      width="80"
+                      height="80"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                    >
+                      <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
+                </div>
+                <div class="picture-upload">
+                  <input
+                    type="file"
+                    id="profilePictureInput"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <button
+                    class="btn btn-secondary"
+                    onclick="document.getElementById('profilePictureInput').click()"
+                  >
+                    Upload Photo
+                  </button>
+                  <button
+                    class="btn btn-sm"
+                    onclick="removeProfilePicture()"
+                    id="removePhotoBtn"
+                    style="display: none"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <form id="profileForm" class="profile-form">
+              <div class="form-group">
+                <label>Full Name</label>
+                <input
+                  type="text"
+                  id="profileName"
+                  value="M.M. Tamim Sharif"
+                  readonly
+                />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Member ID</label>
+                  <input
+                    type="text"
+                    id="profileMemberID"
+                    value="SS123456"
+                    readonly
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Phone Number</label>
+                  <input
+                    type="tel"
+                    id="profilePhone"
+                    value="01788594010"
+                    readonly
+                  />
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Email Address</label>
+                <input
+                  type="email"
+                  id="profileEmail"
+                  value="tamimsharif2181@gmail.com"
+                  readonly
+                />
+              </div>
+              <div class="form-group">
+                <label>Address</label>
+                <textarea id="profileAddress" readonly>
+123 Main Street, Dhaka, Bangladesh</textarea
+                >
+              </div>
+              <div class="form-group">
+                <label>National ID</label>
+                <input
+                  type="text"
+                  id="profileNID"
+                  value="1234567890123"
+                  readonly
+                />
+              </div>
+              <div
+                class="form-actions"
+                id="profileActions"
+                style="display: none"
+              >
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="cancelEditProfile()"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  onclick="saveProfile()"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+
+        <!-- Investment Section -->
+        <section id="investment" class="content-section">
+          <div class="section-header">
+            <h2>Investment Requests</h2>
+            <button class="btn btn-primary" onclick="showNewInvestmentForm()">
+              New Application
+            </button>
+          </div>
+          <div class="investment-list" id="investmentList">
+            <div class="loading-message">Loading investment requests...</div>
+          </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reports" class="content-section">
+          <div class="section-header">
+            <h2>Reports</h2>
+          </div>
+          <div class="reports-tabs">
+            <button class="tab-btn active" onclick="showReportTab('deposits')">
+              Deposits
+            </button>
+            <button class="tab-btn" onclick="showReportTab('investments')">
+              Investments
+            </button>
+            <button class="tab-btn" onclick="showReportTab('personal')">
+              Personal Book
+            </button>
+          </div>
+
+          <div id="deposits-reports" class="report-tab active">
+            <div class="report-filters">
+              <div class="filter-group">
+                <label>Report Type:</label>
+                <select id="depositReportType">
+                  <option value="share">Share Deposit Report</option>
+                  <option value="fixed-ongoing">
+                    Fixed Term Deposit (On-Going)
+                  </option>
+                  <option value="fixed-closed">
+                    Fixed Term Deposit (Closed)
+                  </option>
+                  <option value="monthly-ongoing">
+                    Monthly Deposit (On-Going)
+                  </option>
+                  <option value="monthly-closed">
+                    Monthly Deposit (Closed)
+                  </option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>Date From:</label>
+                <input type="date" id="depositFromDate" />
+              </div>
+              <div class="filter-group">
+                <label>Date To:</label>
+                <input type="date" id="depositToDate" />
+              </div>
+              <div class="filter-group">
+                <label>A/C Number:</label>
+                <input
+                  type="text"
+                  id="depositAccountNo"
+                  placeholder="Account Number"
+                />
+              </div>
+              <button class="btn btn-primary" onclick="generateDepositReport()">
+                Generate Report
+              </button>
+            </div>
+            <div id="depositReportResults" class="report-results"></div>
+          </div>
+
+          <div id="investments-reports" class="report-tab">
+            <div class="report-filters">
+              <div class="filter-group">
+                <label>Report Type:</label>
+                <select id="investmentReportType">
+                  <option value="ongoing">Present Investment (On-Going)</option>
+                  <option value="closed">Closed Investment</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>Date From:</label>
+                <input type="date" id="investmentFromDate" />
+              </div>
+              <div class="filter-group">
+                <label>Date To:</label>
+                <input type="date" id="investmentToDate" />
+              </div>
+              <div class="filter-group">
+                <label>A/C Number:</label>
+                <input
+                  type="text"
+                  id="investmentAccountNo"
+                  placeholder="Account Number"
+                />
+              </div>
+              <button
+                class="btn btn-primary"
+                onclick="generateInvestmentReport()"
+              >
+                Generate Report
+              </button>
+            </div>
+            <div id="investmentReportResults" class="report-results"></div>
+          </div>
+
+          <div id="personal-reports" class="report-tab">
+            <div class="report-filters">
+              <div class="filter-group">
+                <label>Date From:</label>
+                <input type="date" id="personalFromDate" />
+              </div>
+              <div class="filter-group">
+                <label>Date To:</label>
+                <input type="date" id="personalToDate" />
+              </div>
+              <div class="filter-group">
+                <label>A/C Number:</label>
+                <input
+                  type="text"
+                  id="personalAccountNo"
+                  placeholder="Account Number"
+                />
+              </div>
+              <button
+                class="btn btn-primary"
+                onclick="generatePersonalReport()"
+              >
+                Generate Report
+              </button>
+            </div>
+            <div id="personalReportResults" class="report-results"></div>
+          </div>
+        </section>
+
+        <!-- Board Members Section -->
+        <section id="board" class="content-section">
+          <div class="section-header">
+            <h2>Board of Members</h2>
+            <div class="board-info">
+              <span class="board-count">15 Members Selected</span>
+            </div>
+          </div>
+          <div class="board-description">
+            <p>
+              According to organizational policy, the Board of Members consists
+              of 15 selected members who guide all major decisions. From this
+              board, an Executive Committee of 3 members is formed through
+              majority vote.
+            </p>
+          </div>
+          <div class="board-grid" id="boardGrid">
+            <div class="loading-board">Loading board members...</div>
+          </div>
+        </section>
+
+        <!-- Committee Section -->
+        <section id="committee" class="content-section">
+          <div class="section-header">
+            <h2>Executive Committee</h2>
+            <div class="committee-term-info">
+              <span class="term-period">Term: 2025-2027</span>
+            </div>
+          </div>
+          <div class="committee-info">
+            <div class="committee-description">
+              <p>
+                The Executive Committee consists of 3 members elected from the
+                Board of Members through majority vote. They serve a 2-year term
+                and operate under the guidance of the Board of Members.
+              </p>
+            </div>
+            <div class="committee-grid">
+              <div class="committee-member">
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <h4>President</h4>
+                <p>Abid Jahangir</p>
+                <span class="member-contact">📞 01842-666515</span>
+              </div>
+              <div class="committee-member">
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <h4>General Secretary</h4>
+                <p>Md. Abu Hanif</p>
+                <span class="member-contact">📞 01858-622489</span>
+              </div>
+              <div class="committee-member">
+                <div class="member-avatar">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <h4>Finance Secretary</h4>
+                <p>Md. Didarul Islam (Masum)</p>
+                <span class="member-contact">📞 01774-123280</span>
+              </div>
+            </div>
+            <div class="committee-notes">
+              <h4>Policy Notes:</h4>
+              <ul>
+                <li>
+                  New Executive Committee elected every 2 years through Annual
+                  General Meeting
+                </li>
+                <li>
+                  If a member dies, resigns, or is removed, replacement serves
+                  remaining term
+                </li>
+                <li>
+                  All major decisions must be approved by Board of Members
+                </li>
+                <li>Executive Committee operates under Board guidance</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+
+
+        <!-- Notices Section -->
+        <section id="notices" class="content-section">
+          <div class="section-header">
+            <h2>Notice Board & Circulars</h2>
+          </div>
+          <div class="notices-list">
+            <div class="notice-item important">
+              <div class="notice-header">
+                <span class="notice-badge">Important</span>
+                <span class="notice-date">30 Jan 2025</span>
+              </div>
+              <h4>Annual General Meeting Notice</h4>
+              <p>
+                The Annual General Meeting will be held on February 15, 2025, at
+                2:00 PM at the community center. All members are requested to
+                attend.
+              </p>
+            </div>
+            <div class="notice-item">
+              <div class="notice-header">
+                <span class="notice-badge">General</span>
+                <span class="notice-date">28 Jan 2025</span>
+              </div>
+              <h4>New Investment Scheme Announcement</h4>
+              <p>
+                We are pleased to announce a new Sharia-compliant investment
+                scheme with attractive profit rates. Please contact the office
+                for more details.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Support Chat Section -->
+        <section id="chat" class="content-section">
+          <div class="section-header">
+            <h2>Support Chat / Complaints</h2>
+          </div>
+          <div class="chat-container">
+            <div class="chat-messages" id="chatMessages">
+              <div class="message received">
+                <div class="message-content">
+                  <p>
+                    Welcome to SHANTISONGHO support. How can we help you today?
+                  </p>
+                  <span class="message-time">Today 10:00 AM</span>
+                </div>
+              </div>
+            </div>
+            <div class="chat-input-container">
+              <div class="chat-input">
+                <input
+                  type="text"
+                  id="chatInput"
+                  placeholder="Type your message..."
+                />
+                <button class="send-btn" onclick="sendMessage()">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22,2 15,22 11,13 2,9" />
+                  </svg>
+                </button>
+              </div>
+              <div class="chat-actions">
+                <button
+                  class="btn btn-sm btn-primary"
+                  onclick="startNewComplaint()"
+                >
+                  New Complaint
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Fixed Deposit Section -->
+        <section id="fixed-deposit" class="content-section">
+          <div class="section-header">
+            <h2>Fixed Deposit</h2>
+          </div>
+
+          <!-- New Request Form -->
+          <div style="background:var(--white);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 8px var(--shadow);">
+            <h3 style="margin-bottom:1rem;color:var(--primary-green);">Submit a Fixed Deposit Request</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;" class="fd-form-grid">
+              <div class="form-group">
+                <label>Proposed Duration <span style="color:red;">*</span></label>
+                <select id="fdProposedDuration" onchange="updateFDPreview()" style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;">
+                  <option value="">-- Select Duration --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Amount (৳) <span style="color:red;">*</span></label>
+                <input type="number" id="fdAmount" min="1" placeholder="e.g. 5000" oninput="updateFDPreview()" style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;" />
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label>Comment (optional)</label>
+                <textarea id="fdMemberComment" rows="3" placeholder="Any additional information..." style="width:100%;padding:0.6rem;border:1px solid var(--border-gray);border-radius:8px;resize:vertical;"></textarea>
+              </div>
+            </div>
+            <!-- Interest Preview -->
+            <div id="fdInterestPreview" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 16px;margin-top:10px;">
+              <span style="color:#15803d;font-weight:600;">💰 Estimated Interest:</span>
+              <span id="fdPreviewInterest" style="font-weight:700;color:#15803d;"></span>
+              &nbsp;|&nbsp;
+              <span style="color:#374151;">Total Return: </span>
+              <span id="fdPreviewTotal" style="font-weight:700;"></span>
+              <span id="fdPreviewMeta" style="display:block;font-size:0.8rem;color:#6b7280;margin-top:2px;"></span>
+            </div>
+            <div id="fdFormError" style="display:none;color:red;margin:0.5rem 0;"></div>
+            <button class="btn btn-primary" onclick="submitFDRequest()" style="margin-top:0.5rem;">📤 Submit Request</button>
+          </div>
+
+          <!-- My Requests List -->
+          <h3 style="margin-bottom:1rem;">My Fixed Deposit Requests</h3>
+          <div id="fdMyRequestsList">
+            <p style="color:#999;">Loading...</p>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button
+      class="mobile-menu-toggle"
+      id="mobileMenuToggle"
+      onclick="toggleMobileMenu()"
+    >
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <!-- Modals will be inserted here by JavaScript -->
+    <div id="modalContainer"></div>
+
+    <!-- Change Password Modal -->
+    <div id="changePasswordModal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Change Password</h3>
+          <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="changePasswordForm">
+            <div class="form-group">
+              <label>Current Password</label>
+              <input type="password" id="modalCurrentPassword" required />
+            </div>
+            <div class="form-group">
+              <label>New Password</label>
+              <input type="password" id="modalNewPassword" required />
+            </div>
+            <div class="form-group">
+              <label>Confirm New Password</label>
+              <input type="password" id="modalConfirmPassword" required />
+            </div>
+            <div class="form-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+              <button type="button" class="btn btn-secondary" onclick="closeChangePasswordModal()">
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary">
+                Change Password
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script src="/frontend/js/member-dashboard.js"></script>
+  </body>
+</html>
