@@ -63,6 +63,8 @@ class MemberDashboard {
         this.currentReportTab = 'deposits';
         this.allMembers = [];
         this.boardMembers = [];
+        this.savingsCurveByYear = [];
+        this.activeCurveYear = '';
         this.currentReportData = null;
         this.currentReportTitle = '';
         this.memberData = {
@@ -86,6 +88,7 @@ class MemberDashboard {
         this.setupDateInputs();
         this.loadMembersList();
         this.loadBoardMembers();
+        this.initializeSavingsCurve();
         this.loadProfilePicture();
         this.loadInvestmentRequests();
     }
@@ -309,9 +312,13 @@ class MemberDashboard {
             // Simulate MongoDB API call
             const members = await this.fetchMembersFromMongoDB();
             this.allMembers = members;
-            this.displayMembers(members);
+            if (membersGrid) {
+                this.displayMembers(members);
+            }
         } catch (error) {
-            membersGrid.innerHTML = '<div class="error-message">Failed to load members. Please try again later.</div>';
+            if (membersGrid) {
+                membersGrid.innerHTML = '<div class="error-message">Failed to load members. Please try again later.</div>';
+            }
         }
     }
 
@@ -348,6 +355,7 @@ class MemberDashboard {
 
     displayMembers(members) {
         const membersGrid = document.getElementById('membersGrid');
+        if (!membersGrid) return;
         
         if (members.length === 0) {
             membersGrid.innerHTML = '<div class="no-members">No members found</div>';
@@ -370,12 +378,323 @@ class MemberDashboard {
     }
 
     filterMembers() {
-        const searchTerm = document.getElementById('membersSearch').value.toLowerCase();
+        const searchInput = document.getElementById('membersSearch');
+        if (!searchInput) return;
+
+        const searchTerm = searchInput.value.toLowerCase();
         const filteredMembers = this.allMembers.filter(member => 
             member.name.toLowerCase().includes(searchTerm) || 
             member.id.toLowerCase().includes(searchTerm)
         );
         this.displayMembers(filteredMembers);
+    }
+
+    async initializeSavingsCurve() {
+        const yearSelect = document.getElementById('financialYearSelect');
+        if (!yearSelect) return;
+
+        this.savingsCurveByYear = await this.loadSavingsCurveDataFromCsv();
+        if (!this.savingsCurveByYear.length) {
+            this.savingsCurveByYear = this.getFallbackSavingsData();
+        }
+
+        yearSelect.innerHTML = this.savingsCurveByYear
+            .map(series => `<option value="${series.yearKey}">${series.yearLabel}</option>`)
+            .join('');
+
+        const runningYear = this.savingsCurveByYear.find(series => series.status === 'running');
+        this.activeCurveYear = runningYear ? runningYear.yearKey : this.savingsCurveByYear[0].yearKey;
+        yearSelect.value = this.activeCurveYear;
+
+        yearSelect.addEventListener('change', (event) => {
+            this.activeCurveYear = event.target.value;
+            this.renderSavingsCurve(this.activeCurveYear);
+        });
+
+        this.renderSavingsCurve(this.activeCurveYear);
+    }
+
+    async loadSavingsCurveDataFromCsv() {
+        try {
+            const response = await fetch('/frontend/js/Share%20collection.csv', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error('Could not fetch share collection CSV');
+            }
+
+            const csvText = await response.text();
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
+            const headerRowIndex = lines.findIndex(line => line.includes("May'") && line.includes("April'") && line.includes('Total Indivdual Savings'));
+            if (headerRowIndex === -1) {
+                throw new Error('Monthly header row not found in CSV');
+            }
+
+            const headers = this.parseCsvLine(lines[headerRowIndex]).map(item => item.trim());
+            const monthRegex = /^(May|June|July|August|Sep|Oct|Nov|Dec|Jan|Feb|March|April)'(\d{2})$/i;
+            const monthOrder = ['May', 'June', 'July', 'August', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'March', 'April'];
+
+            const monthColumns = headers
+                .map((label, index) => {
+                    const normalized = label.replace(/\s+/g, '');
+                    const matched = normalized.match(monthRegex);
+                    if (!matched) return null;
+                    return {
+                        index,
+                        rawLabel: label,
+                        monthName: matched[1],
+                        shortYear: parseInt(matched[2], 10)
+                    };
+                })
+                .filter(Boolean);
+
+            if (!monthColumns.length) {
+                throw new Error('No monthly columns found');
+            }
+
+            const monthColumnsByFiscalYear = new Map();
+            monthColumns.forEach(column => {
+                const startYear = ['Jan', 'Feb', 'March', 'April'].includes(column.monthName)
+                    ? 2000 + column.shortYear - 1
+                    : 2000 + column.shortYear;
+
+                if (!monthColumnsByFiscalYear.has(startYear)) {
+                    monthColumnsByFiscalYear.set(startYear, {});
+                }
+
+                monthColumnsByFiscalYear.get(startYear)[column.monthName] = column;
+            });
+
+            const numberOfMonthsIndex = headers.findIndex(label => label.toLowerCase().replace(/\s+/g, '') === 'numberofmonths');
+            const totalSavingsIndex = headers.findIndex(label => label.toLowerCase().replace(/\s+/g, '') === 'totalindivdualsavings');
+
+            const rows = lines.slice(headerRowIndex + 1)
+                .map(line => this.parseCsvLine(line))
+                .filter(row => row.some(cell => (cell || '').trim() !== ''));
+
+            const totalsRow = rows.find(row => {
+                const firstCell = (row[0] || '').trim();
+                const secondCell = (row[1] || '').trim();
+                const hasMonthValue = monthColumns.some(col => this.parseAmount(row[col.index]) > 0);
+                const hasTotalValue = totalSavingsIndex !== -1 && this.parseAmount(row[totalSavingsIndex]) > 0;
+                return !firstCell && !secondCell && (hasMonthValue || hasTotalValue);
+            });
+
+            const series = Array.from(monthColumnsByFiscalYear.entries())
+                .sort((a, b) => b[0] - a[0])
+                .map(([startYear, columnsByMonth]) => {
+                    const endYear = startYear + 1;
+                    const values = monthOrder.map(monthName => {
+                        const monthColumn = columnsByMonth[monthName];
+                        if (!monthColumn) return 0;
+
+                        if (totalsRow) {
+                            return this.parseAmount(totalsRow[monthColumn.index]);
+                        }
+
+                        return rows.reduce((sum, row) => sum + this.parseAmount(row[monthColumn.index]), 0);
+                    });
+
+                    const numberOfMonths = totalsRow && numberOfMonthsIndex !== -1
+                        ? this.parseAmount(totalsRow[numberOfMonthsIndex])
+                        : values.filter(value => value > 0).length;
+
+                    const totalSavings = totalsRow && totalSavingsIndex !== -1
+                        ? this.parseAmount(totalsRow[totalSavingsIndex])
+                        : values.reduce((sum, value) => sum + value, 0);
+
+                    const status = this.getFiscalYearStatus(startYear, endYear);
+
+                    return {
+                        yearKey: `${startYear}-${endYear}`,
+                        yearLabel: `${startYear}-${endYear} (${status.label})`,
+                        status: status.key,
+                        monthLabels: monthOrder.map(monthName => {
+                            const col = columnsByMonth[monthName];
+                            return col ? col.rawLabel.trim() : `${monthName}'${String(startYear).slice(2)}`;
+                        }),
+                        values,
+                        numberOfMonths,
+                        totalSavings
+                    };
+                });
+
+            return series;
+        } catch (error) {
+            console.error('Failed to parse savings CSV:', error);
+            return [];
+        }
+    }
+
+    parseCsvLine(line) {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i += 1) {
+            const character = line[i];
+
+            if (character === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    current += '"';
+                    i += 1;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+                continue;
+            }
+
+            if (character === ',' && !inQuotes) {
+                values.push(current);
+                current = '';
+                continue;
+            }
+
+            current += character;
+        }
+
+        values.push(current);
+        return values;
+    }
+
+    parseAmount(value) {
+        const normalized = String(value || '')
+            .replace(/,/g, '')
+            .replace(/[^0-9.-]/g, '');
+
+        if (!normalized || normalized === '-') return 0;
+
+        const amount = Number.parseFloat(normalized);
+        return Number.isFinite(amount) ? amount : 0;
+    }
+
+    getFiscalYearStatus(startYear, endYear) {
+        const now = new Date();
+        const fiscalStart = new Date(startYear, 4, 1); // May 1
+        const fiscalEnd = new Date(endYear, 3, 30, 23, 59, 59, 999); // April 30
+
+        if (now >= fiscalStart && now <= fiscalEnd) {
+            return { key: 'running', label: 'Running' };
+        }
+        if (now > fiscalEnd) {
+            return { key: 'past', label: 'Past' };
+        }
+
+        return { key: 'upcoming', label: 'Upcoming' };
+    }
+
+    getFallbackSavingsData() {
+        const values = [117000, 121000, 134000, 114000, 142000, 160000, 162000, 154000, 123000, 151000, 187000, 203000];
+        return [
+            {
+                yearKey: '2025-2026',
+                yearLabel: '2025-2026 (Running)',
+                status: 'running',
+                monthLabels: ["May'25", "June'25", "July'25", "August'25", "Sep'25", "Oct'25", "Nov'25", "Dec'25", "Jan'26", "Feb'26", "March'26", "April'26"],
+                values,
+                numberOfMonths: 12,
+                totalSavings: values.reduce((sum, value) => sum + value, 0)
+            }
+        ];
+    }
+
+    renderSavingsCurve(yearKey) {
+        const selectedSeries = this.savingsCurveByYear.find(series => series.yearKey === yearKey);
+        if (!selectedSeries) return;
+
+        document.getElementById('curveMonthCount').textContent = selectedSeries.numberOfMonths;
+        document.getElementById('curveTotalSavings').textContent = this.formatCurrency(selectedSeries.totalSavings);
+
+        this.drawCurveOnSvg(selectedSeries);
+    }
+
+    drawCurveOnSvg(series) {
+        const svg = document.getElementById('savingsCurveSvg');
+        if (!svg) return;
+
+        const width = 960;
+        const height = 320;
+        const margin = { top: 20, right: 24, bottom: 70, left: 90 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        const maxValue = Math.max(...series.values, 1);
+        const niceMax = Math.max(10000, Math.ceil(maxValue / 10000) * 10000);
+        const tickCount = 5;
+
+        const xStep = chartWidth / (series.values.length - 1 || 1);
+        const getX = index => margin.left + (index * xStep);
+        const getY = value => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = series.values.map((value, index) => ({ x: getX(index), y: getY(value), value }));
+
+        let curvePath = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                curvePath = `M ${point.x} ${point.y}`;
+                return;
+            }
+
+            const prevPoint = points[index - 1];
+            const controlX = (prevPoint.x + point.x) / 2;
+            curvePath += ` C ${controlX} ${prevPoint.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+        });
+
+        const areaPath = `${curvePath} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+
+        const yGridLines = Array.from({ length: tickCount + 1 }, (_, i) => {
+            const value = (niceMax / tickCount) * i;
+            const y = getY(value);
+            const label = this.formatAxisValue(value);
+
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 12}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${label}</text>
+            `;
+        }).join('');
+
+        const xLabels = series.monthLabels.map((monthLabel, index) => {
+            const x = getX(index);
+            const y = margin.top + chartHeight + 20;
+            return `<text x="${x}" y="${y}" class="curve-x-label" transform="rotate(-20 ${x} ${y})">${monthLabel}</text>`;
+        }).join('');
+
+        const pointsMarkup = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${this.formatCurrency(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="curveAreaFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22c55e" stop-opacity="0.2"></stop>
+                    <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"></stop>
+                </linearGradient>
+            </defs>
+
+            ${yGridLines}
+
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+
+            <path d="${areaPath}" class="curve-area"></path>
+            <path d="${curvePath}" class="curve-line"></path>
+            ${pointsMarkup}
+
+            ${xLabels}
+        `;
+    }
+
+    formatAxisValue(value) {
+        if (value >= 1000000) {
+            return `৳${(value / 1000000).toFixed(1)}M`;
+        }
+        if (value >= 1000) {
+            return `৳${Math.round(value / 1000)}k`;
+        }
+        return `৳${Math.round(value)}`;
+    }
+
+    formatCurrency(value) {
+        return `৳${Math.round(value).toLocaleString('en-US')}`;
     }
 
     // Board Members Management

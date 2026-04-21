@@ -310,21 +310,29 @@
             </div>
           </div>
 
-          <!-- All Members Section (moved here from separate section) -->
-          <div class="members-section">
-            <div class="section-header">
-              <h2>All Members</h2>
-              <div class="members-search">
-                <input
-                  type="text"
-                  id="membersSearch"
-                  placeholder="Search members..."
-                  onkeyup="filterMembers()"
-                />
+          <!-- Savings Statistics Curve -->
+          <div class="savings-curve-section">
+            <div class="savings-curve-header">
+              <h2>Savings Statistics Curve</h2>
+              <div class="year-selector">
+                <label for="financialYearSelect">Fiscal Year</label>
+                <select id="financialYearSelect"></select>
               </div>
             </div>
-            <div class="members-grid" id="membersGrid">
-              <div class="loading-members">Loading members...</div>
+
+            <div class="savings-curve-meta">
+              <div class="meta-item">
+                <span class="meta-label">Number of Months</span>
+                <span class="meta-value" id="curveMonthCount">0</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Total Individual Savings</span>
+                <span class="meta-value" id="curveTotalSavings">৳0</span>
+              </div>
+            </div>
+
+            <div class="savings-curve-canvas-wrap">
+              <svg id="savingsCurveSvg" viewBox="0 0 960 320" preserveAspectRatio="xMidYMid meet"></svg>
             </div>
           </div>
         </section>
@@ -851,7 +859,6 @@
     <button
       class="mobile-menu-toggle"
       id="mobileMenuToggle"
-      onclick="toggleMobileMenu()"
     >
       <span></span>
       <span></span>
