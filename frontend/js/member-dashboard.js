@@ -161,6 +161,36 @@ class MemberDashboard {
         document.getElementById('profileEmail').value = this.memberData.email;
         document.getElementById('profileAddress').value = this.memberData.address;
         document.getElementById('profileNID').value = this.memberData.nid;
+
+        await this.loadDashboardStats();
+    }
+
+    async loadDashboardStats() {
+        const memberId = this.memberData.id;
+        if (!memberId || memberId === 'N/A') return;
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-summary/${memberId}`);
+            if (!response.ok) return;
+
+            const stats = await response.json();
+            this.setTextIfExists('statTotalShareValue', this.formatCurrency(stats.totalShareValue || 0));
+            this.setTextIfExists('statTotalFixedDeposit', this.formatCurrency(stats.totalFixedDeposit || 0));
+            this.setTextIfExists('statMonthlyDeposit', this.formatCurrency(stats.monthlyDeposit || 0));
+            this.setTextIfExists('statInvestmentReceived', this.formatCurrency(stats.totalInvestmentReceived || 0));
+            this.setTextIfExists('statOutstanding', this.formatCurrency(stats.totalOutstanding || 0));
+            this.setTextIfExists('statInstallments', String(stats.numberOfInstallments || 0));
+            this.setTextIfExists('statClosingDate', stats.closingDate || 'N/A');
+        } catch (error) {
+            console.error('Error loading member dashboard stats:', error);
+        }
+    }
+
+    setTextIfExists(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        }
     }
 
     setupDateInputs() {
@@ -393,7 +423,10 @@ class MemberDashboard {
         const yearSelect = document.getElementById('financialYearSelect');
         if (!yearSelect) return;
 
-        this.savingsCurveByYear = await this.loadSavingsCurveDataFromCsv();
+        this.savingsCurveByYear = await this.loadSavingsCurveDataFromApi();
+        if (!this.savingsCurveByYear.length) {
+            this.savingsCurveByYear = await this.loadSavingsCurveDataFromCsv();
+        }
         if (!this.savingsCurveByYear.length) {
             this.savingsCurveByYear = this.getFallbackSavingsData();
         }
@@ -412,6 +445,26 @@ class MemberDashboard {
         });
 
         this.renderSavingsCurve(this.activeCurveYear);
+    }
+
+    async loadSavingsCurveDataFromApi() {
+        const memberId = sessionStorage.getItem('memberID') || this.memberData.id;
+        if (!memberId || memberId === 'N/A') return [];
+
+        try {
+            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-curve/${memberId}`);
+            if (!response.ok) return [];
+
+            const payload = await response.json();
+            if (!payload.curveData || payload.curveData.length === 0) {
+                return [];
+            }
+
+            return payload.curveData;
+        } catch (error) {
+            console.error('Failed to load curve data from API:', error);
+            return [];
+        }
     }
 
     async loadSavingsCurveDataFromCsv() {
