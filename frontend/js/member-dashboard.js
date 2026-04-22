@@ -967,6 +967,8 @@ class MemberDashboard {
             const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
             const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
             const meta = this.parseImportedInvestmentMeta(request.adminNote);
+            const totalInstallments = request.totalInstallments ?? request.duration ?? '-';
+            const recoveredInstallments = request.recoveredInstallments ?? '-';
 
             return `
                 <tr>
@@ -974,7 +976,8 @@ class MemberDashboard {
                     <td>${appDate}</td>
                     <td>${request.purpose || '-'}</td>
                     <td>${formatPaysaAsTaka(request.amount || 0)}</td>
-                    <td>${request.duration || 0}</td>
+                    <td>${totalInstallments}</td>
+                    <td>${recoveredInstallments}</td>
                     <td><span class="investment-status ${statusClass}">${statusText}</span></td>
                     <td>${formatPaysaAsTaka(meta.totalRecoveryPaisa)}</td>
                     <td>${formatPaysaAsTaka(meta.outstandingPaisa)}</td>
@@ -994,7 +997,8 @@ class MemberDashboard {
                             <th>Date</th>
                             <th>Type</th>
                             <th>Approval Amount</th>
-                            <th>Installments</th>
+                            <th>Total Installments</th>
+                            <th>Recovered Installments</th>
                             <th>Status</th>
                             <th>Total Recovery</th>
                             <th>Outstanding</th>
@@ -1010,9 +1014,109 @@ class MemberDashboard {
                 <h3>Investment Trend</h3>
                 <svg id="investmentCurveSvg" viewBox="0 0 960 280" preserveAspectRatio="xMidYMid meet"></svg>
             </div>
+            <div class="investment-curve-wrap">
+                <h3>Monthly Recovery</h3>
+                <svg id="investmentRecoverySvg" viewBox="0 0 960 280" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
         `;
 
         this.drawInvestmentCurve(sorted);
+        this.drawInvestmentRecoveryCurve(sorted);
+    }
+
+    drawInvestmentRecoveryCurve(requests) {
+        const svg = document.getElementById('investmentRecoverySvg');
+        if (!svg) return;
+
+        const byMonth = new Map();
+        requests.forEach(request => {
+            const monthlyRecovery = request.monthlyRecovery || {};
+            Object.entries(monthlyRecovery).forEach(([monthKey, paisaAmount]) => {
+                const amount = Number(paisaAmount) || 0;
+                if (amount <= 0) return;
+                byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + amount);
+            });
+        });
+
+        const pointsData = Array.from(byMonth.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, value]) => {
+                const [year, month] = key.split('-').map(Number);
+                const date = new Date(year, month - 1, 1);
+                const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                return { label, value };
+            });
+
+        if (pointsData.length === 0) {
+            svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" class="curve-x-label">No monthly recovery data</text>';
+            return;
+        }
+
+        const width = 960;
+        const height = 280;
+        const margin = { top: 20, right: 24, bottom: 56, left: 86 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        const max = Math.max(...pointsData.map(item => item.value), 1);
+        const niceMax = Math.ceil(max / 100000) * 100000;
+        const xStep = chartWidth / (pointsData.length - 1 || 1);
+
+        const getX = (index) => margin.left + index * xStep;
+        const getY = (value) => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = pointsData.map((item, index) => ({
+            x: getX(index),
+            y: getY(item.value),
+            label: item.label,
+            value: item.value
+        }));
+
+        let path = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                path = `M ${point.x} ${point.y}`;
+            } else {
+                const prev = points[index - 1];
+                const controlX = (prev.x + point.x) / 2;
+                path += ` C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+            }
+        });
+
+        const areaPath = `${path} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+        const yTicks = 4;
+        const yGrid = Array.from({ length: yTicks + 1 }, (_, i) => {
+            const value = (niceMax / yTicks) * i;
+            const y = getY(value);
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 10}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${this.formatPaisaAxisValue(value)}</text>
+            `;
+        }).join('');
+
+        const xLabels = points.map(point => `
+            <text x="${point.x}" y="${margin.top + chartHeight + 20}" class="curve-x-label" text-anchor="middle">${point.label}</text>
+        `).join('');
+
+        const circles = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${formatPaysaAsTaka(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="investmentRecoveryFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#16a34a" stop-opacity="0.22"></stop>
+                    <stop offset="100%" stop-color="#16a34a" stop-opacity="0.03"></stop>
+                </linearGradient>
+            </defs>
+            ${yGrid}
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <path d="${areaPath}" fill="url(#investmentRecoveryFill)"></path>
+            <path d="${path}" class="curve-line" style="stroke:#16a34a;"></path>
+            ${circles}
+            ${xLabels}
+        `;
     }
 
     drawInvestmentCurve(requests) {

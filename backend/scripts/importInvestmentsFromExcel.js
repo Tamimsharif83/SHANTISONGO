@@ -8,6 +8,20 @@ const InvestmentRequest = require('../models/InvestmentRequest');
 
 const EXCEL_FILE_PATH = path.join(__dirname, './Investment (1).xlsx');
 const IMPORT_TAG = '[IMPORT_XLSX_INVESTMENT]';
+const MONTHLY_RECOVERY_COLUMNS = [
+  { index: 12, key: '2025-05' },
+  { index: 13, key: '2025-06' },
+  { index: 14, key: '2025-07' },
+  { index: 15, key: '2025-08' },
+  { index: 16, key: '2025-09' },
+  { index: 17, key: '2025-10' },
+  { index: 18, key: '2025-11' },
+  { index: 19, key: '2025-12' },
+  { index: 20, key: '2026-01' },
+  { index: 21, key: '2026-02' },
+  { index: 22, key: '2026-03' },
+  { index: 23, key: '2026-04' }
+];
 
 function toPaisa(value) {
   const amount = Number(value) || 0;
@@ -69,6 +83,19 @@ function buildAdminNote(meta) {
   ].join(' | ');
 }
 
+function extractMonthlyRecoveryMap(row) {
+  const recovery = {};
+
+  for (const month of MONTHLY_RECOVERY_COLUMNS) {
+    const amount = parseNumber(row[month.index]);
+    if (amount > 0) {
+      recovery[month.key] = toPaisa(amount);
+    }
+  }
+
+  return recovery;
+}
+
 async function importInvestments() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
@@ -91,9 +118,12 @@ async function importInvestments() {
 
     const dataRows = rows.slice(headerIndex + 1);
 
-    // Remove previously imported investment rows so re-run remains idempotent.
+    // Remove previously imported rows from both old and new import formats.
     const deleted = await InvestmentRequest.deleteMany({
-      adminNote: { $regex: /^\[IMPORT_XLSX_INVESTMENT\]/ }
+      $or: [
+        { adminNote: { $regex: /^\[IMPORT_XLSX_INVESTMENT\]/ } },
+        { adminNote: { $regex: /^Imported from Investment\.xlsx/ } }
+      ]
     });
 
     let imported = 0;
@@ -111,10 +141,14 @@ async function importInvestments() {
       const closingDateRaw = row[4];
       const approvalAmount = parseNumber(row[5]);
       const totalPayable = parseNumber(row[7]);
-      const numberOfInstallments = Math.max(1, Math.round(parseNumber(row[8]) || 1));
+      const totalInstallmentsRaw = Math.round(parseNumber(row[8]) || 0);
+      const recoveredInstallmentsRaw = Math.round(parseNumber(row[24]) || 0);
+      const totalInstallments = totalInstallmentsRaw > 0 ? totalInstallmentsRaw : null;
+      const recoveredInstallments = recoveredInstallmentsRaw > 0 ? recoveredInstallmentsRaw : null;
       const monthlyInstallment = parseNumber(row[11]);
       const totalRecovery = parseNumber(row[27]);
       const outstandingWithProfit = parseNumber(row[29]);
+      const monthlyRecovery = extractMonthlyRecoveryMap(row);
       const hasMoneyData = approvalAmount > 0 || totalPayable > 0 || totalRecovery > 0 || outstandingWithProfit > 0;
 
       const hasNewValidMember = isValidMemberId(rawMemberID);
@@ -153,7 +187,9 @@ async function importInvestments() {
         memberName: memberName || user.fullName,
         amount: toPaisa(approvalAmount),
         purpose: investmentType || 'Imported Investment',
-        duration: numberOfInstallments,
+        duration: totalInstallments,
+        totalInstallments,
+        recoveredInstallments,
         bankName: 'Imported Bank',
         bankBranch: 'Imported Branch',
         bankAccountNo: memberID,
@@ -173,7 +209,8 @@ async function importInvestments() {
         }),
         reviewedBy: null,
         reviewedAt: approvalDate,
-        applicationDate: approvalDate
+        applicationDate: approvalDate,
+        monthlyRecovery
       });
 
       await request.save();

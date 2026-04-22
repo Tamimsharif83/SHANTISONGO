@@ -873,6 +873,13 @@ body {
     display: block;
 }
 
+#investmentRecoverySvg {
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    display: block;
+}
+
 .investment-item {
     background: var(--white);
     border: 2px solid var(--border-gray);
