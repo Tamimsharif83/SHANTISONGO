@@ -745,6 +745,17 @@ class MemberDashboard {
         }
         return `৳${Math.round(value)}`;
     }
+    
+    formatPaisaAxisValue(paisaValue) {
+        const taka = paysaToTaka(paisaValue);
+        if (taka >= 1000000) {
+            return `৳${(taka / 1000000).toFixed(1)}M`;
+        }
+        if (taka >= 1000) {
+            return `৳${Math.round(taka / 1000)}k`;
+        }
+        return `৳${Math.round(taka)}`;
+    }
 
     formatCurrency(value) {
         return `৳${Math.round(value).toLocaleString('en-US')}`;
@@ -867,7 +878,7 @@ class MemberDashboard {
                 if (data.length === 0) {
                     investmentList.innerHTML = '<div class="no-data-message">No investment requests found. Click "New Application" to submit one.</div>';
                 } else {
-                    investmentList.innerHTML = data.map(request => this.createInvestmentCard(request)).join('');
+                    this.renderInvestmentTableWithCurve(data);
                 }
             } else {
                 investmentList.innerHTML = '<div class="error-message">Failed to load investment requests</div>';
@@ -893,7 +904,7 @@ class MemberDashboard {
                 <div class="investment-details">
                     <div class="detail-item">
                         <label>Amount Requested:</label>
-                        <span>৳${request.amount.toLocaleString()}</span>
+                        <span>${formatPaysaAsTaka(request.amount || 0)}</span>
                     </div>
                     <div class="detail-item">
                         <label>Purpose:</label>
@@ -925,6 +936,174 @@ class MemberDashboard {
                     ` : ''}
                 </div>
             </div>
+        `;
+    }
+
+    parseImportedInvestmentMeta(adminNote = '') {
+        const text = String(adminNote || '');
+        const parsePaisa = (key) => {
+            const match = text.match(new RegExp(`${key}=([0-9]+)`));
+            return match ? parseInt(match[1], 10) : 0;
+        };
+
+        return {
+            totalRecoveryPaisa: parsePaisa('totalRecoveryPaisa'),
+            outstandingPaisa: parsePaisa('outstandingPaisa'),
+            totalPayablePaisa: parsePaisa('totalPayablePaisa'),
+            monthlyInstallmentPaisa: parsePaisa('monthlyInstallmentPaisa')
+        };
+    }
+
+    renderInvestmentTableWithCurve(requests) {
+        const investmentList = document.getElementById('investmentList');
+        if (!investmentList) return;
+
+        const sorted = [...requests].sort(
+            (a, b) => new Date(b.applicationDate).getTime() - new Date(a.applicationDate).getTime()
+        );
+
+        const rowsHtml = sorted.map(request => {
+            const statusClass = request.status === 'approved' ? 'approved' : request.status === 'rejected' ? 'rejected' : 'pending';
+            const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+            const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const meta = this.parseImportedInvestmentMeta(request.adminNote);
+
+            return `
+                <tr>
+                    <td>${request.requestId || '-'}</td>
+                    <td>${appDate}</td>
+                    <td>${request.purpose || '-'}</td>
+                    <td>${formatPaysaAsTaka(request.amount || 0)}</td>
+                    <td>${request.duration || 0}</td>
+                    <td><span class="investment-status ${statusClass}">${statusText}</span></td>
+                    <td>${formatPaysaAsTaka(meta.totalRecoveryPaisa)}</td>
+                    <td>${formatPaysaAsTaka(meta.outstandingPaisa)}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="viewInvestment('${request._id}')">View</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        investmentList.innerHTML = `
+            <div class="investment-table-wrap">
+                <table class="investment-table">
+                    <thead>
+                        <tr>
+                            <th>Request ID</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Approval Amount</th>
+                            <th>Installments</th>
+                            <th>Status</th>
+                            <th>Total Recovery</th>
+                            <th>Outstanding</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            <div class="investment-curve-wrap">
+                <h3>Investment Trend</h3>
+                <svg id="investmentCurveSvg" viewBox="0 0 960 280" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+        `;
+
+        this.drawInvestmentCurve(sorted);
+    }
+
+    drawInvestmentCurve(requests) {
+        const svg = document.getElementById('investmentCurveSvg');
+        if (!svg) return;
+
+        const byMonth = new Map();
+        requests.forEach(request => {
+            const date = new Date(request.applicationDate);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            byMonth.set(key, (byMonth.get(key) || 0) + (request.amount || 0));
+        });
+
+        const pointsData = Array.from(byMonth.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, value]) => {
+                const [year, month] = key.split('-').map(Number);
+                const date = new Date(year, month - 1, 1);
+                const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                return { label, value };
+            });
+
+        if (pointsData.length === 0) {
+            svg.innerHTML = '';
+            return;
+        }
+
+        const width = 960;
+        const height = 280;
+        const margin = { top: 20, right: 24, bottom: 56, left: 86 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        const max = Math.max(...pointsData.map(item => item.value), 1);
+        const niceMax = Math.ceil(max / 100000) * 100000;
+        const xStep = chartWidth / (pointsData.length - 1 || 1);
+
+        const getX = (index) => margin.left + index * xStep;
+        const getY = (value) => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = pointsData.map((item, index) => ({
+            x: getX(index),
+            y: getY(item.value),
+            label: item.label,
+            value: item.value
+        }));
+
+        let path = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                path = `M ${point.x} ${point.y}`;
+            } else {
+                const prev = points[index - 1];
+                const controlX = (prev.x + point.x) / 2;
+                path += ` C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+            }
+        });
+
+        const areaPath = `${path} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+        const yTicks = 4;
+        const yGrid = Array.from({ length: yTicks + 1 }, (_, i) => {
+            const value = (niceMax / yTicks) * i;
+            const y = getY(value);
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 10}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${this.formatPaisaAxisValue(value)}</text>
+            `;
+        }).join('');
+
+        const xLabels = points.map(point => `
+            <text x="${point.x}" y="${margin.top + chartHeight + 20}" class="curve-x-label" text-anchor="middle">${point.label}</text>
+        `).join('');
+
+        const circles = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${formatPaysaAsTaka(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="investmentCurveFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.22"></stop>
+                    <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.03"></stop>
+                </linearGradient>
+            </defs>
+            ${yGrid}
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <path d="${areaPath}" fill="url(#investmentCurveFill)"></path>
+            <path d="${path}" class="curve-line" style="stroke:#0ea5e9;"></path>
+            ${circles}
+            ${xLabels}
         `;
     }
 
