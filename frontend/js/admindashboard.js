@@ -58,18 +58,18 @@ class AdminDashboard {
         const userRole = sessionStorage.getItem('userRole');
         
         if (!userId) {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/html/login.html';
             return;
         }
         
         if (firstLogin === 'true') {
-            window.location.href = '/frontend/html/change-password.html';
+            window.location.href = '/html/change-password.html';
             return;
         }
         
         if (userRole !== 'admin') {
             alert('Unauthorized access!');
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/html/login.html';
             return;
         }
         
@@ -790,7 +790,7 @@ function confirmLogout() {
     sessionStorage.clear();
     localStorage.removeItem('adminSession');
     setTimeout(() => { 
-        window.location.href = '/frontend/html/login.html'; 
+        window.location.href = '/html/login.html'; 
     }, 800);
 }
 
@@ -999,7 +999,7 @@ async function handlePasswordChange(event) {
     if (!userId) {
         dashboard.showNotification('Session expired. Please login again.', 'error');
         setTimeout(() => {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/html/login.html';
         }, 2000);
         return;
     }
@@ -1032,7 +1032,7 @@ async function handlePasswordChange(event) {
             setTimeout(() => {
                 sessionStorage.clear();
                 localStorage.removeItem('adminSession');
-                window.location.href = '/frontend/html/login.html';
+                window.location.href = '/html/login.html';
             }, 1500);
         } else {
             if (data.msg === 'Old password is incorrect') {
@@ -2788,7 +2788,7 @@ function showInvestmentAccountDetailsModal(account) {
                        account.status === 'completed' ? 'var(--primary-blue)' : 'var(--danger-red)';
     
     // Member profile picture
-    const memberPicture = account.userId?.profilePicture || '/frontend/logo/default-avatar.png';
+    const memberPicture = account.userId?.profilePicture || '/logo/default-avatar.png';
     
     const modalHTML = `
         <div class="modal-overlay" id="investmentAccountDetailsModal" onclick="closeInvestmentAccountDetailsModal()" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
@@ -2804,7 +2804,7 @@ function showInvestmentAccountDetailsModal(account) {
                         <div style="display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
                             <img src="${memberPicture}" alt="Member" 
                                  style="width: 100px; height: 100px; border-radius: 8px; object-fit: cover; border: 3px solid var(--primary-green);"
-                                 onerror="this.src='/frontend/logo/default-avatar.png'">
+                                 onerror="this.src='/logo/default-avatar.png'">
                             <div style="text-align: center; font-size: 0.85rem; color: #666;">
                                 <div style="font-weight: 600;">${account.memberName}</div>
                                 <div>ID: ${account.memberID}</div>
@@ -2961,7 +2961,7 @@ async function showCreateInvestmentAccountModal(requestId) {
             return;
         }
         
-        const memberPicture = request.memberProfilePicture || '/frontend/logo/default-avatar.png';
+        const memberPicture = request.memberProfilePicture || '/logo/default-avatar.png';
         const today = new Date().toISOString().split('T')[0];
         
         const modalHTML = `
@@ -2979,7 +2979,7 @@ async function showCreateInvestmentAccountModal(requestId) {
                                 <div style="display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: start;">
                                     <img src="${memberPicture}" alt="Member" 
                                          style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid var(--primary-green);"
-                                         onerror="this.src='/frontend/logo/default-avatar.png'">
+                                         onerror="this.src='/logo/default-avatar.png'">
                                     <div style="display: grid; gap: 0.5rem;">
                                         <div><strong>Request ID:</strong> ${request.requestId}</div>
                                         <div><strong>Member ID:</strong> ${request.memberID}</div>
@@ -6522,7 +6522,7 @@ setInterval(updateNavBadges, 60000);
         /* fetch logo as base64 so it renders in the blank popup */
         let logoDataURL = '';
         try {
-            const logoResp = await fetch('/frontend/logo/without_bg_logo.png');
+            const logoResp = await fetch('/logo/without_bg_logo.png');
             const blob     = await logoResp.blob();
             logoDataURL    = await new Promise(res => {
                 const r = new FileReader();
@@ -6992,7 +6992,7 @@ setInterval(updateNavBadges, 60000);
             const paidRows    = _shareMonthlyRows.filter(r=>r.paid).map(r=>`<tr style="background:#f0fdf4;"><td>${r.memberName}</td><td>${r.memberId}</td><td><span style="background:#16a34a;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px;">&#10003; Paid</span></td><td>${r.amountFmt}</td><td>${r.entryDate}</td><td>${r.authStatus}</td></tr>`).join('');
             const unpaidRows  = _shareMonthlyRows.filter(r=>!r.paid).map(r=>`<tr style="background:#fff5f5;"><td>${r.memberName}</td><td>${r.memberId}</td><td><span style="background:#dc2626;color:#fff;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px;">&#10007; Unpaid</span></td><td>-</td><td>-</td><td>-</td></tr>`).join('');
             let logoDataURL = '';
-            try { const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
+            try { const blob = await (await fetch('/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
             const pw = window.open('','_blank');
             pw.document.write(`<!DOCTYPE html><html><head><title>Share Monthly View</title><style>
                 body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
@@ -7057,7 +7057,7 @@ setInterval(updateNavBadges, 60000);
 
         let logoDataURL = '';
         try {
-            const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob();
+            const blob = await (await fetch('/logo/without_bg_logo.png')).blob();
             logoDataURL = await new Promise(res => { const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
         } catch(_){}
 
@@ -7488,7 +7488,7 @@ setInterval(updateNavBadges, 60000);
                 return `<tr style="background:${bg};"><td>${r.accountNo}</td><td>${r.memberName}</td><td>${r.memberId}</td><td style="text-align:right;">${_fmtD(r.dueAmount)}</td><td style="text-align:right;">${r.paidAmount>0?_fmtD(r.paidAmount):'-'}</td><td>${r.dueDate}</td><td>${r.paidDate}</td><td>${statusLabel(r.status)}</td></tr>`;
             }).join('');
             let logoDataURL = '';
-            try { const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
+            try { const blob = await (await fetch('/logo/without_bg_logo.png')).blob(); logoDataURL = await new Promise(res=>{const rd=new FileReader();rd.onload=()=>res(rd.result);rd.readAsDataURL(blob);}); } catch(_){}
             const pw = window.open('','_blank');
             pw.document.write(`<!DOCTYPE html><html><head><title>Investment Monthly View</title><style>
                 body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#333;font-size:13px;}
@@ -7555,7 +7555,7 @@ setInterval(updateNavBadges, 60000);
 
         let logoDataURL = '';
         try {
-            const blob = await (await fetch('/frontend/logo/without_bg_logo.png')).blob();
+            const blob = await (await fetch('/logo/without_bg_logo.png')).blob();
             logoDataURL = await new Promise(res => { const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob); });
         } catch(_){}
 

@@ -48,12 +48,12 @@ class MemberDashboard {
         const firstLogin = sessionStorage.getItem('firstLogin');
         
         if (!userId) {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/html/login.html';
             return;
         }
         
         if (firstLogin === 'true') {
-            window.location.href = '/frontend/html/change-password.html';
+            window.location.href = '/html/change-password.html';
             return;
         }
         
@@ -469,7 +469,7 @@ class MemberDashboard {
 
     async loadSavingsCurveDataFromCsv() {
         try {
-            const response = await fetch('/frontend/js/Share%20collection.csv', { cache: 'no-store' });
+            const response = await fetch('/js/Share%20collection.csv', { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error('Could not fetch share collection CSV');
             }

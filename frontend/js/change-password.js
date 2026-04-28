@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!userId || firstLogin !== 'true') {
         showNotification('Unauthorized access. Redirecting to login...', 'error');
         setTimeout(() => {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/html/login.html';
         }, 2000);
         return;
     }
@@ -200,7 +200,7 @@ async function handleChangePassword(event) {
             sessionStorage.clear();
             
             setTimeout(() => {
-                window.location.href = '/frontend/html/login.html';
+                window.location.href = '/html/login.html';
             }, 2000);
         } else {
             throw new Error(data.msg || 'Failed to change password');
