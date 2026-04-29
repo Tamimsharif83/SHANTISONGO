@@ -7,7 +7,24 @@ require("dotenv").config();
 const app = express();
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-app.use(cors());
+
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    "https://brave-cliff-05bdb2c00.7.azurestaticapps.net",
+    "http://localhost:3000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+].filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+}));
 
 // Serve static files from frontend folder
 app.use("/frontend", express.static(path.join(__dirname, "../frontend")));
