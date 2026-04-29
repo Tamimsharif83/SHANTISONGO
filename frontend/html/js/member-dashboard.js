@@ -361,22 +361,21 @@ class MemberDashboard {
                 { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: false },
                 { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: false },
                 { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
-                // New 15 Board Members
-                { id: 'SS200001', name: 'Sheikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200002', name: 'S. M. Tariqul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200003', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200004', name: 'Abu Bakkar Siddiq', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200005', name: 'Abid Jahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200006', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200007', name: 'Hanif Sheikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200008', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200009', name: 'Kazi Muhammad Ilyas', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200010', name: 'Sohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200011', name: 'Rasel Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200012', name: 'Sheikh Mahafuzur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200013', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200014', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200015', name: 'Rezwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
+                // Board Members (IDs synced from Share collection.csv)
+                { id: '202504003', name: 'Shaikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504046', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504001', name: 'Abu Bakker Siddique', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504072', name: 'Abid Zahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504028', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504026', name: 'Hanif Shaikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504011', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504009', name: 'Kazi Muhammad Elias (Shohan)', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504012', name: 'Shohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504010', name: 'Rasel Hossen', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504052', name: 'Sk. Mahfujur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504007', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504031', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504056', name: 'Razwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
             ]);
         }, 1000);
     });
