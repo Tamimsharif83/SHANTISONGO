@@ -137,7 +137,7 @@ class MemberDashboard {
         const userId = sessionStorage.getItem('userId');
         if (userId) {
             try {
-                const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+                const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     this.memberData.name = data.fullName || this.memberData.name;
@@ -170,7 +170,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return;
 
         try {
-            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-summary/${memberId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-summary/${memberId}`);
             if (!response.ok) return;
 
             const stats = await response.json();
@@ -223,7 +223,7 @@ class MemberDashboard {
                 this.showLoading('Uploading profile picture...');
                 
                 try {
-                    const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+                    const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -289,7 +289,7 @@ class MemberDashboard {
         this.showLoading('Removing profile picture...');
         
         try {
-            const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -322,7 +322,7 @@ class MemberDashboard {
         if (!userId) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.profilePicture) {
@@ -452,7 +452,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return [];
 
         try {
-            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-curve/${memberId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-curve/${memberId}`);
             if (!response.ok) return [];
 
             const payload = await response.json();
@@ -871,7 +871,7 @@ class MemberDashboard {
         }
         
         try {
-            const response = await fetch(`http://localhost:5000/api/investment-requests/my-requests/${userId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/my-requests/${userId}`);
             const data = await response.json();
             
             if (response.ok) {
@@ -1285,7 +1285,7 @@ class MemberDashboard {
 
     async loadInterestRatesForDropdown() {
         try {
-            const response = await fetch('http://localhost:5000/api/interest-rates/all');
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/all');
             const data = await response.json();
             
             const durationDropdown = document.getElementById('investmentDuration');
@@ -1319,7 +1319,7 @@ class MemberDashboard {
         this.showLoading('Loading details...');
         
         try {
-            const response = await fetch(`http://localhost:5000/api/investment-requests/${investmentId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${investmentId}`);
             const data = await response.json();
             
             this.hideLoading();
@@ -1664,7 +1664,7 @@ class MemberDashboard {
         this.showLoading('Changing password...');
         
         try {
-            const response = await fetch('http://localhost:5000/auth/update-password', {
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1915,7 +1915,7 @@ function submitInvestmentApplication() {
     
     dashboard.showLoading('Submitting application...');
     
-    fetch('http://localhost:5000/api/investment-requests', {
+    fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1947,7 +1947,7 @@ function deleteInvestmentRequest(requestId) {
 
     dashboard.showLoading('Deleting application...');
     
-    fetch(`http://localhost:5000/api/investment-requests/${requestId}`, {
+    fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`, {
         method: 'DELETE'
     })
     .then(response => response.json())
@@ -2009,8 +2009,8 @@ function logoRefresh() {
 // ================================================================
 // FIXED DEPOSIT — MEMBER SIDE
 // ================================================================
-const FD_API = 'http://localhost:5000/api/fixed-deposit';
-const FDR_RATES_API = 'http://localhost:5000/api/fdr-rates';
+const FD_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fixed-deposit';
+const FDR_RATES_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fdr-rates';
 let _fdrRatesCache = [];
 
 async function loadFDRatesForMember() {

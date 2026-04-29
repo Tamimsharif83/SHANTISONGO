@@ -430,7 +430,7 @@ async function handleLogin(event) {
 // Authentication with Real API
 async function authenticateUser(credentials) {
     try {
-        const response = await fetch('http://localhost:5000/auth/login', {
+        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

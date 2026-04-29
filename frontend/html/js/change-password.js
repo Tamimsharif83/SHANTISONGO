@@ -180,7 +180,7 @@ async function handleChangePassword(event) {
     try {
         const userId = sessionStorage.getItem('userId');
         
-        const response = await fetch('http://localhost:5000/auth/change-password', {
+        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/change-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
