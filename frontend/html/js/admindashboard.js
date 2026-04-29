@@ -58,18 +58,18 @@ class AdminDashboard {
         const userRole = sessionStorage.getItem('userRole');
         
         if (!userId) {
-            window.location.href = '/html/login.html';
+            window.location.href = '/login.html';
             return;
         }
         
         if (firstLogin === 'true') {
-            window.location.href = '/html/change-password.html';
+            window.location.href = '/change-password.html';
             return;
         }
         
         if (userRole !== 'admin') {
             alert('Unauthorized access!');
-            window.location.href = '/html/login.html';
+            window.location.href = '/login.html';
             return;
         }
         
@@ -790,7 +790,7 @@ function confirmLogout() {
     sessionStorage.clear();
     localStorage.removeItem('adminSession');
     setTimeout(() => { 
-        window.location.href = '/html/login.html'; 
+        window.location.href = '/login.html'; 
     }, 800);
 }
 
@@ -999,7 +999,7 @@ async function handlePasswordChange(event) {
     if (!userId) {
         dashboard.showNotification('Session expired. Please login again.', 'error');
         setTimeout(() => {
-            window.location.href = '/html/login.html';
+            window.location.href = '/login.html';
         }, 2000);
         return;
     }
@@ -1032,7 +1032,7 @@ async function handlePasswordChange(event) {
             setTimeout(() => {
                 sessionStorage.clear();
                 localStorage.removeItem('adminSession');
-                window.location.href = '/html/login.html';
+                window.location.href = '/login.html';
             }, 1500);
         } else {
             if (data.msg === 'Old password is incorrect') {

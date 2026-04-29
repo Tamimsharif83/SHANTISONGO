@@ -48,12 +48,12 @@ class MemberDashboard {
         const firstLogin = sessionStorage.getItem('firstLogin');
         
         if (!userId) {
-            window.location.href = '/html/login.html';
+            window.location.href = '/login.html';
             return;
         }
         
         if (firstLogin === 'true') {
-            window.location.href = '/html/change-password.html';
+            window.location.href = '/change-password.html';
             return;
         }
         

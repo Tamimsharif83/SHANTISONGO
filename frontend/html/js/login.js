@@ -400,15 +400,15 @@ async function handleLogin(event) {
             if (result.user.firstLogin) {
                 showNotification('First login detected. Please change your password.', 'info');
                 setTimeout(() => {
-                    navigateTo('/html/change-password.html');
+                    navigateTo('/change-password.html');
                 }, 1500);
             } else {
                 showNotification('Login successful! Redirecting...', 'success');
                 setTimeout(() => {
                     if (result.user.type === 'admin') {
-                        navigateTo('/html/admindashboard.html');
+                        navigateTo('/admindashboard.html');
                     } else {
-                        navigateTo('/html/member-dashboard.html');
+                        navigateTo('/member-dashboard.html');
                     }
                 }, 1500);
             }
