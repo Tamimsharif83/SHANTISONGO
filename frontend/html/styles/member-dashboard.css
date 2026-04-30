@@ -1208,16 +1208,35 @@ body {
     .investment-table-wrap {
         min-width: unset;
         border-radius: var(--border-radius);
+        padding: 0.5rem;
     }
     
     .investment-table {
         min-width: 100%;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
     
     .investment-table th, 
     .investment-table td {
-        padding: 0.5rem;
+        padding: 0.6rem;
+    }
+
+    #investmentCurveSvg,
+    #investmentRecoverySvg {
+        max-height: 300px;
+    }
+
+    .curve-x-label,
+    .curve-y-label {
+        font-size: 12px;
+    }
+
+    .investment-item {
+        padding: 1.25rem;
+    }
+
+    .investment-details {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
 
     .member-basic-info {
@@ -1312,6 +1331,60 @@ body {
 
     .export-actions {
         flex-direction: column;
+    }
+
+    /* Investment section mobile optimization */
+    .investment-table-wrap {
+        padding: 0.5rem;
+        overflow-x: auto;
+    }
+
+    .investment-table {
+        font-size: 0.9rem;
+        min-width: 100%;
+    }
+
+    .investment-table th,
+    .investment-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .investment-item {
+        padding: 1rem 0.75rem;
+    }
+
+    .investment-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .investment-details {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .detail-item {
+        font-size: 0.85rem;
+    }
+
+    #investmentCurveSvg,
+    #investmentRecoverySvg {
+        max-height: 320px;
+    }
+
+    .curve-x-label,
+    .curve-y-label {
+        font-size: 13px;
+    }
+
+    .investment-curve-wrap {
+        padding: 0.75rem;
+    }
+
+    .investment-curve-wrap h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
     }
 }
 
