@@ -130,7 +130,7 @@ router.get("/user-profile/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const user = await User.findById(userId).select('fullName memberID email profilePicture numberOfShares');
+    const user = await User.findById(userId).select('fullName memberID email profilePicture numberOfShares phone address nid memberSince');
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
@@ -140,8 +140,36 @@ router.get("/user-profile/:userId", async (req, res) => {
       memberID: user.memberID,
       email: user.email,
       profilePicture: user.profilePicture,
-      numberOfShares: user.numberOfShares || 0
+      numberOfShares: user.numberOfShares || 0,
+      phone: user.phone || '',
+      address: user.address || '',
+      nid: user.nid || '',
+      memberSince: user.memberSince || 'May 2025'
     });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+// UPDATE PROFILE API (phone, address, nid)
+router.put("/update-profile/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const { phone, address, nid } = req.body;
+
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { phone: phone || '', address: address || '', nid: nid || '' },
+      { new: true }
+    ).select('phone address nid');
+
+    if (!updatedUser) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+
+    res.json({ msg: "Profile updated successfully", phone: updatedUser.phone, address: updatedUser.address, nid: updatedUser.nid });
 
   } catch (err) {
     console.error(err);

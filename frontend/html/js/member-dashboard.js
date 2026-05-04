@@ -46,17 +46,17 @@ class MemberDashboard {
         // Check if user is logged in and not on first login
         const userId = sessionStorage.getItem('userId');
         const firstLogin = sessionStorage.getItem('firstLogin');
-        
+
         if (!userId) {
             window.location.href = '/login.html';
             return;
         }
-        
+
         if (firstLogin === 'true') {
             window.location.href = '/change-password.html';
             return;
         }
-        
+
         this.currentSection = 'dashboard';
         this.isDarkTheme = localStorage.getItem('darkTheme') === 'true';
         this.editMode = false;
@@ -69,15 +69,15 @@ class MemberDashboard {
         this.currentReportTitle = '';
         this.memberData = {
             name: sessionStorage.getItem('fullName') || 'Member',
-            id: sessionStorage.getItem('memberID') || 'N/A',
-            shares: 5,
-            memberSince: 'January 2025',
-            phone: '01788594010',
-            email: sessionStorage.getItem('userEmail') || 'N/A',
-            address: '123 Main Street, Dhaka, Bangladesh',
-            nid: '1234567890123'
+            id: sessionStorage.getItem('memberID') || '',
+            shares: 0,
+            memberSince: 'May 2025',
+            phone: '',
+            email: sessionStorage.getItem('email') || '',
+            address: '',
+            nid: ''
         };
-        
+
         this.init();
     }
 
@@ -137,13 +137,17 @@ class MemberDashboard {
         const userId = sessionStorage.getItem('userId');
         if (userId) {
             try {
-                const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
+                const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     this.memberData.name = data.fullName || this.memberData.name;
                     this.memberData.id = data.memberID || this.memberData.id;
-                    this.memberData.email = data.email || this.memberData.email;
+                    this.memberData.email = '';
                     this.memberData.shares = data.numberOfShares || 0;
+                    this.memberData.phone = data.phone || '';
+                    this.memberData.address = data.address || '';
+                    this.memberData.nid = data.nid || '';
+                    this.memberData.memberSince = data.memberSince || 'May 2025';
                 }
             } catch (error) {
                 console.error('Error loading member data:', error);
@@ -154,7 +158,7 @@ class MemberDashboard {
         document.getElementById('memberID').textContent = this.memberData.id;
         document.getElementById('memberShares').textContent = this.memberData.shares;
         document.getElementById('memberSince').textContent = this.memberData.memberSince;
-        
+
         document.getElementById('profileName').value = this.memberData.name;
         document.getElementById('profileMemberID').value = this.memberData.id;
         document.getElementById('profilePhone').value = this.memberData.phone;
@@ -170,7 +174,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return;
 
         try {
-            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-summary/${memberId}`);
+            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-summary/${memberId}`);
             if (!response.ok) return;
 
             const stats = await response.json();
@@ -212,7 +216,7 @@ class MemberDashboard {
             const reader = new FileReader();
             reader.onload = async (e) => {
                 const imageData = e.target.result;
-                
+
                 // Save to backend
                 const userId = sessionStorage.getItem('userId');
                 if (!userId) {
@@ -221,9 +225,9 @@ class MemberDashboard {
                 }
 
                 this.showLoading('Uploading profile picture...');
-                
+
                 try {
-                    const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
+                    const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -259,13 +263,13 @@ class MemberDashboard {
         const removeBtn = document.getElementById('removePhotoBtn');
         const dashboardImage = document.getElementById('dashboardProfileImage');
         const dashboardPlaceholder = document.getElementById('dashboardPhotoPlaceholder');
-        
+
         if (imageData) {
             profileImage.src = imageData;
             profileImage.style.display = 'block';
             profilePlaceholder.style.display = 'none';
             removeBtn.style.display = 'inline-flex';
-            
+
             dashboardImage.src = imageData;
             dashboardImage.style.display = 'block';
             dashboardPlaceholder.style.display = 'none';
@@ -273,7 +277,7 @@ class MemberDashboard {
             profileImage.style.display = 'none';
             profilePlaceholder.style.display = 'flex';
             removeBtn.style.display = 'none';
-            
+
             dashboardImage.style.display = 'none';
             dashboardPlaceholder.style.display = 'flex';
         }
@@ -287,9 +291,9 @@ class MemberDashboard {
         }
 
         this.showLoading('Removing profile picture...');
-        
+
         try {
-            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
+            const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -322,7 +326,7 @@ class MemberDashboard {
         if (!userId) return;
 
         try {
-            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
+            const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.profilePicture) {
@@ -337,7 +341,7 @@ class MemberDashboard {
     // Members Management
     async loadMembersList() {
         const membersGrid = document.getElementById('membersGrid');
-        
+
         try {
             // Simulate MongoDB API call
             const members = await this.fetchMembersFromMongoDB();
@@ -353,39 +357,39 @@ class MemberDashboard {
     }
 
     async fetchMembersFromMongoDB() {
-    // Simulate API call - replace with actual MongoDB API endpoint
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            resolve([
-                { id: 'SS123456', name: 'Mohammad Rahman', status: 'Active', joinDate: '2025-01-15', isBoard: false },
-                { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: false },
-                { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: false },
-                { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
-                // Board Members (IDs synced from Share collection.csv)
-                { id: '202504003', name: 'Shaikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504046', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504001', name: 'Abu Bakker Siddique', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504072', name: 'Abid Zahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504028', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504026', name: 'Hanif Shaikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504011', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504009', name: 'Kazi Muhammad Elias (Shohan)', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504012', name: 'Shohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504010', name: 'Rasel Hossen', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504052', name: 'Sk. Mahfujur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504007', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504031', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: '202504056', name: 'Razwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
-            ]);
-        }, 1000);
-    });
-}
+        // Simulate API call - replace with actual MongoDB API endpoint
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve([
+                    { id: 'SS123456', name: 'Mohammad Rahman', status: 'Active', joinDate: '2025-01-15', isBoard: false },
+                    { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: false },
+                    { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: false },
+                    { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
+                    // Board Members (IDs synced from Share collection.csv)
+                    { id: '202504003', name: 'Shaikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504046', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504001', name: 'Abu Bakker Siddique', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504072', name: 'Abid Zahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504028', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504026', name: 'Hanif Shaikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504011', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504009', name: 'Kazi Muhammad Elias (Shohan)', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504012', name: 'Shohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504010', name: 'Rasel Hossen', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504052', name: 'Sk. Mahfujur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504007', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504031', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                    { id: '202504056', name: 'Razwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
+                ]);
+            }, 1000);
+        });
+    }
 
 
     displayMembers(members) {
         const membersGrid = document.getElementById('membersGrid');
         if (!membersGrid) return;
-        
+
         if (members.length === 0) {
             membersGrid.innerHTML = '<div class="no-members">No members found</div>';
             return;
@@ -411,8 +415,8 @@ class MemberDashboard {
         if (!searchInput) return;
 
         const searchTerm = searchInput.value.toLowerCase();
-        const filteredMembers = this.allMembers.filter(member => 
-            member.name.toLowerCase().includes(searchTerm) || 
+        const filteredMembers = this.allMembers.filter(member =>
+            member.name.toLowerCase().includes(searchTerm) ||
             member.id.toLowerCase().includes(searchTerm)
         );
         this.displayMembers(filteredMembers);
@@ -451,7 +455,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return [];
 
         try {
-            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-curve/${memberId}`);
+            const response = await fetch(`http://localhost:5000/api/monthlyshare/member-curve/${memberId}`);
             if (!response.ok) return [];
 
             const payload = await response.json();
@@ -744,7 +748,7 @@ class MemberDashboard {
         }
         return `৳${Math.round(value)}`;
     }
-    
+
     formatPaisaAxisValue(paisaValue) {
         const taka = paysaToTaka(paisaValue);
         if (taka >= 1000000) {
@@ -763,7 +767,7 @@ class MemberDashboard {
     // Board Members Management
     async loadBoardMembers() {
         const boardGrid = document.getElementById('boardGrid');
-        
+
         try {
             // Filter board members from all members (15 total as per policy)
             await this.loadMembersList(); // Ensure members are loaded first
@@ -777,7 +781,7 @@ class MemberDashboard {
 
     displayBoardMembers(boardMembers) {
         const boardGrid = document.getElementById('boardGrid');
-        
+
         if (boardMembers.length === 0) {
             boardGrid.innerHTML = '<div class="no-board">No board members assigned</div>';
             return;
@@ -863,16 +867,16 @@ class MemberDashboard {
     async loadInvestmentRequests() {
         const investmentList = document.getElementById('investmentList');
         const userId = sessionStorage.getItem('userId');
-        
+
         if (!userId) {
             investmentList.innerHTML = '<div class="error-message">User not logged in</div>';
             return;
         }
-        
+
         try {
-            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/my-requests/${userId}`);
+            const response = await fetch(`http://localhost:5000/api/investment-requests/my-requests/${userId}`);
             const data = await response.json();
-            
+
             if (response.ok) {
                 if (data.length === 0) {
                     investmentList.innerHTML = '<div class="no-data-message">No investment requests found. Click "New Application" to submit one.</div>';
@@ -893,7 +897,7 @@ class MemberDashboard {
         const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
         const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
         const reviewDate = request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
-        
+
         return `
             <div class="investment-item">
                 <div class="investment-header">
@@ -1277,22 +1281,22 @@ class MemberDashboard {
             </div>
         `;
         this.showModal(modalHTML);
-        
+
         // Load interest rates and populate duration dropdown
         this.loadInterestRatesForDropdown();
     }
 
     async loadInterestRatesForDropdown() {
         try {
-            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/all');
+            const response = await fetch('http://localhost:5000/api/interest-rates/all');
             const data = await response.json();
-            
+
             const durationDropdown = document.getElementById('investmentDuration');
-            
+
             if (response.ok && data.success && data.interestRates.length > 0) {
                 // Clear loading message
                 durationDropdown.innerHTML = '<option value="">Select Duration</option>';
-                
+
                 // Add options for each interest rate
                 data.interestRates.forEach(rate => {
                     const option = document.createElement('option');
@@ -1316,18 +1320,18 @@ class MemberDashboard {
 
     async viewInvestment(investmentId) {
         this.showLoading('Loading details...');
-        
+
         try {
-            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${investmentId}`);
+            const response = await fetch(`http://localhost:5000/api/investment-requests/${investmentId}`);
             const data = await response.json();
-            
+
             this.hideLoading();
-            
+
             if (response.ok) {
                 const appDate = new Date(data.applicationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
                 const reviewDate = data.reviewedAt ? new Date(data.reviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
                 const statusColor = data.status === 'approved' ? 'var(--primary-green)' : data.status === 'rejected' ? 'var(--danger-red)' : 'var(--warning-orange)';
-                
+
                 const modalHTML = `
                     <div class="modal-overlay" onclick="closeModal()">
                         <div class="modal-content" onclick="event.stopPropagation()">
@@ -1440,7 +1444,7 @@ class MemberDashboard {
 
     displayReport(containerId, data, title) {
         const container = document.getElementById(containerId);
-        
+
         if (!data || data.length === 0) {
             container.innerHTML = '<div style="text-align: center;">No data found</div>';
             return;
@@ -1501,7 +1505,7 @@ class MemberDashboard {
         const printWindow = window.open('', '_blank');
         const memberName = this.memberData.name;
         const memberID = this.memberData.id;
-        
+
         const pdfContent = `
             <!DOCTYPE html>
             <html>
@@ -1558,19 +1562,19 @@ class MemberDashboard {
                 <table class="report-table">
                     <thead>
                         <tr>
-                            ${Object.keys(this.currentReportData[0]).map(header => 
-                                `<th>${this.formatHeader(header)}</th>`
-                            ).join('')}
+                            ${Object.keys(this.currentReportData[0]).map(header =>
+            `<th>${this.formatHeader(header)}</th>`
+        ).join('')}
                         </tr>
                     </thead>
                     <tbody>
-                        ${this.currentReportData.map(row => 
-                            `<tr>
-                                ${Object.keys(row).map(key => 
-                                    `<td>${this.isAmount(row[key]) ? '৳' + row[key] : row[key]}</td>`
-                                ).join('')}
+                        ${this.currentReportData.map(row =>
+            `<tr>
+                                ${Object.keys(row).map(key =>
+                `<td>${this.isAmount(row[key]) ? '৳' + row[key] : row[key]}</td>`
+            ).join('')}
                             </tr>`
-                        ).join('')}
+        ).join('')}
                     </tbody>
                 </table>
 
@@ -1585,7 +1589,7 @@ class MemberDashboard {
 
         printWindow.document.write(pdfContent);
         printWindow.document.close();
-        
+
         setTimeout(() => {
             printWindow.focus();
             printWindow.print();
@@ -1610,7 +1614,7 @@ class MemberDashboard {
             ['Generated On:', new Date().toLocaleDateString()],
             [''],
             headers.map(h => this.formatHeader(h)),
-            ...this.currentReportData.map(row => 
+            ...this.currentReportData.map(row =>
                 headers.map(header => {
                     const value = row[header];
                     // Format amounts properly for Excel
@@ -1622,7 +1626,7 @@ class MemberDashboard {
             )
         ];
 
-        const csvString = csvContent.map(row => 
+        const csvString = csvContent.map(row =>
             Array.isArray(row) ? row.join(',') : [row].join(',')
         ).join('\n');
 
@@ -1661,9 +1665,9 @@ class MemberDashboard {
         }
 
         this.showLoading('Changing password...');
-        
+
         try {
-            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-password', {
+            const response = await fetch('http://localhost:5000/auth/update-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1696,7 +1700,7 @@ class MemberDashboard {
     sendMessage() {
         const input = document.getElementById('chatInput');
         const message = input.value.trim();
-        
+
         if (!message) return;
 
         this.addMessage(message, 'sent');
@@ -1715,7 +1719,7 @@ class MemberDashboard {
     addMessage(content, type) {
         const messagesContainer = document.getElementById('chatMessages');
         const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        
+
         const messageHTML = `
             <div class="message ${type}">
                 <div class="message-content">
@@ -1800,7 +1804,7 @@ class MemberDashboard {
             color: ${type === 'success' ? '#155724' : type === 'error' ? '#721c24' : '#0c5460'};
             border: 1px solid ${type === 'success' ? '#c3e6cb' : type === 'error' ? '#f5c6cb' : '#bee5eb'};
         `;
-        
+
         notification.textContent = message;
         document.body.appendChild(notification);
 
@@ -1809,7 +1813,7 @@ class MemberDashboard {
 
     showLoading(message = 'Loading...') {
         if (document.getElementById('loadingOverlay')) return;
-        
+
         const loading = document.createElement('div');
         loading.id = 'loadingOverlay';
         loading.style.cssText = `
@@ -1817,12 +1821,12 @@ class MemberDashboard {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 10002; color: white;
         `;
-        
+
         loading.innerHTML = `
             <div style="width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #1e7e34; border-radius: 50%; animation: spin 1s linear infinite;"></div>
             <p style="margin-top: 1rem;">${message}</p>
         `;
-        
+
         document.body.appendChild(loading);
     }
 
@@ -1837,7 +1841,7 @@ let dashboard;
 
 document.addEventListener('DOMContentLoaded', () => {
     dashboard = new MemberDashboard();
-    
+
     // Add necessary styles for animations
     if (!document.getElementById('animations')) {
         const style = document.createElement('style');
@@ -1888,14 +1892,14 @@ function closeModal() {
 function submitInvestmentApplication() {
     const form = document.getElementById('newInvestmentForm');
     const formData = new FormData(form);
-    
+
     const userId = sessionStorage.getItem('userId');
-    
+
     if (!userId) {
         dashboard.showNotification('User not logged in', 'error');
         return;
     }
-    
+
     const requestData = {
         userId: userId,
         amount: takaToPaysa(formData.get('amount')),  // Convert taka → paisa
@@ -1911,32 +1915,32 @@ function submitInvestmentApplication() {
             relationship: formData.get('guarantorRelationship')
         }
     };
-    
+
     dashboard.showLoading('Submitting application...');
-    
-    fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests', {
+
+    fetch('http://localhost:5000/api/investment-requests', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestData)
     })
-    .then(response => response.json())
-    .then(data => {
-        dashboard.hideLoading();
-        if (data.message) {
-            closeModal();
-            dashboard.showNotification(data.message, 'success');
-            dashboard.loadInvestmentRequests();
-        } else {
-            dashboard.showNotification('Failed to submit application', 'error');
-        }
-    })
-    .catch(error => {
-        dashboard.hideLoading();
-        console.error('Error:', error);
-        dashboard.showNotification('Error submitting application', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            dashboard.hideLoading();
+            if (data.message) {
+                closeModal();
+                dashboard.showNotification(data.message, 'success');
+                dashboard.loadInvestmentRequests();
+            } else {
+                dashboard.showNotification('Failed to submit application', 'error');
+            }
+        })
+        .catch(error => {
+            dashboard.hideLoading();
+            console.error('Error:', error);
+            dashboard.showNotification('Error submitting application', 'error');
+        });
 }
 
 function deleteInvestmentRequest(requestId) {
@@ -1945,26 +1949,26 @@ function deleteInvestmentRequest(requestId) {
     }
 
     dashboard.showLoading('Deleting application...');
-    
-    fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`, {
+
+    fetch(`http://localhost:5000/api/investment-requests/${requestId}`, {
         method: 'DELETE'
     })
-    .then(response => response.json())
-    .then(data => {
-        dashboard.hideLoading();
-        if (data.message) {
-            dashboard.showNotification('Application deleted successfully', 'success');
-            // Reload investment list
-            dashboard.loadInvestmentRequests();
-        } else {
-            dashboard.showNotification('Failed to delete application', 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting application:', error);
-        dashboard.hideLoading();
-        dashboard.showNotification('Error deleting application', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            dashboard.hideLoading();
+            if (data.message) {
+                dashboard.showNotification('Application deleted successfully', 'success');
+                // Reload investment list
+                dashboard.loadInvestmentRequests();
+            } else {
+                dashboard.showNotification('Failed to delete application', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting application:', error);
+            dashboard.hideLoading();
+            dashboard.showNotification('Error deleting application', 'error');
+        });
 }
 
 function submitComplaint() {
@@ -2008,18 +2012,18 @@ function logoRefresh() {
 // ================================================================
 // FIXED DEPOSIT — MEMBER SIDE
 // ================================================================
-const FD_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fixed-deposit';
-const FDR_RATES_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fdr-rates';
+const FD_API = 'http://localhost:5000/api/fixed-deposit';
+const FDR_RATES_API = 'http://localhost:5000/api/fdr-rates';
 let _fdrRatesCache = [];
 
 async function loadFDRatesForMember() {
     const sel = document.getElementById('fdProposedDuration');
     if (!sel) return;
     try {
-        const res  = await fetch(FDR_RATES_API);
+        const res = await fetch(FDR_RATES_API);
         const data = await res.json();
         _fdrRatesCache = data.success ? data.rates : [];
-    } catch(e) {
+    } catch (e) {
         _fdrRatesCache = [];
     }
     const currentVal = sel.value;
@@ -2034,15 +2038,15 @@ async function loadFDRatesForMember() {
 }
 
 function updateFDPreview() {
-    const sel     = document.getElementById('fdProposedDuration');
-    const amtInp  = document.getElementById('fdAmount');
+    const sel = document.getElementById('fdProposedDuration');
+    const amtInp = document.getElementById('fdAmount');
     const preview = document.getElementById('fdInterestPreview');
     if (!sel || !amtInp || !preview) return;
 
-    const months  = parseInt(sel.value);
-    const amount  = parseFloat(amtInp.value);
-    const opt     = sel.options[sel.selectedIndex];
-    const rate    = opt ? parseFloat(opt.getAttribute('data-rate')) : NaN;
+    const months = parseInt(sel.value);
+    const amount = parseFloat(amtInp.value);
+    const opt = sel.options[sel.selectedIndex];
+    const rate = opt ? parseFloat(opt.getAttribute('data-rate')) : NaN;
 
     if (!months || !amount || amount <= 0 || isNaN(rate)) {
         preview.style.display = 'none';
@@ -2050,12 +2054,12 @@ function updateFDPreview() {
     }
 
     const interest = amount * (rate / 100) * (months / 12);
-    const total    = amount + interest;
+    const total = amount + interest;
     const fmt = n => '৳' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     document.getElementById('fdPreviewInterest').textContent = fmt(interest);
-    document.getElementById('fdPreviewTotal').textContent    = fmt(total);
-    document.getElementById('fdPreviewMeta').textContent     = `Based on ${rate}% p.a. for ${months} months (simple interest)`;
+    document.getElementById('fdPreviewTotal').textContent = fmt(total);
+    document.getElementById('fdPreviewMeta').textContent = `Based on ${rate}% p.a. for ${months} months (simple interest)`;
     preview.style.display = 'block';
 }
 
@@ -2063,13 +2067,13 @@ window.updateFDPreview = updateFDPreview;
 
 function fdStatusBadge(status) {
     const map = {
-        pending:           { label: 'Pending',           color: '#f59e0b', bg: '#fef3c7' },
-        acknowledged:      { label: 'Acknowledged',      color: '#2563eb', bg: '#dbeafe' },
-        rejected:          { label: 'Rejected',          color: '#dc2626', bg: '#fee2e2' },
+        pending: { label: 'Pending', color: '#f59e0b', bg: '#fef3c7' },
+        acknowledged: { label: 'Acknowledged', color: '#2563eb', bg: '#dbeafe' },
+        rejected: { label: 'Rejected', color: '#dc2626', bg: '#fee2e2' },
         payment_submitted: { label: 'Payment Submitted', color: '#7c3aed', bg: '#ede9fe' },
-        entry_confirmed:   { label: 'Waiting for Authorization', color: '#b45309', bg: '#fef9c3' },
-        completed:         { label: 'Completed',         color: '#16a34a', bg: '#dcfce7' },
-        cancelled:         { label: 'Cancelled',         color: '#dc2626', bg: '#fee2e2' },
+        entry_confirmed: { label: 'Waiting for Authorization', color: '#b45309', bg: '#fef9c3' },
+        completed: { label: 'Completed', color: '#16a34a', bg: '#dcfce7' },
+        cancelled: { label: 'Cancelled', color: '#dc2626', bg: '#fee2e2' },
     };
     const s = map[status] || { label: status, color: '#6b7280', bg: '#f3f4f6' };
     return `<span style="background:${s.bg};color:${s.color};padding:3px 10px;border-radius:99px;font-size:0.8rem;font-weight:600;">${s.label}</span>`;
@@ -2271,10 +2275,10 @@ async function submitFDPayment(requestId) {
 }
 
 function _fdToggleDocReq(id) {
-    const method  = document.getElementById(`fdPayMethod_${id}`)?.value;
-    const mark    = document.getElementById(`fdPayDocReqMark_${id}`);
-    const note    = document.getElementById(`fdPayDocNote_${id}`);
-    const isHand  = method === 'hand_cash';
+    const method = document.getElementById(`fdPayMethod_${id}`)?.value;
+    const mark = document.getElementById(`fdPayDocReqMark_${id}`);
+    const note = document.getElementById(`fdPayDocNote_${id}`);
+    const isHand = method === 'hand_cash';
     if (mark) mark.style.display = isHand ? 'none' : 'inline';
     if (note) note.style.display = isHand ? 'block' : 'none';
 }

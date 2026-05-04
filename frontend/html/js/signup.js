@@ -4,7 +4,7 @@ let mobileMenuOpen = false;
 let isSubmitting = false;
 
 // API Base URL
-const API_BASE_URL = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net';
+const API_BASE_URL = 'http://localhost:5000';
 
 // Form validation rules for Application Form
 const VALIDATION_RULES = {

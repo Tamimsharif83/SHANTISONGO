@@ -52,6 +52,26 @@ const UserSchema = new mongoose.Schema({
   numberOfShares: {
     type: Number,
     default: 0
+  },
+
+  phone: {
+    type: String,
+    default: ''
+  },
+
+  address: {
+    type: String,
+    default: ''
+  },
+
+  nid: {
+    type: String,
+    default: ''
+  },
+
+  memberSince: {
+    type: String,
+    default: 'May 2025'
   }
 });
 

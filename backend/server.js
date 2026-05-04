@@ -12,6 +12,8 @@ const allowedOrigins = [
     process.env.FRONTEND_URL,
     "https://brave-cliff-05bdb2c00.7.azurestaticapps.net",
     "http://localhost:3000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
     "http://localhost:5500",
     "http://127.0.0.1:5500",
 ].filter(Boolean);
@@ -26,10 +28,13 @@ app.use(cors({
     credentials: true,
 }));
 
-// Serve static files from frontend folder
+// Serve static files from frontend/html as root (so /styles/, /js/, /logo/ all work)
+app.use(express.static(path.join(__dirname, "../frontend/html")));
+
+// Also serve /frontend path for backward compatibility
 app.use("/frontend", express.static(path.join(__dirname, "../frontend")));
 
-// Redirect root to index.html
+// Root → index.html
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend/html/index.html"));
 });
