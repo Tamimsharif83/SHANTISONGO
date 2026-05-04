@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!userId || firstLogin !== 'true') {
         showNotification('Unauthorized access. Redirecting to login...', 'error');
         setTimeout(() => {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/login.html';
         }, 2000);
         return;
     }
@@ -180,7 +180,7 @@ async function handleChangePassword(event) {
     try {
         const userId = sessionStorage.getItem('userId');
         
-        const response = await fetch('http://localhost:5000/auth/change-password', {
+        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/change-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -200,7 +200,7 @@ async function handleChangePassword(event) {
             sessionStorage.clear();
             
             setTimeout(() => {
-                window.location.href = '/frontend/html/login.html';
+                window.location.href = '/login.html';
             }, 2000);
         } else {
             throw new Error(data.msg || 'Failed to change password');

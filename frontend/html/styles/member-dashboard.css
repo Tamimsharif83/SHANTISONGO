@@ -433,80 +433,129 @@ body {
     color: var(--text-dark);
 }
 
-/* Members Section on Dashboard */
-.members-section {
+/* Savings Curve Section */
+.savings-curve-section {
     background: var(--white);
     border: 2px solid var(--border-gray);
     border-radius: var(--border-radius-lg);
-    padding: 2rem;
+    padding: 1.4rem;
     margin-bottom: 2rem;
     box-shadow: 0 4px 15px var(--shadow);
 }
 
-.members-section .section-header {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
+.savings-curve-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 1.25rem;
 }
 
-.members-section h2 {
+.savings-curve-header h2 {
     font-size: 1.5rem;
-}
-
-.members-search input {
-    padding: 0.75rem 1rem;
-    border: 2px solid var(--border-gray);
-    border-radius: var(--border-radius);
-    font-size: 1rem;
-    min-width: 250px;
-}
-
-.members-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-.member-card {
-    background: var(--light-gray);
-    border: 2px solid var(--border-gray);
-    border-radius: var(--border-radius);
-    padding: 1rem;
-    transition: var(--transition);
-    text-align: center;
-}
-
-.member-card:hover {
-    border-color: var(--primary-green);
-    transform: translateY(-3px);
-    box-shadow: 0 6px 20px var(--shadow);
-}
-
-.member-card.board-member {
-    background: linear-gradient(135deg, var(--light-green), var(--light-blue));
-    border-color: var(--primary-green);
-    font-weight: 600;
-}
-
-.member-card h4 {
     color: var(--text-dark);
-    margin-bottom: 0.5rem;
-    font-size: 1rem;
 }
 
-.member-card .member-id {
-    color: var(--primary-green);
+.year-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 220px;
+}
+
+.year-selector label {
+    font-size: 0.85rem;
     font-weight: 600;
-    font-size: 0.9rem;
+    color: var(--text-gray);
 }
 
-.member-card .member-status {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    background: var(--light-green);
+.year-selector select {
+    border: 2px solid var(--border-gray);
+    background: var(--light-gray);
+    color: var(--text-dark);
+    padding: 0.65rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+}
+
+.savings-curve-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.meta-item {
+    background: linear-gradient(135deg, var(--light-green), var(--light-blue));
+    border: 2px solid rgba(33, 150, 243, 0.35);
+    border-radius: var(--border-radius);
+    padding: 0.9rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.meta-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-gray);
+}
+
+.meta-value {
+    font-size: 1.1rem;
+    font-weight: 700;
     color: var(--primary-green);
-    border-radius: 12px;
-    font-size: 0.8rem;
-    margin-top: 0.5rem;
+}
+
+.savings-curve-canvas-wrap {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.08), rgba(14, 165, 233, 0.04));
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    border-radius: var(--border-radius);
+    padding: 0.35rem;
+}
+
+#savingsCurveSvg {
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    display: block;
+}
+
+.curve-grid-line {
+    stroke: rgba(100, 116, 139, 0.25);
+    stroke-width: 1;
+}
+
+.curve-axis {
+    stroke: rgba(15, 23, 42, 0.55);
+    stroke-width: 1.4;
+}
+
+.curve-line {
+    stroke: #22c55e;
+    stroke-width: 2.2;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.curve-area {
+    fill: url(#curveAreaFill);
+}
+
+.curve-point {
+    fill: #16a34a;
+    stroke: #ffffff;
+    stroke-width: 1.4;
+}
+
+.curve-x-label,
+.curve-y-label {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #334155;
 }
 
 /* Board Members */
@@ -775,6 +824,60 @@ body {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+.investment-table-wrap {
+    background: var(--white);
+    border: 2px solid var(--border-gray);
+    border-radius: var(--border-radius-lg);
+    padding: 0.75rem;
+    overflow-x: auto;
+}
+
+.investment-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 880px;
+}
+
+.investment-table th,
+.investment-table td {
+    border-bottom: 1px solid var(--border-gray);
+    padding: 0.75rem;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+.investment-table th {
+    color: var(--primary-green);
+    font-weight: 700;
+    background: var(--light-green);
+}
+
+.investment-curve-wrap {
+    background: var(--white);
+    border: 2px solid var(--border-gray);
+    border-radius: var(--border-radius-lg);
+    padding: 1rem;
+}
+
+.investment-curve-wrap h3 {
+    margin-bottom: 0.75rem;
+    color: var(--text-dark);
+}
+
+#investmentCurveSvg {
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    display: block;
+}
+
+#investmentRecoverySvg {
+    width: 100%;
+    height: auto;
+    max-height: 280px;
+    display: block;
 }
 
 .investment-item {
@@ -1077,6 +1180,65 @@ body {
 }
 
 @media (max-width: 768px) {
+    .nav-left {
+        gap: 0.5rem;
+    }
+    
+    .nav-logo {
+        width: 35px;
+    }
+
+    .logo-bangla {
+        font-size: 1rem;
+    }
+
+    .logo-english {
+        font-size: 0.65rem;
+    }
+
+    .dashboard-title {
+        font-size: 0.85rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .logout-btn {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .investment-table-wrap {
+        min-width: unset;
+        border-radius: var(--border-radius);
+        padding: 0.5rem;
+    }
+    
+    .investment-table {
+        min-width: 100%;
+        font-size: 0.85rem;
+    }
+    
+    .investment-table th, 
+    .investment-table td {
+        padding: 0.6rem;
+    }
+
+    #investmentCurveSvg,
+    #investmentRecoverySvg {
+        max-height: 300px;
+    }
+
+    .curve-x-label,
+    .curve-y-label {
+        font-size: 12px;
+    }
+
+    .investment-item {
+        padding: 1.25rem;
+    }
+
+    .investment-details {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
     .member-basic-info {
         flex-direction: column;
         gap: 1.5rem;
@@ -1109,7 +1271,12 @@ body {
         grid-template-columns: 1fr;
     }
 
-    .members-grid {
+    .savings-curve-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .savings-curve-meta {
         grid-template-columns: 1fr;
     }
 
@@ -1118,18 +1285,36 @@ body {
         grid-template-columns: 1fr;
     }
 
-    .members-search input {
-        min-width: 100%;
+    .curve-x-label,
+    .curve-y-label {
+        font-size: 11px;
     }
 }
 
 @media (max-width: 480px) {
+    .logout-text {
+        display: none;
+    }
+
+    .logo-text {
+        display: none;
+    }
+
+    .nav-left {
+        gap: 0.25rem;
+    }
+
+    .dashboard-title {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.6rem;
+    }
+
     .main-content {
         padding: 0.75rem;
     }
 
     .member-info-card,
-    .members-section {
+    .savings-curve-section {
         padding: 1rem;
     }
 
@@ -1147,6 +1332,60 @@ body {
     .export-actions {
         flex-direction: column;
     }
+
+    /* Investment section mobile optimization */
+    .investment-table-wrap {
+        padding: 0.5rem;
+        overflow-x: auto;
+    }
+
+    .investment-table {
+        font-size: 0.9rem;
+        min-width: 100%;
+    }
+
+    .investment-table th,
+    .investment-table td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .investment-item {
+        padding: 1rem 0.75rem;
+    }
+
+    .investment-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .investment-details {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .detail-item {
+        font-size: 0.85rem;
+    }
+
+    #investmentCurveSvg,
+    #investmentRecoverySvg {
+        max-height: 320px;
+    }
+
+    .curve-x-label,
+    .curve-y-label {
+        font-size: 13px;
+    }
+
+    .investment-curve-wrap {
+        padding: 0.75rem;
+    }
+
+    .investment-curve-wrap h3 {
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+    }
 }
 
 /* Dark Theme Styles - Fixed for better contrast */
@@ -1158,21 +1397,63 @@ body {
 .dark-theme .chat-container,
 .dark-theme .board-member,
 .dark-theme .member-card,
-.dark-theme .members-section,
+.dark-theme .savings-curve-section,
+.dark-theme .investment-table-wrap,
+.dark-theme .investment-curve-wrap,
 .dark-theme .committee-notes {
     background: var(--dark-card);
     border-color: var(--dark-border);
     color: var(--dark-text);
 }
 
+.dark-theme .investment-table th {
+    background: #2d5a3d;
+    color: #86efac;
+}
+
+.dark-theme .investment-table td {
+    border-bottom-color: var(--dark-border);
+}
+
 .dark-theme .form-group input,
 .dark-theme .form-group textarea,
 .dark-theme .form-group select,
-.dark-theme .members-search input,
+.dark-theme .year-selector select,
 .dark-theme .chat-input input {
     background: var(--dark-bg);
     border-color: var(--dark-border);
     color: var(--dark-text);
+}
+
+.dark-theme .meta-item {
+    background: linear-gradient(135deg, #2d5a3d, #1e3a5f);
+    border-color: #3182ce;
+}
+
+.dark-theme .meta-label {
+    color: #bfdbfe;
+}
+
+.dark-theme .meta-value {
+    color: #86efac;
+}
+
+.dark-theme .savings-curve-canvas-wrap {
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.2), rgba(14, 165, 233, 0.1));
+    border-color: #334155;
+}
+
+.dark-theme .curve-grid-line {
+    stroke: rgba(148, 163, 184, 0.35);
+}
+
+.dark-theme .curve-axis {
+    stroke: rgba(203, 213, 225, 0.75);
+}
+
+.dark-theme .curve-x-label,
+.dark-theme .curve-y-label {
+    fill: #e2e8f0;
 }
 
 /* Fix text colors on light backgrounds in dark mode */
@@ -1356,6 +1637,7 @@ html {
     align-items: center;
     justify-content: center;
     z-index: 2000;
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
 

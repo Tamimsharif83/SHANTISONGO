@@ -24,8 +24,18 @@ const investmentRequestSchema = new mongoose.Schema({
     },
     duration: {
         type: Number,
-        required: true,
+        default: null,
         min: 1
+    },
+    totalInstallments: {
+        type: Number,
+        default: null,
+        min: 1
+    },
+    recoveredInstallments: {
+        type: Number,
+        default: null,
+        min: 0
     },
     bankName: {
         type: String,
@@ -77,6 +87,11 @@ const investmentRequestSchema = new mongoose.Schema({
     applicationDate: {
         type: Date,
         default: Date.now
+    },
+    monthlyRecovery: {
+        type: Map,
+        of: Number,
+        default: {}
     }
 }, {
     timestamps: true

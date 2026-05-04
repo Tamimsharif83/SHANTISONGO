@@ -48,12 +48,12 @@ class MemberDashboard {
         const firstLogin = sessionStorage.getItem('firstLogin');
         
         if (!userId) {
-            window.location.href = '/frontend/html/login.html';
+            window.location.href = '/login.html';
             return;
         }
         
         if (firstLogin === 'true') {
-            window.location.href = '/frontend/html/change-password.html';
+            window.location.href = '/change-password.html';
             return;
         }
         
@@ -63,6 +63,8 @@ class MemberDashboard {
         this.currentReportTab = 'deposits';
         this.allMembers = [];
         this.boardMembers = [];
+        this.savingsCurveByYear = [];
+        this.activeCurveYear = '';
         this.currentReportData = null;
         this.currentReportTitle = '';
         this.memberData = {
@@ -86,6 +88,7 @@ class MemberDashboard {
         this.setupDateInputs();
         this.loadMembersList();
         this.loadBoardMembers();
+        this.initializeSavingsCurve();
         this.loadProfilePicture();
         this.loadInvestmentRequests();
     }
@@ -134,7 +137,7 @@ class MemberDashboard {
         const userId = sessionStorage.getItem('userId');
         if (userId) {
             try {
-                const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+                const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     this.memberData.name = data.fullName || this.memberData.name;
@@ -158,6 +161,36 @@ class MemberDashboard {
         document.getElementById('profileEmail').value = this.memberData.email;
         document.getElementById('profileAddress').value = this.memberData.address;
         document.getElementById('profileNID').value = this.memberData.nid;
+
+        await this.loadDashboardStats();
+    }
+
+    async loadDashboardStats() {
+        const memberId = this.memberData.id;
+        if (!memberId || memberId === 'N/A') return;
+
+        try {
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-summary/${memberId}`);
+            if (!response.ok) return;
+
+            const stats = await response.json();
+            this.setTextIfExists('statTotalShareValue', this.formatCurrency(stats.totalShareValue || 0));
+            this.setTextIfExists('statTotalFixedDeposit', this.formatCurrency(stats.totalFixedDeposit || 0));
+            this.setTextIfExists('statMonthlyDeposit', this.formatCurrency(stats.monthlyDeposit || 0));
+            this.setTextIfExists('statInvestmentReceived', this.formatCurrency(stats.totalInvestmentReceived || 0));
+            this.setTextIfExists('statOutstanding', this.formatCurrency(stats.totalOutstanding || 0));
+            this.setTextIfExists('statInstallments', String(stats.numberOfInstallments || 0));
+            this.setTextIfExists('statClosingDate', stats.closingDate || 'N/A');
+        } catch (error) {
+            console.error('Error loading member dashboard stats:', error);
+        }
+    }
+
+    setTextIfExists(elementId, value) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        }
     }
 
     setupDateInputs() {
@@ -190,7 +223,7 @@ class MemberDashboard {
                 this.showLoading('Uploading profile picture...');
                 
                 try {
-                    const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+                    const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -256,7 +289,7 @@ class MemberDashboard {
         this.showLoading('Removing profile picture...');
         
         try {
-            const response = await fetch('http://localhost:5000/auth/update-profile-picture', {
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-profile-picture', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -289,7 +322,7 @@ class MemberDashboard {
         if (!userId) return;
 
         try {
-            const response = await fetch(`http://localhost:5000/auth/user-profile/${userId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/user-profile/${userId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.profilePicture) {
@@ -309,9 +342,13 @@ class MemberDashboard {
             // Simulate MongoDB API call
             const members = await this.fetchMembersFromMongoDB();
             this.allMembers = members;
-            this.displayMembers(members);
+            if (membersGrid) {
+                this.displayMembers(members);
+            }
         } catch (error) {
-            membersGrid.innerHTML = '<div class="error-message">Failed to load members. Please try again later.</div>';
+            if (membersGrid) {
+                membersGrid.innerHTML = '<div class="error-message">Failed to load members. Please try again later.</div>';
+            }
         }
     }
 
@@ -324,22 +361,21 @@ class MemberDashboard {
                 { id: 'SS123457', name: 'Fatima Begum', status: 'Active', joinDate: '2025-01-10', isBoard: false },
                 { id: 'SS123458', name: 'Abdul Karim', status: 'Active', joinDate: '2025-01-12', isBoard: false },
                 { id: 'SS123459', name: 'Aminul Islam', status: 'Active', joinDate: '2025-01-18', isBoard: false },
-                // New 15 Board Members
-                { id: 'SS200001', name: 'Sheikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200002', name: 'S. M. Tariqul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200003', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200004', name: 'Abu Bakkar Siddiq', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200005', name: 'Abid Jahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200006', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200007', name: 'Hanif Sheikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200008', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200009', name: 'Kazi Muhammad Ilyas', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200010', name: 'Sohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200011', name: 'Rasel Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200012', name: 'Sheikh Mahafuzur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200013', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200014', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
-                { id: 'SS200015', name: 'Rezwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
+                // Board Members (IDs synced from Share collection.csv)
+                { id: '202504003', name: 'Shaikh Ashrafuzzaman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504046', name: 'Md. Mirajul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504001', name: 'Abu Bakker Siddique', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504072', name: 'Abid Zahangir', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504028', name: 'Ruhul Amin', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504026', name: 'Hanif Shaikh', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504011', name: 'Md. Mostafa Shahriar', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504009', name: 'Kazi Muhammad Elias (Shohan)', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504012', name: 'Shohag Hossain', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504010', name: 'Rasel Hossen', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504052', name: 'Sk. Mahfujur Rahman', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504007', name: 'Afrin Afroza', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504031', name: 'Md. Didarul Islam', status: 'Active', joinDate: '2025-02-15', isBoard: true },
+                { id: '202504056', name: 'Razwanul Haque', status: 'Active', joinDate: '2025-02-15', isBoard: true }
             ]);
         }, 1000);
     });
@@ -348,6 +384,7 @@ class MemberDashboard {
 
     displayMembers(members) {
         const membersGrid = document.getElementById('membersGrid');
+        if (!membersGrid) return;
         
         if (members.length === 0) {
             membersGrid.innerHTML = '<div class="no-members">No members found</div>';
@@ -370,12 +407,357 @@ class MemberDashboard {
     }
 
     filterMembers() {
-        const searchTerm = document.getElementById('membersSearch').value.toLowerCase();
+        const searchInput = document.getElementById('membersSearch');
+        if (!searchInput) return;
+
+        const searchTerm = searchInput.value.toLowerCase();
         const filteredMembers = this.allMembers.filter(member => 
             member.name.toLowerCase().includes(searchTerm) || 
             member.id.toLowerCase().includes(searchTerm)
         );
         this.displayMembers(filteredMembers);
+    }
+
+    async initializeSavingsCurve() {
+        const yearSelect = document.getElementById('financialYearSelect');
+        if (!yearSelect) return;
+
+        this.savingsCurveByYear = await this.loadSavingsCurveDataFromApi();
+        if (!this.savingsCurveByYear.length) {
+            this.savingsCurveByYear = await this.loadSavingsCurveDataFromCsv();
+        }
+        if (!this.savingsCurveByYear.length) {
+            this.savingsCurveByYear = this.getFallbackSavingsData();
+        }
+
+        yearSelect.innerHTML = this.savingsCurveByYear
+            .map(series => `<option value="${series.yearKey}">${series.yearLabel}</option>`)
+            .join('');
+
+        const runningYear = this.savingsCurveByYear.find(series => series.status === 'running');
+        this.activeCurveYear = runningYear ? runningYear.yearKey : this.savingsCurveByYear[0].yearKey;
+        yearSelect.value = this.activeCurveYear;
+
+        yearSelect.addEventListener('change', (event) => {
+            this.activeCurveYear = event.target.value;
+            this.renderSavingsCurve(this.activeCurveYear);
+        });
+
+        this.renderSavingsCurve(this.activeCurveYear);
+    }
+
+    async loadSavingsCurveDataFromApi() {
+        const memberId = sessionStorage.getItem('memberID') || this.memberData.id;
+        if (!memberId || memberId === 'N/A') return [];
+
+        try {
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/member-curve/${memberId}`);
+            if (!response.ok) return [];
+
+            const payload = await response.json();
+            if (!payload.curveData || payload.curveData.length === 0) {
+                return [];
+            }
+
+            return payload.curveData;
+        } catch (error) {
+            console.error('Failed to load curve data from API:', error);
+            return [];
+        }
+    }
+
+    async loadSavingsCurveDataFromCsv() {
+        try {
+            const response = await fetch('/js/Share%20collection.csv', { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error('Could not fetch share collection CSV');
+            }
+
+            const csvText = await response.text();
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim().length > 0);
+            const headerRowIndex = lines.findIndex(line => line.includes("May'") && line.includes("April'") && line.includes('Total Indivdual Savings'));
+            if (headerRowIndex === -1) {
+                throw new Error('Monthly header row not found in CSV');
+            }
+
+            const headers = this.parseCsvLine(lines[headerRowIndex]).map(item => item.trim());
+            const monthRegex = /^(May|June|July|August|Sep|Oct|Nov|Dec|Jan|Feb|March|April)'(\d{2})$/i;
+            const monthOrder = ['May', 'June', 'July', 'August', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'March', 'April'];
+
+            const monthColumns = headers
+                .map((label, index) => {
+                    const normalized = label.replace(/\s+/g, '');
+                    const matched = normalized.match(monthRegex);
+                    if (!matched) return null;
+                    return {
+                        index,
+                        rawLabel: label,
+                        monthName: matched[1],
+                        shortYear: parseInt(matched[2], 10)
+                    };
+                })
+                .filter(Boolean);
+
+            if (!monthColumns.length) {
+                throw new Error('No monthly columns found');
+            }
+
+            const monthColumnsByFiscalYear = new Map();
+            monthColumns.forEach(column => {
+                const startYear = ['Jan', 'Feb', 'March', 'April'].includes(column.monthName)
+                    ? 2000 + column.shortYear - 1
+                    : 2000 + column.shortYear;
+
+                if (!monthColumnsByFiscalYear.has(startYear)) {
+                    monthColumnsByFiscalYear.set(startYear, {});
+                }
+
+                monthColumnsByFiscalYear.get(startYear)[column.monthName] = column;
+            });
+
+            const numberOfMonthsIndex = headers.findIndex(label => label.toLowerCase().replace(/\s+/g, '') === 'numberofmonths');
+            const totalSavingsIndex = headers.findIndex(label => label.toLowerCase().replace(/\s+/g, '') === 'totalindivdualsavings');
+
+            const rows = lines.slice(headerRowIndex + 1)
+                .map(line => this.parseCsvLine(line))
+                .filter(row => row.some(cell => (cell || '').trim() !== ''));
+
+            const totalsRow = rows.find(row => {
+                const firstCell = (row[0] || '').trim();
+                const secondCell = (row[1] || '').trim();
+                const hasMonthValue = monthColumns.some(col => this.parseAmount(row[col.index]) > 0);
+                const hasTotalValue = totalSavingsIndex !== -1 && this.parseAmount(row[totalSavingsIndex]) > 0;
+                return !firstCell && !secondCell && (hasMonthValue || hasTotalValue);
+            });
+
+            const series = Array.from(monthColumnsByFiscalYear.entries())
+                .sort((a, b) => b[0] - a[0])
+                .map(([startYear, columnsByMonth]) => {
+                    const endYear = startYear + 1;
+                    const values = monthOrder.map(monthName => {
+                        const monthColumn = columnsByMonth[monthName];
+                        if (!monthColumn) return 0;
+
+                        if (totalsRow) {
+                            return this.parseAmount(totalsRow[monthColumn.index]);
+                        }
+
+                        return rows.reduce((sum, row) => sum + this.parseAmount(row[monthColumn.index]), 0);
+                    });
+
+                    const numberOfMonths = totalsRow && numberOfMonthsIndex !== -1
+                        ? this.parseAmount(totalsRow[numberOfMonthsIndex])
+                        : values.filter(value => value > 0).length;
+
+                    const totalSavings = totalsRow && totalSavingsIndex !== -1
+                        ? this.parseAmount(totalsRow[totalSavingsIndex])
+                        : values.reduce((sum, value) => sum + value, 0);
+
+                    const status = this.getFiscalYearStatus(startYear, endYear);
+
+                    return {
+                        yearKey: `${startYear}-${endYear}`,
+                        yearLabel: `${startYear}-${endYear} (${status.label})`,
+                        status: status.key,
+                        monthLabels: monthOrder.map(monthName => {
+                            const col = columnsByMonth[monthName];
+                            return col ? col.rawLabel.trim() : `${monthName}'${String(startYear).slice(2)}`;
+                        }),
+                        values,
+                        numberOfMonths,
+                        totalSavings
+                    };
+                });
+
+            return series;
+        } catch (error) {
+            console.error('Failed to parse savings CSV:', error);
+            return [];
+        }
+    }
+
+    parseCsvLine(line) {
+        const values = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i += 1) {
+            const character = line[i];
+
+            if (character === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    current += '"';
+                    i += 1;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+                continue;
+            }
+
+            if (character === ',' && !inQuotes) {
+                values.push(current);
+                current = '';
+                continue;
+            }
+
+            current += character;
+        }
+
+        values.push(current);
+        return values;
+    }
+
+    parseAmount(value) {
+        const normalized = String(value || '')
+            .replace(/,/g, '')
+            .replace(/[^0-9.-]/g, '');
+
+        if (!normalized || normalized === '-') return 0;
+
+        const amount = Number.parseFloat(normalized);
+        return Number.isFinite(amount) ? amount : 0;
+    }
+
+    getFiscalYearStatus(startYear, endYear) {
+        const now = new Date();
+        const fiscalStart = new Date(startYear, 4, 1); // May 1
+        const fiscalEnd = new Date(endYear, 3, 30, 23, 59, 59, 999); // April 30
+
+        if (now >= fiscalStart && now <= fiscalEnd) {
+            return { key: 'running', label: 'Running' };
+        }
+        if (now > fiscalEnd) {
+            return { key: 'past', label: 'Past' };
+        }
+
+        return { key: 'upcoming', label: 'Upcoming' };
+    }
+
+    getFallbackSavingsData() {
+        const values = [117000, 121000, 134000, 114000, 142000, 160000, 162000, 154000, 123000, 151000, 187000, 203000];
+        return [
+            {
+                yearKey: '2025-2026',
+                yearLabel: '2025-2026 (Running)',
+                status: 'running',
+                monthLabels: ["May'25", "June'25", "July'25", "August'25", "Sep'25", "Oct'25", "Nov'25", "Dec'25", "Jan'26", "Feb'26", "March'26", "April'26"],
+                values,
+                numberOfMonths: 12,
+                totalSavings: values.reduce((sum, value) => sum + value, 0)
+            }
+        ];
+    }
+
+    renderSavingsCurve(yearKey) {
+        const selectedSeries = this.savingsCurveByYear.find(series => series.yearKey === yearKey);
+        if (!selectedSeries) return;
+
+        document.getElementById('curveMonthCount').textContent = selectedSeries.numberOfMonths;
+        document.getElementById('curveTotalSavings').textContent = this.formatCurrency(selectedSeries.totalSavings);
+
+        this.drawCurveOnSvg(selectedSeries);
+    }
+
+    drawCurveOnSvg(series) {
+        const svg = document.getElementById('savingsCurveSvg');
+        if (!svg) return;
+
+        const width = 960;
+        const height = 320;
+        const margin = { top: 20, right: 24, bottom: 70, left: 90 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        const maxValue = Math.max(...series.values, 1);
+        const niceMax = Math.max(10000, Math.ceil(maxValue / 10000) * 10000);
+        const tickCount = 5;
+
+        const xStep = chartWidth / (series.values.length - 1 || 1);
+        const getX = index => margin.left + (index * xStep);
+        const getY = value => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = series.values.map((value, index) => ({ x: getX(index), y: getY(value), value }));
+
+        let curvePath = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                curvePath = `M ${point.x} ${point.y}`;
+                return;
+            }
+
+            const prevPoint = points[index - 1];
+            const controlX = (prevPoint.x + point.x) / 2;
+            curvePath += ` C ${controlX} ${prevPoint.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+        });
+
+        const areaPath = `${curvePath} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+
+        const yGridLines = Array.from({ length: tickCount + 1 }, (_, i) => {
+            const value = (niceMax / tickCount) * i;
+            const y = getY(value);
+            const label = this.formatAxisValue(value);
+
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 12}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${label}</text>
+            `;
+        }).join('');
+
+        const xLabels = series.monthLabels.map((monthLabel, index) => {
+            const x = getX(index);
+            const y = margin.top + chartHeight + 20;
+            return `<text x="${x}" y="${y}" class="curve-x-label" transform="rotate(-20 ${x} ${y})">${monthLabel}</text>`;
+        }).join('');
+
+        const pointsMarkup = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${this.formatCurrency(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="curveAreaFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#22c55e" stop-opacity="0.2"></stop>
+                    <stop offset="100%" stop-color="#22c55e" stop-opacity="0.02"></stop>
+                </linearGradient>
+            </defs>
+
+            ${yGridLines}
+
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+
+            <path d="${areaPath}" class="curve-area"></path>
+            <path d="${curvePath}" class="curve-line"></path>
+            ${pointsMarkup}
+
+            ${xLabels}
+        `;
+    }
+
+    formatAxisValue(value) {
+        if (value >= 1000000) {
+            return `৳${(value / 1000000).toFixed(1)}M`;
+        }
+        if (value >= 1000) {
+            return `৳${Math.round(value / 1000)}k`;
+        }
+        return `৳${Math.round(value)}`;
+    }
+    
+    formatPaisaAxisValue(paisaValue) {
+        const taka = paysaToTaka(paisaValue);
+        if (taka >= 1000000) {
+            return `৳${(taka / 1000000).toFixed(1)}M`;
+        }
+        if (taka >= 1000) {
+            return `৳${Math.round(taka / 1000)}k`;
+        }
+        return `৳${Math.round(taka)}`;
+    }
+
+    formatCurrency(value) {
+        return `৳${Math.round(value).toLocaleString('en-US')}`;
     }
 
     // Board Members Management
@@ -488,14 +870,14 @@ class MemberDashboard {
         }
         
         try {
-            const response = await fetch(`http://localhost:5000/api/investment-requests/my-requests/${userId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/my-requests/${userId}`);
             const data = await response.json();
             
             if (response.ok) {
                 if (data.length === 0) {
                     investmentList.innerHTML = '<div class="no-data-message">No investment requests found. Click "New Application" to submit one.</div>';
                 } else {
-                    investmentList.innerHTML = data.map(request => this.createInvestmentCard(request)).join('');
+                    this.renderInvestmentTableWithCurve(data);
                 }
             } else {
                 investmentList.innerHTML = '<div class="error-message">Failed to load investment requests</div>';
@@ -521,7 +903,7 @@ class MemberDashboard {
                 <div class="investment-details">
                     <div class="detail-item">
                         <label>Amount Requested:</label>
-                        <span>৳${request.amount.toLocaleString()}</span>
+                        <span>${formatPaysaAsTaka(request.amount || 0)}</span>
                     </div>
                     <div class="detail-item">
                         <label>Purpose:</label>
@@ -553,6 +935,278 @@ class MemberDashboard {
                     ` : ''}
                 </div>
             </div>
+        `;
+    }
+
+    parseImportedInvestmentMeta(adminNote = '') {
+        const text = String(adminNote || '');
+        const parsePaisa = (key) => {
+            const match = text.match(new RegExp(`${key}=([0-9]+)`));
+            return match ? parseInt(match[1], 10) : 0;
+        };
+
+        return {
+            totalRecoveryPaisa: parsePaisa('totalRecoveryPaisa'),
+            outstandingPaisa: parsePaisa('outstandingPaisa'),
+            totalPayablePaisa: parsePaisa('totalPayablePaisa'),
+            monthlyInstallmentPaisa: parsePaisa('monthlyInstallmentPaisa')
+        };
+    }
+
+    renderInvestmentTableWithCurve(requests) {
+        const investmentList = document.getElementById('investmentList');
+        if (!investmentList) return;
+
+        const sorted = [...requests].sort(
+            (a, b) => new Date(b.applicationDate).getTime() - new Date(a.applicationDate).getTime()
+        );
+
+        const rowsHtml = sorted.map(request => {
+            const statusClass = request.status === 'approved' ? 'approved' : request.status === 'rejected' ? 'rejected' : 'pending';
+            const statusText = request.status.charAt(0).toUpperCase() + request.status.slice(1);
+            const appDate = new Date(request.applicationDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+            const meta = this.parseImportedInvestmentMeta(request.adminNote);
+            const totalInstallments = request.totalInstallments ?? request.duration ?? '-';
+            const recoveredInstallments = request.recoveredInstallments ?? '-';
+
+            return `
+                <tr>
+                    <td>${request.requestId || '-'}</td>
+                    <td>${appDate}</td>
+                    <td>${request.purpose || '-'}</td>
+                    <td>${formatPaysaAsTaka(request.amount || 0)}</td>
+                    <td>${totalInstallments}</td>
+                    <td>${recoveredInstallments}</td>
+                    <td><span class="investment-status ${statusClass}">${statusText}</span></td>
+                    <td>${formatPaysaAsTaka(meta.totalRecoveryPaisa)}</td>
+                    <td>${formatPaysaAsTaka(meta.outstandingPaisa)}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="viewInvestment('${request._id}')">View</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        investmentList.innerHTML = `
+            <div class="investment-table-wrap">
+                <table class="investment-table">
+                    <thead>
+                        <tr>
+                            <th>Request ID</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Approval Amount</th>
+                            <th>Total Installments</th>
+                            <th>Recovered Installments</th>
+                            <th>Status</th>
+                            <th>Total Recovery</th>
+                            <th>Outstanding</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                    </tbody>
+                </table>
+            </div>
+            <div class="investment-curve-wrap">
+                <h3>Investment Trend</h3>
+                <svg id="investmentCurveSvg" viewBox="0 0 960 280" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+            <div class="investment-curve-wrap">
+                <h3>Monthly Recovery</h3>
+                <svg id="investmentRecoverySvg" viewBox="0 0 960 280" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+        `;
+
+        this.drawInvestmentCurve(sorted);
+        this.drawInvestmentRecoveryCurve(sorted);
+    }
+
+    drawInvestmentRecoveryCurve(requests) {
+        const svg = document.getElementById('investmentRecoverySvg');
+        if (!svg) return;
+
+        const byMonth = new Map();
+        requests.forEach(request => {
+            const monthlyRecovery = request.monthlyRecovery || {};
+            Object.entries(monthlyRecovery).forEach(([monthKey, paisaAmount]) => {
+                const amount = Number(paisaAmount) || 0;
+                if (amount <= 0) return;
+                byMonth.set(monthKey, (byMonth.get(monthKey) || 0) + amount);
+            });
+        });
+
+        const pointsData = Array.from(byMonth.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, value]) => {
+                const [year, month] = key.split('-').map(Number);
+                const date = new Date(year, month - 1, 1);
+                const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                return { label, value };
+            });
+
+        if (pointsData.length === 0) {
+            svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" class="curve-x-label">No monthly recovery data</text>';
+            return;
+        }
+
+        const width = 960;
+        const height = 280;
+        const margin = { top: 20, right: 24, bottom: 56, left: 86 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        const max = Math.max(...pointsData.map(item => item.value), 1);
+        const niceMax = Math.ceil(max / 100000) * 100000;
+        const xStep = chartWidth / (pointsData.length - 1 || 1);
+
+        const getX = (index) => margin.left + index * xStep;
+        const getY = (value) => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = pointsData.map((item, index) => ({
+            x: getX(index),
+            y: getY(item.value),
+            label: item.label,
+            value: item.value
+        }));
+
+        let path = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                path = `M ${point.x} ${point.y}`;
+            } else {
+                const prev = points[index - 1];
+                const controlX = (prev.x + point.x) / 2;
+                path += ` C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+            }
+        });
+
+        const areaPath = `${path} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+        const yTicks = 4;
+        const yGrid = Array.from({ length: yTicks + 1 }, (_, i) => {
+            const value = (niceMax / yTicks) * i;
+            const y = getY(value);
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 10}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${this.formatPaisaAxisValue(value)}</text>
+            `;
+        }).join('');
+
+        const xLabels = points.map(point => `
+            <text x="${point.x}" y="${margin.top + chartHeight + 20}" class="curve-x-label" text-anchor="middle">${point.label}</text>
+        `).join('');
+
+        const circles = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${formatPaysaAsTaka(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="investmentRecoveryFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#16a34a" stop-opacity="0.22"></stop>
+                    <stop offset="100%" stop-color="#16a34a" stop-opacity="0.03"></stop>
+                </linearGradient>
+            </defs>
+            ${yGrid}
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <path d="${areaPath}" fill="url(#investmentRecoveryFill)"></path>
+            <path d="${path}" class="curve-line" style="stroke:#16a34a;"></path>
+            ${circles}
+            ${xLabels}
+        `;
+    }
+
+    drawInvestmentCurve(requests) {
+        const svg = document.getElementById('investmentCurveSvg');
+        if (!svg) return;
+
+        const byMonth = new Map();
+        requests.forEach(request => {
+            const date = new Date(request.applicationDate);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            byMonth.set(key, (byMonth.get(key) || 0) + (request.amount || 0));
+        });
+
+        const pointsData = Array.from(byMonth.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([key, value]) => {
+                const [year, month] = key.split('-').map(Number);
+                const date = new Date(year, month - 1, 1);
+                const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                return { label, value };
+            });
+
+        if (pointsData.length === 0) {
+            svg.innerHTML = '';
+            return;
+        }
+
+        const width = 960;
+        const height = 280;
+        const margin = { top: 20, right: 24, bottom: 56, left: 86 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+        const max = Math.max(...pointsData.map(item => item.value), 1);
+        const niceMax = Math.ceil(max / 100000) * 100000;
+        const xStep = chartWidth / (pointsData.length - 1 || 1);
+
+        const getX = (index) => margin.left + index * xStep;
+        const getY = (value) => margin.top + chartHeight - ((value / niceMax) * chartHeight);
+
+        const points = pointsData.map((item, index) => ({
+            x: getX(index),
+            y: getY(item.value),
+            label: item.label,
+            value: item.value
+        }));
+
+        let path = '';
+        points.forEach((point, index) => {
+            if (index === 0) {
+                path = `M ${point.x} ${point.y}`;
+            } else {
+                const prev = points[index - 1];
+                const controlX = (prev.x + point.x) / 2;
+                path += ` C ${controlX} ${prev.y}, ${controlX} ${point.y}, ${point.x} ${point.y}`;
+            }
+        });
+
+        const areaPath = `${path} L ${points[points.length - 1].x} ${margin.top + chartHeight} L ${points[0].x} ${margin.top + chartHeight} Z`;
+        const yTicks = 4;
+        const yGrid = Array.from({ length: yTicks + 1 }, (_, i) => {
+            const value = (niceMax / yTicks) * i;
+            const y = getY(value);
+            return `
+                <line x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}" class="curve-grid-line"></line>
+                <text x="${margin.left - 10}" y="${y}" class="curve-y-label" text-anchor="end" dominant-baseline="middle">${this.formatPaisaAxisValue(value)}</text>
+            `;
+        }).join('');
+
+        const xLabels = points.map(point => `
+            <text x="${point.x}" y="${margin.top + chartHeight + 20}" class="curve-x-label" text-anchor="middle">${point.label}</text>
+        `).join('');
+
+        const circles = points.map(point => `
+            <circle cx="${point.x}" cy="${point.y}" r="3" class="curve-point"></circle>
+            <title>${formatPaysaAsTaka(point.value)}</title>
+        `).join('');
+
+        svg.innerHTML = `
+            <defs>
+                <linearGradient id="investmentCurveFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.22"></stop>
+                    <stop offset="100%" stop-color="#0ea5e9" stop-opacity="0.03"></stop>
+                </linearGradient>
+            </defs>
+            ${yGrid}
+            <line x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <line x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}" class="curve-axis"></line>
+            <path d="${areaPath}" fill="url(#investmentCurveFill)"></path>
+            <path d="${path}" class="curve-line" style="stroke:#0ea5e9;"></path>
+            ${circles}
+            ${xLabels}
         `;
     }
 
@@ -630,7 +1284,7 @@ class MemberDashboard {
 
     async loadInterestRatesForDropdown() {
         try {
-            const response = await fetch('http://localhost:5000/api/interest-rates/all');
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/all');
             const data = await response.json();
             
             const durationDropdown = document.getElementById('investmentDuration');
@@ -664,7 +1318,7 @@ class MemberDashboard {
         this.showLoading('Loading details...');
         
         try {
-            const response = await fetch(`http://localhost:5000/api/investment-requests/${investmentId}`);
+            const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${investmentId}`);
             const data = await response.json();
             
             this.hideLoading();
@@ -1009,7 +1663,7 @@ class MemberDashboard {
         this.showLoading('Changing password...');
         
         try {
-            const response = await fetch('http://localhost:5000/auth/update-password', {
+            const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-password', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1260,7 +1914,7 @@ function submitInvestmentApplication() {
     
     dashboard.showLoading('Submitting application...');
     
-    fetch('http://localhost:5000/api/investment-requests', {
+    fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -1292,7 +1946,7 @@ function deleteInvestmentRequest(requestId) {
 
     dashboard.showLoading('Deleting application...');
     
-    fetch(`http://localhost:5000/api/investment-requests/${requestId}`, {
+    fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`, {
         method: 'DELETE'
     })
     .then(response => response.json())
@@ -1354,8 +2008,8 @@ function logoRefresh() {
 // ================================================================
 // FIXED DEPOSIT — MEMBER SIDE
 // ================================================================
-const FD_API = 'http://localhost:5000/api/fixed-deposit';
-const FDR_RATES_API = 'http://localhost:5000/api/fdr-rates';
+const FD_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fixed-deposit';
+const FDR_RATES_API = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/fdr-rates';
 let _fdrRatesCache = [];
 
 async function loadFDRatesForMember() {
