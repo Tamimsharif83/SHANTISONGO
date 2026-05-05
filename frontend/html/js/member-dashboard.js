@@ -91,6 +91,7 @@ class MemberDashboard {
         this.initializeSavingsCurve();
         this.loadProfilePicture();
         this.loadInvestmentRequests();
+        this.renderKeyIndicatorsChart();
     }
 
     setupEventListeners() {
@@ -758,6 +759,62 @@ class MemberDashboard {
             return `৳${Math.round(taka / 1000)}k`;
         }
         return `৳${Math.round(taka)}`;
+    }
+
+    renderKeyIndicatorsChart() {
+        const ctx = document.getElementById('earningsChart');
+        if (!ctx) return;
+        
+        // Setup chart style based on theme
+        const textColor = this.isDarkTheme ? '#e2e8f0' : '#475569';
+        const gridColor = this.isDarkTheme ? '#334155' : '#e2e8f0';
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Income (Investment)', 'Income (Fees)', 'Expenses', 'Profit Disbursed'],
+                datasets: [{
+                    data: [179670, 50010, 5955, 42764],
+                    backgroundColor: [
+                        '#1e7e34', // Dark green
+                        '#4caf50', // Light green
+                        '#e11d48', // Red
+                        '#f59e0b'  // Orange
+                    ],
+                    borderWidth: 2,
+                    borderColor: this.isDarkTheme ? '#1e293b' : '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: textColor,
+                            font: { size: 11, family: "'Inter', sans-serif" },
+                            boxWidth: 12
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    label += '৳' + context.parsed.toLocaleString('en-US');
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 
     formatCurrency(value) {
