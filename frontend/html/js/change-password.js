@@ -2,6 +2,7 @@
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
 let mobileMenuOpen = false;
 let isChangingPassword = false;
+const API_BASE_URL = window.API_BASE_URL;
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
@@ -180,7 +181,7 @@ async function handleChangePassword(event) {
     try {
         const userId = sessionStorage.getItem('userId');
         
-        const response = await fetch('http://localhost:5000/auth/change-password', {
+        const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

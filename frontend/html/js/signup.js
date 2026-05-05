@@ -4,7 +4,7 @@ let mobileMenuOpen = false;
 let isSubmitting = false;
 
 // API Base URL
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = window.API_BASE_URL;
 
 // Form validation rules for Application Form
 const VALIDATION_RULES = {
