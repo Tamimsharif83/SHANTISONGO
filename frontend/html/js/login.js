@@ -5,6 +5,7 @@ let currentUserType = 'member';
 let isLoggingIn = false;
 let loginAttempts = 0;
 const maxLoginAttempts = 3;
+const API_BASE_URL = window.API_BASE_URL;
 
 // Initialize on DOM load
 document.addEventListener('DOMContentLoaded', function() {
@@ -430,7 +431,7 @@ async function handleLogin(event) {
 // Authentication with Real API
 async function authenticateUser(credentials) {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/login', {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

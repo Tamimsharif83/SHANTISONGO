@@ -1,7 +1,7 @@
 // Admin Dashboard JavaScript
 
 // API Base URL
-const API_BASE_URL = 'https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net';
+const API_BASE_URL = window.API_BASE_URL;
 
 // ========================================
 // PAISA CONVERSION UTILITIES
@@ -1010,7 +1010,7 @@ async function handlePasswordChange(event) {
     btnLoading.style.display = 'flex';
     
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/update-password', {
+        const response = await fetch('/auth/update-password', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1660,7 +1660,7 @@ async function loadInvestmentRequests(filter = 'all') {
     currentInvestmentFilter = filter;
     
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/admin/all');
+        const response = await fetch('/api/investment-requests/admin/all');
         const data = await response.json();
         
         if (response.ok) {
@@ -1738,7 +1738,7 @@ function displayInvestmentRequests(filter = 'all') {
 
 async function loadInvestmentStatistics() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/admin/statistics');
+        const response = await fetch('/api/investment-requests/admin/statistics');
         const stats = await response.json();
         
         if (response.ok) {
@@ -1762,7 +1762,7 @@ function filterInvestmentRequests(filter) {
 
 async function viewInvestmentRequest(requestId) {
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`);
+        const response = await fetch(`/api/investment-requests/${requestId}`);
         const request = await response.json();
         
         if (response.ok) {
@@ -1946,7 +1946,7 @@ async function processInvestmentRequest(requestId, action) {
     const status = action === 'approve' ? 'approved' : 'rejected';
     
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}/status`, {
+        const response = await fetch(`/api/investment-requests/${requestId}/status`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json'
@@ -2080,7 +2080,7 @@ async function handleCreateMember(e) {
             });
         }
         
-        const response = await fetch("https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/auth/create-member", {
+        const response = await fetch("/auth/create-member", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
@@ -2156,7 +2156,7 @@ let investmentReportSearchType = '';
 
 async function loadInvestmentReport() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/approved-requests');
+        const response = await fetch('/api/investment-accounts/approved-requests');
         const data = await response.json();
         
         if (response.ok) {
@@ -2243,7 +2243,7 @@ function searchInvestmentReport() {
 
 async function openCreateInvestmentAccountModal(requestId) {
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`);
+        const response = await fetch(`/api/investment-requests/${requestId}`);
         const request = await response.json();
         
         if (response.ok) {
@@ -2423,11 +2423,11 @@ async function calculateProfit(requestId) {
     }
     
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`);
+        const response = await fetch(`/api/investment-requests/${requestId}`);
         const request = await response.json();
         
         if (response.ok) {
-            const calcResponse = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/calculate-profit', {
+            const calcResponse = await fetch('/api/investment-accounts/calculate-profit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2541,7 +2541,7 @@ async function createInvestmentAccount(requestId) {
     createBtn.textContent = 'Creating...';
     
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/create-account', {
+        const response = await fetch('/api/investment-accounts/create-account', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2604,7 +2604,7 @@ async function loadInvestmentAccounts(filter = 'all') {
     
     try {
         // Load approved requests
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/approved-requests');
+        const response = await fetch('/api/investment-accounts/approved-requests');
         const data = await response.json();
         
         if (response.ok) {
@@ -2752,7 +2752,7 @@ function searchInvestmentAccounts() {
 
 async function viewInvestmentAccountDetails(accountId) {
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/${accountId}`);
+        const response = await fetch(`/api/investment-accounts/${accountId}`);
         const account = await response.json();
         
         if (response.ok) {
@@ -2953,7 +2953,7 @@ function closeInvestmentAccountDetailsModal() {
 // Show Create Investment Account Modal
 async function showCreateInvestmentAccountModal(requestId) {
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-requests/${requestId}`);
+        const response = await fetch(`/api/investment-requests/${requestId}`);
         const request = await response.json();
         
         if (!response.ok) {
@@ -3081,7 +3081,7 @@ async function showCreateInvestmentAccountModal(requestId) {
 
 async function fetchAndFillInterestRate(duration) {
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/duration/${duration}`);
+        const response = await fetch(`/api/interest-rates/duration/${duration}`);
         const data = await response.json();
         
         if (response.ok && data.success && data.interestRate) {
@@ -3214,7 +3214,7 @@ async function createInvestmentAccount(requestId) {
     }
     
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/create-account', {
+        const response = await fetch('/api/investment-accounts/create-account', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3240,14 +3240,14 @@ async function createInvestmentAccount(requestId) {
 
 async function viewInvestmentAccountByRequestId(requestId) {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/approved-requests');
+        const response = await fetch('/api/investment-accounts/approved-requests');
         const requests = await response.json();
         
         if (response.ok) {
             const request = requests.find(r => r._id === requestId);
             if (request && request.investmentAccountNumber) {
                 // Fetch the actual account details
-                const accountsResponse = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/all');
+                const accountsResponse = await fetch('/api/investment-accounts/all');
                 const accounts = await accountsResponse.json();
                 
                 const account = accounts.find(a => a.investmentAccountNumber === request.investmentAccountNumber);
@@ -3283,7 +3283,7 @@ let pendingRecoveryAccounts = [];
 // Load accounts with pending recovery
 async function loadPendingRecoveryAccounts() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/pending-accounts');
+        const response = await fetch('/api/investment-recovery/pending-accounts');
         const accounts = await response.json();
         
         if (response.ok) {
@@ -3347,7 +3347,7 @@ async function searchInvestmentForRecovery() {
     
     try {
         // Search by account number
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-accounts/all`);
+        const response = await fetch(`/api/investment-accounts/all`);
         const accounts = await response.json();
         
         if (response.ok) {
@@ -3674,7 +3674,7 @@ async function submitRecoveryEntry() {
     }
     
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/create', {
+        const response = await fetch('/api/investment-recovery/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3714,7 +3714,7 @@ function clearRecoveryForm() {
 
 async function loadRecentRecoveries() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/all?status=pending');
+        const response = await fetch('/api/investment-recovery/all?status=pending');
         const recoveries = await response.json();
         
         if (response.ok) {
@@ -3761,7 +3761,7 @@ function displayRecentRecoveries(recoveries) {
   // Load pending recovery entries
   async function loadPendingRecoveryEntries() {
     try {
-      const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/all?status=pending', {
+      const response = await fetch('/api/investment-recovery/all?status=pending', {
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
         },
@@ -3826,7 +3826,7 @@ function displayRecentRecoveries(recoveries) {
 
     try {
       const userId = sessionStorage.getItem("userId");
-      const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/${entryId}/authorize`, {
+      const response = await fetch(`/api/investment-recovery/${entryId}/authorize`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -3864,7 +3864,7 @@ function displayRecentRecoveries(recoveries) {
 
     try {
       const userId = sessionStorage.getItem("userId");
-      const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/${entryId}/reject`, {
+      const response = await fetch(`/api/investment-recovery/${entryId}/reject`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -3900,7 +3900,7 @@ function displayRecentRecoveries(recoveries) {
     }
 
     try {
-      const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/investment-recovery/${entryId}`, {
+      const response = await fetch(`/api/investment-recovery/${entryId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${sessionStorage.getItem("userToken")}`,
@@ -3951,7 +3951,7 @@ window.switchAuthorizeTab = switchAuthorizeTab;
 // ============================================
 async function loadPendingMonthlyShareEntries() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/pending', {
+        const response = await fetch('/api/monthlyshare/pending', {
             headers: { Authorization: `Bearer ${sessionStorage.getItem('userToken')}` }
         });
         if (!response.ok) throw new Error('Failed to load pending monthly share entries');
@@ -3997,7 +3997,7 @@ async function authorizeMonthlyShareEntry(entryId) {
     if (!confirm('Are you sure you want to authorize this monthly share deposit entry?')) return;
     try {
         const adminName = sessionStorage.getItem('fullName') || 'Admin';
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/${entryId}/authorize`, {
+        const response = await fetch(`/api/monthlyshare/${entryId}/authorize`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -4021,7 +4021,7 @@ async function authorizeMonthlyShareEntry(entryId) {
 async function deleteMonthlyShareEntry(entryId) {
     if (!confirm('Are you sure you want to delete this pending monthly share deposit entry? This cannot be undone.')) return;
     try {
-        const response = await fetch(`https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/monthlyshare/${entryId}`, {
+        const response = await fetch(`/api/monthlyshare/${entryId}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${sessionStorage.getItem('userToken')}` }
         });
@@ -4806,7 +4806,7 @@ window.deleteIncomeEntry = deleteIncomeEntry;
 // Load all interest rates
 async function loadInterestRates() {
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/all');
+        const response = await fetch('/api/interest-rates/all');
         const data = await response.json();
         
         if (response.ok && data.success) {
@@ -4903,7 +4903,7 @@ async function createInterestRate(event) {
     if (errorDiv) errorDiv.style.display = 'none';
 
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/create', {
+        const response = await fetch('/api/interest-rates/create', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ duration, interestRate, createdBy })
@@ -4980,7 +4980,7 @@ async function submitEditInterestRate(id, duration) {
     }
     errorDiv.style.display = 'none';
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/update/' + id, {
+        const response = await fetch('/api/interest-rates/update/' + id, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ interestRate: parsedRate })
@@ -5004,7 +5004,7 @@ async function submitEditInterestRate(id, duration) {
 async function deleteInterestRate(id, duration) {
     if (!confirm('Are you sure you want to delete the interest rate for ' + duration + ' months?')) return;
     try {
-        const response = await fetch('https://shantisongho-web-d8hzbchtdweadvb3.southeastasia-01.azurewebsites.net/api/interest-rates/delete/' + id, {
+        const response = await fetch('/api/interest-rates/delete/' + id, {
             method: 'DELETE'
         });
         const data = await response.json();
