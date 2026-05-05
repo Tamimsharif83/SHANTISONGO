@@ -140,7 +140,7 @@ class MemberDashboard {
         const userId = sessionStorage.getItem('userId');
         if (userId) {
             try {
-                const response = await fetch(`/auth/user-profile/${userId}`);
+                const response = await fetch(`${API_BASE_URL}/auth/user-profile/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     this.memberData.name = data.fullName || this.memberData.name;
@@ -177,7 +177,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return;
 
         try {
-            const response = await fetch(`/api/monthlyshare/member-summary/${memberId}`);
+            const response = await fetch(`${API_BASE_URL}/api/monthlyshare/member-summary/${memberId}`);
             if (!response.ok) return;
 
             const stats = await response.json();
@@ -230,7 +230,7 @@ class MemberDashboard {
                 this.showLoading('Uploading profile picture...');
 
                 try {
-                    const response = await fetch('/auth/update-profile-picture', {
+                    const response = await fetch(`${API_BASE_URL}/auth/update-profile-picture`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -296,7 +296,7 @@ class MemberDashboard {
         this.showLoading('Removing profile picture...');
 
         try {
-            const response = await fetch('/auth/update-profile-picture', {
+            const response = await fetch(`${API_BASE_URL}/auth/update-profile-picture`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -329,7 +329,7 @@ class MemberDashboard {
         if (!userId) return;
 
         try {
-            const response = await fetch(`/auth/user-profile/${userId}`);
+            const response = await fetch(`${API_BASE_URL}/auth/user-profile/${userId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.profilePicture) {
@@ -458,7 +458,7 @@ class MemberDashboard {
         if (!memberId || memberId === 'N/A') return [];
 
         try {
-            const response = await fetch(`/api/monthlyshare/member-curve/${memberId}`);
+            const response = await fetch(`${API_BASE_URL}/api/monthlyshare/member-curve/${memberId}`);
             if (!response.ok) return [];
 
             const payload = await response.json();
@@ -933,7 +933,7 @@ class MemberDashboard {
         }
 
         try {
-            const response = await fetch(`/api/investment-requests/my-requests/${userId}`);
+            const response = await fetch(`${API_BASE_URL}/api/investment-requests/my-requests/${userId}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -1347,7 +1347,7 @@ class MemberDashboard {
 
     async loadInterestRatesForDropdown() {
         try {
-            const response = await fetch('/api/interest-rates/all');
+            const response = await fetch(`${API_BASE_URL}/api/interest-rates/all`);
             const data = await response.json();
 
             const durationDropdown = document.getElementById('investmentDuration');
@@ -1381,7 +1381,7 @@ class MemberDashboard {
         this.showLoading('Loading details...');
 
         try {
-            const response = await fetch(`/api/investment-requests/${investmentId}`);
+            const response = await fetch(`${API_BASE_URL}/api/investment-requests/${investmentId}`);
             const data = await response.json();
 
             this.hideLoading();
@@ -1726,7 +1726,7 @@ class MemberDashboard {
         this.showLoading('Changing password...');
 
         try {
-            const response = await fetch('/auth/update-password', {
+            const response = await fetch(`${API_BASE_URL}/auth/update-password`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1977,7 +1977,7 @@ function submitInvestmentApplication() {
 
     dashboard.showLoading('Submitting application...');
 
-    fetch('/api/investment-requests', {
+    fetch(`${API_BASE_URL}/api/investment-requests`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -2009,7 +2009,7 @@ function deleteInvestmentRequest(requestId) {
 
     dashboard.showLoading('Deleting application...');
 
-    fetch(`/api/investment-requests/${requestId}`, {
+    fetch(`${API_BASE_URL}/api/investment-requests/${requestId}`, {
         method: 'DELETE'
     })
         .then(response => response.json())
