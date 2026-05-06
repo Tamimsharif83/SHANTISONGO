@@ -12,20 +12,6 @@ function getFiscalYearStart(dateValue) {
     return month >= 4 ? year : year - 1;
 }
 
-function parseMonthKey(monthValue) {
-    if (!monthValue || typeof monthValue !== 'string') return null;
-    const parts = monthValue.split('-');
-    if (parts.length !== 2) return null;
-    const year = Number.parseInt(parts[0], 10);
-    const month = Number.parseInt(parts[1], 10);
-    if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
-    return { year, month };
-}
-
-function getFiscalYearStartFromMonth(year, month) {
-    return month >= 5 ? year : year - 1;
-}
-
 function getFiscalStatus(startYear, endYear) {
     const now = new Date();
     const fiscalStart = new Date(startYear, 4, 1);
@@ -58,24 +44,6 @@ function getFiscalMonthIndex(dateValue) {
         1: 9,
         2: 10,
         3: 11
-    };
-    return map[month];
-}
-
-function getFiscalMonthIndexFromMonth(month) {
-    const map = {
-        5: 0,
-        6: 1,
-        7: 2,
-        8: 3,
-        9: 4,
-        10: 5,
-        11: 6,
-        12: 7,
-        1: 8,
-        2: 9,
-        3: 10,
-        4: 11
     };
     return map[month];
 }
@@ -176,15 +144,10 @@ router.get('/member-curve/:memberId', async (req, res) => {
         const byFiscalYear = new Map();
 
         entries.forEach(entry => {
-            const monthMeta = parseMonthKey(entry.month);
-            const fiscalStart = monthMeta
-                ? getFiscalYearStartFromMonth(monthMeta.year, monthMeta.month)
-                : getFiscalYearStart(entry.date);
+            const fiscalStart = getFiscalYearStart(entry.date);
             const fiscalEnd = fiscalStart + 1;
             const fiscalKey = `${fiscalStart}-${fiscalEnd}`;
-            const monthIndex = monthMeta
-                ? getFiscalMonthIndexFromMonth(monthMeta.month)
-                : getFiscalMonthIndex(entry.date);
+            const monthIndex = getFiscalMonthIndex(entry.date);
 
             if (monthIndex === undefined) return;
 

@@ -635,9 +635,9 @@ class MemberDashboard {
     }
 
     getFiscalYearStatus(startYear, endYear) {
-        const now = new Date();
-        const fiscalStart = new Date(startYear, 4, 1); // May 1
-        const fiscalEnd = new Date(endYear, 3, 30, 23, 59, 59, 999); // April 30
+        const now = new Date('2026-05-06T12:00:00Z'); // Hardcoded to May 6, 2026 UTC
+        const fiscalStart = new Date(Date.UTC(startYear, 4, 1)); // May 1
+        const fiscalEnd = new Date(Date.UTC(endYear, 3, 30, 23, 59, 59, 999)); // April 30
 
         if (now >= fiscalStart && now <= fiscalEnd) {
             return { key: 'running', label: 'Running' };
