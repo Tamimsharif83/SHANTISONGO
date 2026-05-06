@@ -475,7 +475,11 @@ class MemberDashboard {
                 return [];
             }
 
-            return payload.curveData;
+            // Only include fiscal years starting from 2025 onwards (May 2025 - April 2026 and beyond)
+            return payload.curveData.filter(series => {
+                const startYear = parseInt(series.yearKey.split('-')[0], 10);
+                return startYear >= 2025;
+            });
         } catch (error) {
             console.error('Failed to load curve data from API:', error);
             return [];
@@ -585,7 +589,8 @@ class MemberDashboard {
                     };
                 });
 
-            return series;
+            // Only include fiscal years starting from 2025 onwards (May 2025 - April 2026 and beyond)
+            return series.filter(s => parseInt(s.yearKey.split('-')[0], 10) >= 2025);
         } catch (error) {
             console.error('Failed to parse savings CSV:', error);
             return [];
