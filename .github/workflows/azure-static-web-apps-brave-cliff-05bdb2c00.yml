@@ -3,11 +3,11 @@ name: Azure Static Web Apps CI/CD
 on:
   push:
     branches:
-      - v1.0
+      - applybackend
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
-      - v1.0
+      - applybackend
 
 jobs:
   build_and_deploy_job:
