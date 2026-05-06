@@ -81,7 +81,8 @@ function normalizeMonthLabel(rawLabel) {
 function getMonthDate(labelInfo) {
   const year = 2000 + Number.parseInt(labelInfo.shortYear, 10);
   const monthIndex = MONTH_NAME_TO_INDEX[labelInfo.monthName];
-  return new Date(year, monthIndex, 1);
+  // Use UTC to prevent timezone offset from shifting the date (e.g. April 1 local → March 31 UTC)
+  return new Date(Date.UTC(year, monthIndex, 1));
 }
 
 function isValidMemberId(value) {
