@@ -14,8 +14,8 @@ function getFiscalYearStart(dateValue) {
 
 function getFiscalStatus(startYear, endYear) {
     const now = new Date();
-    const fiscalStart = new Date(startYear, 4, 1);
-    const fiscalEnd = new Date(endYear, 3, 30, 23, 59, 59, 999);
+    const fiscalStart = new Date(Date.UTC(startYear, 4, 1));              // May 1 UTC
+    const fiscalEnd = new Date(Date.UTC(endYear, 3, 30, 23, 59, 59, 999)); // April 30 UTC
 
     if (now >= fiscalStart && now <= fiscalEnd) return { key: 'running', label: 'Running' };
     if (now > fiscalEnd) return { key: 'past', label: 'Past' };
@@ -163,6 +163,7 @@ router.get('/member-curve/:memberId', async (req, res) => {
         });
 
         const curveData = Array.from(byFiscalYear.values())
+            .filter(item => item.fiscalStart >= 2025)  // Only show FY2025-2026 onwards
             .sort((a, b) => b.fiscalStart - a.fiscalStart)
             .map(item => {
                 const status = getFiscalStatus(item.fiscalStart, item.fiscalEnd);
