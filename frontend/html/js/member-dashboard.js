@@ -430,9 +430,18 @@ class MemberDashboard {
         if (!yearSelect) return;
 
         this.savingsCurveByYear = await this.loadSavingsCurveDataFromApi();
-        if (!this.savingsCurveByYear.length) {
-            this.savingsCurveByYear = await this.loadSavingsCurveDataFromCsv();
+
+        // Check if API returned incomplete data (less than 11 months) and fall back to CSV if needed
+        const hasCompleteData = this.savingsCurveByYear.length > 0 &&
+            this.savingsCurveByYear.some(year => year.numberOfMonths >= 11);
+
+        if (!this.savingsCurveByYear.length || !hasCompleteData) {
+            const csvData = await this.loadSavingsCurveDataFromCsv();
+            if (csvData.length > 0) {
+                this.savingsCurveByYear = csvData;
+            }
         }
+
         if (!this.savingsCurveByYear.length) {
             this.savingsCurveByYear = this.getFallbackSavingsData();
         }
