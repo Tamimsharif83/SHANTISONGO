@@ -172,15 +172,15 @@ function setUserType(type) {
     
     // Update form based on user type
     if (type === 'admin') {
-        identifierLabel.textContent = 'Admin Username or ID';
-        identifierInput.placeholder = 'Enter "admin" or admin ID';
+        identifierLabel.textContent = 'Admin ID';
+        identifierInput.placeholder = ' ';
         btnText.textContent = 'Login as Admin';
         loginBtn.classList.add('admin-mode');
         adminNotice.style.display = 'block';
         adminNotice.classList.add('scale-in');
     } else {
-        identifierLabel.textContent = 'Member ID or Email';
-        identifierInput.placeholder = 'Enter member ID or email';
+        identifierLabel.textContent = 'Member Shantisongho ID ';
+        identifierInput.placeholder = 'Enter member ID ';
         btnText.textContent = 'Login as Member';
         loginBtn.classList.remove('admin-mode');
         adminNotice.style.display = 'none';
@@ -207,7 +207,7 @@ function validateField(field) {
                 const isAdminUsername = value.toLowerCase() === 'admin';
                 
                 if (!isAdminUsername && value.length === 0) {
-                    errorMessage = 'Enter "admin" or Admin ID';
+                    errorMessage = 'Enter ID';
                     isValid = false;
                 }
             } else {
@@ -215,7 +215,7 @@ function validateField(field) {
                 const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
                 
                 if (!isEmail && value.trim().length === 0) {
-                    errorMessage = 'Enter valid email address or member ID';
+                    errorMessage = 'Enter valid  member ID';
                     isValid = false;
                 }
             }
